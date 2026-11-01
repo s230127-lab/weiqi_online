@@ -177,6 +177,7 @@
     <option value="2">Lv 2 · 初級</option>
     <option value="3" selected>Lv 3 · 中級</option>
     <option value="4">Lv 4 · 高級</option>
+    <option value="5" id="lvNet" disabled>Lv 5 · AI 模型(KataGo,未載入)</option>
   </select>
   <select id="color" aria-label="你的棋色">
     <option value="1" selected>你執黑</option>
@@ -216,6 +217,7 @@
   <p>禁止全局同形:不可使盤面重現先前出現過的任何局面(打劫亦屬此類)。</p>
   <p>雙方連續虛手即終局。點選棋塊標記死子(或使用自動標記),再數子。採中國規則的數子法(活子加圍住的空點),黑貼 3又3/4 子(相當 7.5 目)。中國規則未規定 9 路,本遊戲 9 路用 3又1/2 子(7 目)。</p>
   <p>面對面模式:把裝置平放在兩人中間,白方坐上方、黑方坐下方,各自的資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。</p>
+  <p>Lv 5 使用 KataGo 神經網路(ONNX 模型),完全在瀏覽器內以 ONNX Runtime Web 推論。請把 KataGo 的 ONNX 檔放在網頁同一個資料夾並命名為 katago.onnx,或用網址參數 ?model=模型網址 指定;找不到模型時此選項會停用。大型模型每步需要數秒。</p>
   <p>Lv 1 隨機落子。Lv 2 使用戰術規則(提子、叫吃、避免自打吃)。Lv 3 與 Lv 4 加入蒙地卡羅模擬,Lv 4 思考最久。電腦完全在瀏覽器內運算,在 9 路棋盤上最強。</p>
 </details>
 
@@ -235,7 +237,7 @@
   const $ = id => document.getElementById(id);
 
   let N, board, turn, caps, prevBoard, lastMove, passes, phase, dead, history;
-  let seenList = [], seenSet = new Set();
+  let seenList = [], seenSet = new Set(), moveLog = [];
   let mode = 'bot', level = 3, human = B, busy = false, token = 0, resultHTML = '';
 
   const opp = c => (c === B ? W : B);
@@ -537,9 +539,11 @@
     const cands = genCands(color);
     if (!cands.length || (passes === 1 && botAhead(color))) return finishBot(tok, null);
     cands.sort((a, b) => b.s - a.s);
-    if (level === 1) return finishBot(tok, cands[(Math.random() * cands.length) | 0]);
+    if (level === 5 && net) { nnTurn(tok, color, cands); return; }
+    const lv = level === 5 ? 4 : level;
+    if (lv === 1) return finishBot(tok, cands[(Math.random() * cands.length) | 0]);
     if (cands[0].s < -3 && board.filter(v => v).length > N * N * 0.25) return finishBot(tok, null);
-    if (level === 2) {
+    if (lv === 2) {
       let best = null, bs = -1e9;
       for (const c of cands) {
         const v = c.s + Math.random() * 5;
@@ -547,8 +551,8 @@
       }
       return finishBot(tok, best);
     }
-    const top = cands.slice(0, level === 3 ? 10 : 22);
-    const budget = level === 3 ? 700 : 2800;
+    const top = cands.slice(0, lv === 3 ? 10 : 22);
+    const budget = lv === 3 ? 700 : 2800;
     runMC(color, top, budget, tok, (n, w) => {
       let maxN = 0;
       for (const v of n) maxN = Math.max(maxN, v);
@@ -615,10 +619,11 @@
     readSettings();
     N = +$('size').value;
     fastInit(N);
+    loadNet();
     if (mode === 'face') document.body.classList.remove('show-opts');
     board = new Array(N * N).fill(EMPTY);
     prevBoard = null;
-    seenList = []; seenSet = new Set(); addSeen(posKey(board));
+    seenList = []; seenSet = new Set(); moveLog = []; addSeen(posKey(board));
     turn = B;
     caps = { [B]: 0, [W]: 0 };
     lastMove = null;
@@ -637,7 +642,7 @@
   function snapshot() {
     history.push({
       board: board.slice(), prevBoard: prevBoard && prevBoard.slice(), turn,
-      caps: { ...caps }, lastMove, passes, seenLen: seenList.length
+      caps: { ...caps }, lastMove, passes, seenLen: seenList.length, movesLen: moveLog.length
     });
   }
 
@@ -652,6 +657,7 @@
     caps[turn] += r.captured;
     lastMove = [x, y];
     passes = 0;
+    moveLog.push({ c: turn, p: y * N + x });
     turn = opp(turn);
     update();
     maybeBot();
@@ -663,6 +669,7 @@
     prevBoard = board;
     passes++;
     lastMove = null;
+    moveLog.push({ c: turn, p: -1 });
     if (passes >= 2) {
       phase = 'mark';
       dead = new Set();
@@ -684,6 +691,7 @@
       board = h.board; prevBoard = h.prevBoard; turn = h.turn;
       caps = h.caps; lastMove = h.lastMove; passes = h.passes;
       while (seenList.length > h.seenLen) seenSet.delete(seenList.pop());
+      moveLog.length = h.movesLen;
     } while (mode === 'bot' && turn !== human && history.length);
     phase = 'play';
     dead = new Set();
@@ -735,6 +743,250 @@
     $('score').style.display = 'none';
     $('auto').style.display = 'none';
     update();
+  }
+
+  /* ================= KataGo ONNX model (runs in the browser) =================
+     Inputs (KataGo "version 7" format, same as the kaya-go/kaya ONNX files):
+       bin_input    [1, 22, H, W]   binary planes (see encodeKata)
+       global_input [1, 19]         global features
+     Outputs used: policy (logits, last index = pass) and value (win/loss/no-result logits). */
+  const ORT_URL = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js';
+  const MODEL_URL = new URLSearchParams(location.search).get('model') || 'katago.onnx';
+  // Global-feature slots that differ between KataGo input versions. Defaults follow the documented
+  // layout (KataGo g104 / V4). If your model needs different slots, change them here.
+  const KG = { komiScale: 20, passEnds: 12, wave: 13 };
+  let net = null, netPromise = null;
+
+  function ensureOrt() {
+    if (window.ort) return Promise.resolve();
+    return new Promise((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = ORT_URL; sc.onload = res; sc.onerror = () => rej(new Error('ort load failed'));
+      document.head.appendChild(sc);
+    });
+  }
+
+  function setNetOption(ok, text, failed) {
+    const o = $('lvNet');
+    o.textContent = text;
+    if (ok) o.disabled = false;
+    else if (failed || $('level').value !== '5') o.disabled = true;
+    if (failed && $('level').value === '5') { $('level').value = '4'; level = 4; }
+  }
+
+  async function fetchModel(url) {
+    let cache = null;
+    try { cache = window.caches ? await caches.open('weiqi-models') : null; } catch (e) { cache = null; }
+    if (cache) {
+      try { const hit = await cache.match(url); if (hit) return new Uint8Array(await hit.arrayBuffer()); } catch (e) { /* ignore */ }
+    }
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('http ' + r.status);
+    if (cache) { try { await cache.put(url, r.clone()); } catch (e) { /* quota */ } }
+    return new Uint8Array(await r.arrayBuffer());
+  }
+
+  function getNet() {
+    if (!netPromise) netPromise = (async () => {
+      const buf = await fetchModel(MODEL_URL);
+      await ensureOrt();
+      if (window.ort.env && window.ort.env.wasm) window.ort.env.wasm.numThreads = 1;
+      const session = await window.ort.InferenceSession.create(buf, { executionProviders: ['wasm'] });
+      return { session, ms: 0, pad: 0 };
+    })();
+    return netPromise;
+  }
+
+  const NET_LABEL = 'Lv 5 · AI 模型(KataGo)';
+  function loadNet() {
+    if (net) { setNetOption(true, NET_LABEL); return; }
+    setNetOption(false, 'Lv 5 · AI 模型(載入 ' + MODEL_URL.split('/').pop().slice(0, 28) + '…)');
+    getNet().then(m => { net = m; setNetOption(true, NET_LABEL); })
+      .catch(() => { netPromise = null; net = null; setNetOption(false, 'Lv 5 · AI 模型(找不到 ' + MODEL_URL.split('/').pop().slice(0, 28) + ')', true); });
+  }
+
+  /* ---- feature helpers ---- */
+  function libsMap(b) {
+    const n = N * N, out = new Int16Array(n), seen = new Uint8Array(n);
+    for (let p = 0; p < n; p++) {
+      if (!b[p] || seen[p]) continue;
+      const g = group(b, p % N, (p / N) | 0);
+      for (const [sx, sy] of g.stones) { out[sy * N + sx] = g.libs; seen[sy * N + sx] = 1; }
+    }
+    return out;
+  }
+
+  // Benson's algorithm: stones that can never be captured, plus the eyes they enclose.
+  function passAlive(b, color) {
+    const n = N * N, mask = new Uint8Array(n);
+    const nb = p => nbrs(p % N, (p / N) | 0).map(([x, y]) => y * N + x);
+    const chainOf = new Int32Array(n).fill(-1), chains = [];
+    for (let p = 0; p < n; p++) {
+      if (b[p] !== color || chainOf[p] >= 0) continue;
+      const g = group(b, p % N, (p / N) | 0), id = chains.length;
+      const st = g.stones.map(([x, y]) => y * N + x);
+      st.forEach(q => (chainOf[q] = id));
+      chains.push({ stones: st, alive: true });
+    }
+    if (!chains.length) return mask;
+    const regOf = new Int32Array(n).fill(-1), regions = [];
+    for (let p = 0; p < n; p++) {
+      if (b[p] === color || regOf[p] >= 0) continue;
+      const pts = [], stack = [p], adj = new Set();
+      regOf[p] = regions.length;
+      while (stack.length) {
+        const q = stack.pop();
+        pts.push(q);
+        for (const r of nb(q)) {
+          if (b[r] === color) adj.add(chainOf[r]);
+          else if (regOf[r] < 0) { regOf[r] = regions.length; stack.push(r); }
+        }
+      }
+      const empties = pts.filter(q => b[q] === EMPTY);
+      const vital = new Set();
+      if (empties.length) {
+        adj.forEach(c => { if (empties.every(e => nb(e).some(r => chainOf[r] === c))) vital.add(c); });
+      }
+      regions.push({ pts, adj, vital, alive: true });
+    }
+    let changed = true;
+    while (changed) {
+      changed = false;
+      chains.forEach((ch, c) => {
+        if (!ch.alive) return;
+        let cnt = 0;
+        for (const r of regions) if (r.alive && r.vital.has(c)) cnt++;
+        if (cnt < 2) { ch.alive = false; changed = true; }
+      });
+      for (const r of regions) {
+        if (!r.alive) continue;
+        for (const c of r.adj) if (!chains[c].alive) { r.alive = false; changed = true; break; }
+      }
+    }
+    chains.forEach(ch => { if (ch.alive) ch.stones.forEach(q => (mask[q] = 1)); });
+    for (const r of regions) {
+      if (!r.alive) continue;
+      let v = false;
+      r.vital.forEach(c => { if (chains[c].alive) v = true; });
+      if (v) r.pts.forEach(q => (mask[q] = 1));
+    }
+    return mask;
+  }
+
+  function parityWave(selfKomi, area) {
+    let d = selfKomi + (area % 2 === 0 ? 0 : 1);
+    d -= 2 * Math.floor(d / 2);                      // [0, 2)
+    return d < 0.5 ? d : d < 1.5 ? 1 - d : d - 2;
+  }
+
+  /* KataGo spatial planes (22), from the point of view of `pla` (player to move):
+       0 on board | 1 own stones | 2 opponent stones | 3,4,5 stones with 1,2,3 liberties
+       6 ko / superko banned | 7,8 unused (Japanese rules) | 9..13 moves 1..5 turns ago
+       14,15,16 ladder-captured stones (not computed, left 0) | 17 ladder-working moves (left 0)
+       18,19 pass-alive area own / opponent | 20,21 unused
+     Global features (19): 0..4 which of the last 5 moves were passes | 5 komi/scale (own view)
+       6,7 ko rule (positional superko = 1, 0.5) | 8 suicide legal | 9 territory scoring
+       12 pass would end game | 13 komi+board-size parity wave | rest 0 */
+  function encodeKata(b, pla, moves, passFlag) {
+    const n = N * N, bin = new Float32Array(22 * n), glob = new Float32Array(19);
+    const o = opp(pla), legal = [];
+    bin.fill(1, 0, n);
+    const libs = libsMap(b);
+    for (let p = 0; p < n; p++) {
+      const v = b[p];
+      if (v === pla) bin[n + p] = 1;
+      else if (v === o) bin[2 * n + p] = 1;
+      if (v && libs[p] >= 1 && libs[p] <= 3) bin[(2 + libs[p]) * n + p] = 1;
+    }
+    for (let p = 0; p < n; p++) {
+      if (b[p] !== EMPTY) continue;
+      const r = tryMove(b, p % N, (p / N) | 0, pla);
+      if (!r) continue;
+      if (seenSet.has(posKey(r.board))) { bin[6 * n + p] = 1; continue; }
+      legal.push(p);
+    }
+    for (let k = 1; k <= 5; k++) {
+      const m = moves[moves.length - k];
+      if (!m || m.c !== (k % 2 === 1 ? o : pla)) break;
+      if (m.p < 0) glob[k - 1] = 1; else bin[(8 + k) * n + m.p] = 1;
+    }
+    const pa = passAlive(b, pla), po = passAlive(b, o);
+    for (let p = 0; p < n; p++) { if (pa[p]) bin[18 * n + p] = 1; if (po[p]) bin[19 * n + p] = 1; }
+    const selfKomi = pla === W ? komi() : -komi();
+    glob[5] = selfKomi / KG.komiScale;
+    glob[6] = 1; glob[7] = 0.5;
+    if (passFlag) glob[KG.passEnds] = 1;
+    glob[KG.wave] = parityWave(selfKomi, n);
+    return { bin, glob, legal };
+  }
+
+  function padTo(bin, S) {
+    if (S === N) return bin;
+    const out = new Float32Array(22 * S * S);
+    for (let c = 0; c < 22; c++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
+      out[c * S * S + y * S + x] = bin[c * N * N + y * N + x];
+    return out;
+  }
+
+  async function nnRun(m, enc) {
+    const S = m.pad || N, ort = window.ort, names = m.session.inputNames;
+    const feeds = {};
+    feeds[names.indexOf('bin_input') >= 0 ? 'bin_input' : names[0]] = new ort.Tensor('float32', padTo(enc.bin, S), [1, 22, S, S]);
+    feeds[names.indexOf('global_input') >= 0 ? 'global_input' : names[1]] = new ort.Tensor('float32', enc.glob, [1, 19]);
+    let out;
+    const t0 = performance.now();
+    try { out = await m.session.run(feeds); }
+    catch (e) {
+      if (m.pad || N === 19) throw e;
+      m.pad = 19;                                   // fixed-size 19×19 model: pad the board
+      return nnRun(m, enc);
+    }
+    m.ms = m.ms ? m.ms * 0.5 + (performance.now() - t0) * 0.5 : performance.now() - t0;
+    const pd = (out.policy || out[m.session.outputNames[0]]).data, L = S * S + 1;
+    const pol = p => (p < 0 ? pd[S * S] : pd[((p / N) | 0) * S + (p % N)]);
+    let value = 0;
+    if (out.value && out.value.data.length >= 3) {
+      const [a, b, c] = out.value.data, mx = Math.max(a, b, c);
+      const ea = Math.exp(a - mx), eb = Math.exp(b - mx), ec = Math.exp(c - mx);
+      value = (ea - eb) / (ea + eb + ec);           // win − loss for the player to move
+    }
+    return { pol, value, L };
+  }
+
+  async function nnTurn(tok, color, cands) {
+    try {
+      const root = encodeKata(board, color, moveLog, passes === 1);
+      const out = await nnRun(net, root);
+      if (tok !== token) return;
+      const list = root.legal
+        .filter(p => !ownEye(p % N, (p / N) | 0, color))
+        .map(p => ({ p, l: out.pol(p) }))
+        .sort((a, b) => b.l - a.l);
+      if (!list.length) return finishBot(tok, null);
+      const mx = list[0].l;
+      if (out.pol(-1) > mx) return finishBot(tok, null);               // model prefers to pass
+      let pick = list[0];
+      const moveNo = board.filter(v => v).length;
+      if (moveNo < 6) {                                                // a little variety in the opening
+        const top = list.slice(0, 5), ws = top.map(c => Math.exp((c.l - mx) / 0.7));
+        let r = Math.random() * ws.reduce((a, b) => a + b, 0);
+        for (let i = 0; i < top.length; i++) { r -= ws[i]; if (r <= 0) { pick = top[i]; break; } }
+      } else if (net.ms < 700) {                                       // fast model: re-rank top 4 with the value head
+        let bs = -1e9;
+        for (const c of list.slice(0, 4)) {
+          const r = tryMove(board, c.p % N, (c.p / N) | 0, color);
+          const enc = encodeKata(r.board, opp(color), moveLog.concat([{ c: color, p: c.p }]), false);
+          const o2 = await nnRun(net, enc);
+          if (tok !== token) return;
+          const sc = (c.l - mx) + 3 * (-o2.value);
+          if (sc > bs) { bs = sc; pick = c; }
+        }
+      }
+      finishBot(tok, { x: pick.p % N, y: (pick.p / N) | 0 });
+    } catch (e) {
+      console.warn('KataGo model failed, using heuristic move', e);
+      if (tok === token) finishBot(tok, cands.length ? cands[0] : null);
+    }
   }
 
   /* ================= auto restart ================= */
@@ -920,7 +1172,7 @@
 
   function role(c) {
     if (mode !== 'bot') return '';
-    return (c === human ? '你' : '電腦 Lv ' + level) + ' · ';
+    return (c === human ? '你' : level === 5 ? '電腦 AI' : '電腦 Lv ' + level) + ' · ';
   }
 
   function update() {
@@ -1133,6 +1385,7 @@
   $('resign').onclick = () => resign(mode === 'bot' ? human : turn);
   $('score').onclick = countScore;
   $('auto').onclick = autoMark;
+  if (window.__WEIQI_TEST) window.__WEIQI_TEST.api = { encodeKata, passAlive, parityWave, setBoard: (n, b) => { N = n; board = b; fastInit(n); }, get N() { return N; } };
   window.addEventListener('resize', resize);
   if (window.ResizeObserver) {
     let lastW = 0;
