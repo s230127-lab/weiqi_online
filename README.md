@@ -61,7 +61,7 @@ models/katago.onnx
 - **執行環境：** 遊戲使用 ONNX Runtime Web。第一次使用 Lv 5 時，頁面也會從 jsDelivr 載入對應的 ONNX Runtime Web 程式庫，因此仍需要網路連線。
 - **載入失敗：** 若模型無法載入，遊戲會改用 Lv 4 的電腦策略。請確認網站可以讀取 `models/katago.onnx`，並重新整理頁面後再試。
 
-模型檔案由 GitHub Actions 工作流程安裝至本專案。相關設定位於 [store-katago-model.yml](./.github/workflows/store-katago-model.yml)。
+模型檔案已直接存放於本專案的 `models/katago.onnx`，遊戲會在選擇 Lv 5 時才載入，不需要額外的模型下載工作流程。
 
 ## 基本規則
 
