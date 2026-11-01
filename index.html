@@ -177,7 +177,7 @@
     <option value="2">Lv 2 · 初級</option>
     <option value="3" selected>Lv 3 · 中級</option>
     <option value="4">Lv 4 · 高級</option>
-    <option value="5" id="lvNet" disabled>Lv 5 · AI 模型(KataGo,未載入)</option>
+    <option value="5" id="lvNet">Lv 5 · AI 模型(KataGo，首次使用時下載)</option>
   </select>
   <select id="color" aria-label="你的棋色">
     <option value="1" selected>你執黑</option>
@@ -217,7 +217,7 @@
   <p>禁止全局同形:不可使盤面重現先前出現過的任何局面(打劫亦屬此類)。</p>
   <p>雙方連續虛手即終局。點選棋塊標記死子(或使用自動標記),再數子。採中國規則的數子法(活子加圍住的空點),黑貼 3又3/4 子(相當 7.5 目)。中國規則未規定 9 路,本遊戲 9 路用 3又1/2 子(7 目)。</p>
   <p>面對面模式:把裝置平放在兩人中間,白方坐上方、黑方坐下方,各自的資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。</p>
-  <p>Lv 5 使用 KataGo 神經網路(ONNX 模型),完全在瀏覽器內以 ONNX Runtime Web 推論。請把 KataGo 的 ONNX 檔放在網頁同一個資料夾並命名為 katago.onnx,或用網址參數 ?model=模型網址 指定;找不到模型時此選項會停用。大型模型每步需要數秒。</p>
+  <p>Lv 5 使用 KataGo 神經網路(ONNX 模型)。第一次選擇 Lv 5 時,瀏覽器會從 Hugging Face 下載約 75 MB 的量化模型;之後會嘗試使用瀏覽器快取。模型推論完全在你的裝置上執行,不會呼叫遠端 AI 推論 API。請以 HTTPS 網站或 http://localhost 開啟本頁。也可以用網址參數 ?model=模型網址 指定其他 ONNX 模型。</p>
   <p>Lv 1 隨機落子。Lv 2 使用戰術規則(提子、叫吃、避免自打吃)。Lv 3 與 Lv 4 加入蒙地卡羅模擬,Lv 4 思考最久。電腦完全在瀏覽器內運算,在 9 路棋盤上最強。</p>
 </details>
 
@@ -539,8 +539,28 @@
     const cands = genCands(color);
     if (!cands.length || (passes === 1 && botAhead(color))) return finishBot(tok, null);
     cands.sort((a, b) => b.s - a.s);
-    if (level === 5 && net) { nnTurn(tok, color, cands); return; }
-    const lv = level === 5 ? 4 : level;
+    if (level === 5) {
+      if (net) { nnTurn(tok, color, cands); return; }
+      // Wait for the first model download instead of silently playing with Lv 4.
+      busy = true;
+      update();
+      getNet().then(m => {
+        if (tok !== token) return;
+        net = m;
+        setNetOption(true, NET_LABEL);
+        nnTurn(tok, color, cands);
+      }).catch(e => {
+        console.warn('KataGo model failed; switching to Lv 4:', e);
+        if (tok !== token) return;
+        netPromise = null;
+        setNetOption(false, 'Lv 5 · 模型載入失敗，改用 Lv 4', true);
+        busy = false;
+        update();
+        botTurn(tok);
+      });
+      return;
+    }
+    const lv = level;
     if (lv === 1) return finishBot(tok, cands[(Math.random() * cands.length) | 0]);
     if (cands[0].s < -3 && board.filter(v => v).length > N * N * 0.25) return finishBot(tok, null);
     if (lv === 2) {
@@ -750,8 +770,11 @@
        bin_input    [1, 22, H, W]   binary planes (see encodeKata)
        global_input [1, 19]         global features
      Outputs used: policy (logits, last index = pass) and value (win/loss/no-result logits). */
-  const ORT_URL = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js';
-  const MODEL_URL = new URLSearchParams(location.search).get('model') || 'katago.onnx';
+  const ORT_VERSION = '1.19.2';
+  const ORT_BASE = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@' + ORT_VERSION + '/dist/';
+  const ORT_URL = ORT_BASE + 'ort.min.js';
+  const MODEL_URL = new URLSearchParams(location.search).get('model') ||
+    'https://huggingface.co/kaya-go/kaya/resolve/main/kata1-b28c512nbt-s12043015936-d5616446734/kata1-b28c512nbt-s12043015936-d5616446734.uint8.onnx';
   // Global-feature slots that differ between KataGo input versions. Defaults follow the documented
   // layout (KataGo g104 / V4). If your model needs different slots, change them here.
   const KG = { komiScale: 20, passEnds: 12, wave: 13 };
@@ -769,8 +792,8 @@
   function setNetOption(ok, text, failed) {
     const o = $('lvNet');
     o.textContent = text;
-    if (ok) o.disabled = false;
-    else if (failed || $('level').value !== '5') o.disabled = true;
+    // Keep Lv 5 selectable before the model is downloaded.
+    o.disabled = false;
     if (failed && $('level').value === '5') { $('level').value = '4'; level = 4; }
   }
 
@@ -778,19 +801,65 @@
     let cache = null;
     try { cache = window.caches ? await caches.open('weiqi-models') : null; } catch (e) { cache = null; }
     if (cache) {
-      try { const hit = await cache.match(url); if (hit) return new Uint8Array(await hit.arrayBuffer()); } catch (e) { /* ignore */ }
+      try {
+        const hit = await cache.match(url);
+        if (hit) {
+          setNetOption(false, 'Lv 5 · 讀取已快取模型…');
+          return new Uint8Array(await hit.arrayBuffer());
+        }
+      } catch (e) { /* ignore cache errors */ }
     }
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('http ' + r.status);
-    if (cache) { try { await cache.put(url, r.clone()); } catch (e) { /* quota */ } }
-    return new Uint8Array(await r.arrayBuffer());
+
+    setNetOption(false, 'Lv 5 · 正在下載 KataGo 模型…');
+    const r = await fetch(url, { mode: 'cors' });
+    if (!r.ok) throw new Error('模型下載失敗，HTTP ' + r.status);
+    const contentType = (r.headers.get('content-type') || '').toLowerCase();
+    if (contentType.includes('text/html')) {
+      throw new Error('模型網址回傳 HTML，而不是 ONNX 檔案。請確認使用模型的 resolve 下載網址。');
+    }
+    if (cache) {
+      try { cache.put(url, r.clone()).catch(() => {}); } catch (e) { /* cache unavailable */ }
+    }
+
+    const total = Number(r.headers.get('content-length')) || 0;
+    let data;
+    if (r.body && r.body.getReader) {
+      const reader = r.body.getReader();
+      const chunks = [];
+      let received = 0;
+      while (true) {
+        const part = await reader.read();
+        if (part.done) break;
+        chunks.push(part.value);
+        received += part.value.length;
+        const progress = total
+          ? Math.min(100, Math.round(received / total * 100)) + '%'
+          : (received / 1048576).toFixed(0) + ' MB';
+        setNetOption(false, 'Lv 5 · 模型下載中 ' + progress);
+      }
+      data = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) { data.set(chunk, offset); offset += chunk.length; }
+    } else {
+      data = new Uint8Array(await r.arrayBuffer());
+    }
+
+    const preview = String.fromCharCode(...data.slice(0, 16)).trim().toLowerCase();
+    if (data.length < 1024 * 1024 || preview.startsWith('<!doctype') ||
+        preview.startsWith('<html') || preview.startsWith('version https://git-lfs')) {
+      throw new Error('下載內容不是有效的 ONNX 模型檔案。');
+    }
+    return data;
   }
 
   function getNet() {
     if (!netPromise) netPromise = (async () => {
       const buf = await fetchModel(MODEL_URL);
       await ensureOrt();
-      if (window.ort.env && window.ort.env.wasm) window.ort.env.wasm.numThreads = 1;
+      if (window.ort.env && window.ort.env.wasm) {
+        window.ort.env.wasm.numThreads = 1;
+        window.ort.env.wasm.wasmPaths = ORT_BASE;
+      }
       const session = await window.ort.InferenceSession.create(buf, { executionProviders: ['wasm'] });
       return { session, ms: 0, pad: 0 };
     })();
@@ -799,10 +868,20 @@
 
   const NET_LABEL = 'Lv 5 · AI 模型(KataGo)';
   function loadNet() {
+    if (mode !== 'bot' || level !== 5) {
+      if (!net) setNetOption(false, 'Lv 5 · AI 模型(KataGo，首次使用時下載)');
+      return;
+    }
     if (net) { setNetOption(true, NET_LABEL); return; }
-    setNetOption(false, 'Lv 5 · AI 模型(載入 ' + MODEL_URL.split('/').pop().slice(0, 28) + '…)');
+    setNetOption(false, 'Lv 5 · 正在準備 KataGo 模型…');
     getNet().then(m => { net = m; setNetOption(true, NET_LABEL); })
-      .catch(() => { netPromise = null; net = null; setNetOption(false, 'Lv 5 · AI 模型(找不到 ' + MODEL_URL.split('/').pop().slice(0, 28) + ')', true); });
+      .catch(e => {
+        console.warn('KataGo model could not be loaded:', e);
+        netPromise = null;
+        net = null;
+        setNetOption(false, 'Lv 5 · 模型載入失敗，已改用 Lv 4', true);
+        update();
+      });
   }
 
   /* ---- feature helpers ---- */
