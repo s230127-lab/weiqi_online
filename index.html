@@ -217,7 +217,7 @@
   <p>禁止全局同形:不可使盤面重現先前出現過的任何局面(打劫亦屬此類)。</p>
   <p>雙方連續虛手即終局。點選棋塊標記死子(或使用自動標記),再數子。採中國規則的數子法(活子加圍住的空點),黑貼 3又3/4 子(相當 7.5 目)。中國規則未規定 9 路,本遊戲 9 路用 3又1/2 子(7 目)。</p>
   <p>面對面模式:把裝置平放在兩人中間,白方坐上方、黑方坐下方,各自的資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。</p>
-  <p>Lv 5 使用 KataGo 神經網路(ONNX 模型)。第一次選擇 Lv 5 時,瀏覽器會從 Hugging Face 下載約 75 MB 的量化模型;之後會嘗試使用瀏覽器快取。模型推論完全在你的裝置上執行,不會呼叫遠端 AI 推論 API。請以 HTTPS 網站或 http://localhost 開啟本頁。也可以用網址參數 ?model=模型網址 指定其他 ONNX 模型。</p>
+  <p>Lv 5 使用 GitHub 上的 KataGo ONNX 模型。瀏覽器會自動讀取 GitHub 儲存的 18 個模型資料分片,並快取於本機;不需要手動下載或放置模型檔。首次載入仍會經網絡傳輸模型資料(約 75 MB),之後可使用快取。推論完全在你的裝置上執行,不會呼叫遠端 AI 推論 API。請以 HTTPS 網站或 http://localhost 開啟本頁。</p>
   <p>Lv 1 隨機落子。Lv 2 使用戰術規則(提子、叫吃、避免自打吃)。Lv 3 與 Lv 4 加入蒙地卡羅模擬,Lv 4 思考最久。電腦完全在瀏覽器內運算,在 9 路棋盤上最強。</p>
 </details>
 
@@ -773,8 +773,12 @@
   const ORT_VERSION = '1.19.2';
   const ORT_BASE = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@' + ORT_VERSION + '/dist/';
   const ORT_URL = ORT_BASE + 'ort.min.js';
-  const MODEL_URL = new URLSearchParams(location.search).get('model') ||
-    'https://huggingface.co/kaya-go/kaya/resolve/main/kata1-b28c512nbt-s12043015936-d5616446734/kata1-b28c512nbt-s12043015936-d5616446734.uint8.onnx';
+  // GitHub-hosted KataGo model, split into 18 Base64 text files.
+  // No manual model-file download is required. The browser fetches and caches these parts.
+  const MODEL_PARTS_BASE = 'https://raw.githubusercontent.com/liumingmusic/weiqi/master/katago/model-parts/';
+  const MODEL_PARTS_COUNT = 18;
+  const MODEL_URL = new URLSearchParams(location.search).get('model') || '';
+  // Optional override: ?model=https://.../model.onnx loads a direct ONNX file instead.
   // Global-feature slots that differ between KataGo input versions. Defaults follow the documented
   // layout (KataGo g104 / V4). If your model needs different slots, change them here.
   const KG = { komiScale: 20, passEnds: 12, wave: 13 };
@@ -798,58 +802,82 @@
   }
 
   async function fetchModel(url) {
+    // Optional direct ONNX URL override.
+    if (url) {
+      const r = await fetch(url, { mode: 'cors' });
+      if (!r.ok) throw new Error('模型下載失敗，HTTP ' + r.status);
+      const data = new Uint8Array(await r.arrayBuffer());
+      if (data.length < 1024 * 1024) throw new Error('指定網址沒有回傳有效的 ONNX 模型。');
+      return data;
+    }
+
     let cache = null;
-    try { cache = window.caches ? await caches.open('weiqi-models') : null; } catch (e) { cache = null; }
-    if (cache) {
-      try {
-        const hit = await cache.match(url);
-        if (hit) {
-          setNetOption(false, 'Lv 5 · 讀取已快取模型…');
-          return new Uint8Array(await hit.arrayBuffer());
-        }
-      } catch (e) { /* ignore cache errors */ }
-    }
+    try { cache = window.caches ? await caches.open('weiqi-github-katago-model') : null; }
+    catch (e) { cache = null; }
 
-    setNetOption(false, 'Lv 5 · 正在下載 KataGo 模型…');
-    const r = await fetch(url, { mode: 'cors' });
-    if (!r.ok) throw new Error('模型下載失敗，HTTP ' + r.status);
-    const contentType = (r.headers.get('content-type') || '').toLowerCase();
-    if (contentType.includes('text/html')) {
-      throw new Error('模型網址回傳 HTML，而不是 ONNX 檔案。請確認使用模型的 resolve 下載網址。');
-    }
-    if (cache) {
-      try { cache.put(url, r.clone()).catch(() => {}); } catch (e) { /* cache unavailable */ }
-    }
+    setNetOption(false, 'Lv 5 · 正在讀取 GitHub KataGo 模型…');
 
-    const total = Number(r.headers.get('content-length')) || 0;
-    let data;
-    if (r.body && r.body.getReader) {
-      const reader = r.body.getReader();
-      const chunks = [];
-      let received = 0;
-      while (true) {
-        const part = await reader.read();
-        if (part.done) break;
-        chunks.push(part.value);
-        received += part.value.length;
-        const progress = total
-          ? Math.min(100, Math.round(received / total * 100)) + '%'
-          : (received / 1048576).toFixed(0) + ' MB';
-        setNetOption(false, 'Lv 5 · 模型下載中 ' + progress);
+    // Fetch a few parts at a time to limit peak memory use on tablets.
+    const decodedParts = new Array(MODEL_PARTS_COUNT);
+    let completed = 0;
+
+    async function loadPart(i) {
+      const name = 'part_' + String(i).padStart(2, '0') + '.js';
+      const partUrl = MODEL_PARTS_BASE + name;
+      let response = null;
+
+      if (cache) {
+        try { response = await cache.match(partUrl); }
+        catch (e) { response = null; }
       }
-      data = new Uint8Array(received);
-      let offset = 0;
-      for (const chunk of chunks) { data.set(chunk, offset); offset += chunk.length; }
-    } else {
-      data = new Uint8Array(await r.arrayBuffer());
+
+      if (!response) {
+        response = await fetch(partUrl, { mode: 'cors' });
+        if (!response.ok) throw new Error('GitHub 模型分片 ' + name + ' 載入失敗，HTTP ' + response.status);
+        if (cache) {
+          try { cache.put(partUrl, response.clone()).catch(() => {}); }
+          catch (e) { /* cache quota or browser policy */ }
+        }
+      }
+
+      const encoded = (await response.text()).trim();
+      if (!encoded || encoded.startsWith('<!DOCTYPE') || encoded.startsWith('<html')) {
+        throw new Error('GitHub 模型分片 ' + name + ' 不是有效的 Base64 模型資料。');
+      }
+
+      let binary;
+      try { binary = atob(encoded); }
+      catch (e) { throw new Error('GitHub 模型分片 ' + name + ' 解碼失敗。'); }
+
+      const bytes = new Uint8Array(binary.length);
+      for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+      decodedParts[i] = bytes;
+
+      completed++;
+      setNetOption(false, 'Lv 5 · 正在載入 GitHub 模型 ' +
+        Math.round(completed / MODEL_PARTS_COUNT * 100) + '%');
     }
 
-    const preview = String.fromCharCode(...data.slice(0, 16)).trim().toLowerCase();
-    if (data.length < 1024 * 1024 || preview.startsWith('<!doctype') ||
-        preview.startsWith('<html') || preview.startsWith('version https://git-lfs')) {
-      throw new Error('下載內容不是有效的 ONNX 模型檔案。');
+    for (let start = 0; start < MODEL_PARTS_COUNT; start += 3) {
+      const batch = [];
+      for (let i = start; i < Math.min(start + 3, MODEL_PARTS_COUNT); i++) batch.push(loadPart(i));
+      await Promise.all(batch);
     }
-    return data;
+
+    const total = decodedParts.reduce((sum, part) => sum + part.length, 0);
+    const modelBytes = new Uint8Array(total);
+    let offset = 0;
+    for (const part of decodedParts) {
+      modelBytes.set(part, offset);
+      offset += part.length;
+    }
+
+    // Basic guard: an ONNX model should be tens of megabytes, not an HTML error page.
+    if (modelBytes.length < 50 * 1024 * 1024) {
+      throw new Error('GitHub 模型資料不完整，請重新整理後再試。');
+    }
+    setNetOption(false, 'Lv 5 · GitHub KataGo 模型已載入');
+    return modelBytes;
   }
 
   function getNet() {
