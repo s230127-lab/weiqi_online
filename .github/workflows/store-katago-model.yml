@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/store-katago-model.yml"
+      - "index.html"
   workflow_dispatch:
 
 permissions:
@@ -69,6 +70,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The HTML/workflow may have been updated after this run started.
+          # Rebase the generated model onto the latest main before committing.
+          git fetch origin main
+          git reset --hard origin/main
           git add models/katago.onnx
           if git diff --cached --quiet; then
             echo "No model changes to commit."
