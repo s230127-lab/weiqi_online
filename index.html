@@ -876,10 +876,11 @@
     setNetOption(false, 'Lv 5 · 正在準備 KataGo 模型…');
     getNet().then(m => { net = m; setNetOption(true, NET_LABEL); })
       .catch(e => {
-        console.warn('KataGo model could not be loaded:', e);
+        // Do not switch levels here: botTurn handles a failed download during its own turn.
+        console.warn('KataGo model preload failed; it will retry on the next AI turn:', e);
         netPromise = null;
         net = null;
-        setNetOption(false, 'Lv 5 · 模型載入失敗，已改用 Lv 4', true);
+        setNetOption(false, 'Lv 5 · 模型預載失敗，AI 回合時會重試');
         update();
       });
   }
