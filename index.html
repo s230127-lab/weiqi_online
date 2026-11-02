@@ -162,6 +162,8 @@
   body.pre-game:not(.show-rules) #welcome { display:flex; }
   #rulesScreen { display:none; }
   body.pre-game #rulesScreen { display:none; }
+  body.show-rules #rulesScreen { display:block !important; }
+  body.show-rules { overflow-y:auto; }
   body.show-rules #welcome { display:none; }
   body.show-rules #rulesScreen { display:block; }
   .entry-card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:clamp(18px,4vw,30px); box-shadow:0 12px 32px -24px rgba(0,0,0,.4); }
@@ -228,9 +230,13 @@
     <p id="rulesIntro" class="entry-sub">開始前請先閱讀基本規則。</p>
     <ol id="rulesList" class="rule-list"></ol>
     <p id="rulesKomi" class="entry-sub"></p>
-    <div class="entry-actions" style="margin-top:18px">
+    <label style="display:flex;gap:10px;align-items:flex-start;margin-top:18px;line-height:1.6">
+      <input id="rulesRead" type="checkbox" style="width:20px;height:20px;flex:0 0 auto;margin-top:3px">
+      <span id="rulesReadText">我已閱讀並了解以上規則</span>
+    </label>
+    <div class="entry-actions" style="margin-top:12px">
       <button id="rulesBack">返回</button>
-      <button id="rulesStart" class="primary">開始對弈</button>
+      <button id="rulesStart" class="primary" disabled>閱讀後開始對弈</button>
     </div>
   </div>
 </section>
@@ -329,7 +335,8 @@
       rankTitle:"排行榜 · 前 10 名", refresh:"重新整理", noRanks:"目前還沒有排名紀錄。",
       loadRanksFailed:"暫時無法載入排行榜。請稍後再試。",
       rankColor:"雙人模式記錄我的棋色", black:"黑方", white:"白方",
-      rulesIntro:"開始前請先閱讀基本規則。",
+      rulesIntro:"開始前請先閱讀以下規則。閱讀完畢後，勾選確認即可開始對弈。",
+      rulesReadText:"我已閱讀並了解以上規則", rulesStart:"開始對弈",
       rules:[
         "棋盤由交叉點組成。黑方先行，之後雙方輪流下一子；每回合只能在一個空交叉點落子。",
         "同色相連的棋子形成棋塊。棋塊相鄰的空交叉點稱為「氣」；棋塊沒有任何氣時，便會被提走。",
@@ -372,7 +379,8 @@
       rankTitle:"Leaderboard · Top 10",refresh:"Refresh",noRanks:"No ranked games yet.",
       loadRanksFailed:"The leaderboard is temporarily unavailable. Please try again.",
       rankColor:"In two-player modes, record me as",black:"Black",white:"White",
-      rulesIntro:"Please read these basic rules before playing.",
+      rulesIntro:"Please read the rules below. When you have finished, tick the confirmation box to begin playing.",
+      rulesReadText:"I have read and understood the rules above", rulesStart:"Start playing",
       rules:[
         "The board is made of intersections. Black plays first, then players alternate, placing one stone on an empty intersection per turn.",
         "Connected stones of the same color form a group. Empty neighboring intersections are its liberties. A group with no liberties is captured and removed.",
@@ -447,6 +455,8 @@
     const list = $('rulesList'); list.replaceChildren();
     I18N[language].rules.forEach(item => { const li=document.createElement('li'); li.textContent=item; list.appendChild(li); });
     $('rulesKomi').textContent = say('komi');
+    if ($('rulesReadText')) $('rulesReadText').textContent = say('rulesReadText');
+    if ($('rulesStart')) $('rulesStart').textContent = say('rulesStart');
     $('authStatus').textContent = currentUser
       ? (language==='en' ? 'Signed in as ' : '已登入：') + (currentUser.displayName || currentUser.email || currentUser.uid)
       : (firebaseReady() ? say('loginForResults') : say('authNotReady'));
@@ -1487,7 +1497,7 @@
     appId: "1:950011884276:web:2241c6311e1ee79b1424a1",
     measurementId: "G-J5J6K8H61M"
   };
-  let firebaseAuth = null, firestore = null, currentUser = null;
+  let firebaseAuth = null, firestore = null, currentUser = null, firebaseInitError = null;
   let pendingResults = [], savingResults = false;
 
   function firebaseReady() {
@@ -1531,8 +1541,9 @@
         if (currentUser && pendingResults.length) savePendingResults();
       });
     } catch (error) {
+      firebaseInitError = error && error.message ? error.message : String(error);
       console.error('Firebase initialization failed:', error);
-      setAuthMessage((language==='en' ? 'Firebase initialization error: ' : 'Firebase 初始化錯誤：') + (error && error.message ? error.message : String(error)));
+      setAuthMessage((language==='en' ? 'Firebase initialization error: ' : 'Firebase 初始化錯誤：') + firebaseInitError);
     }
   }
   async function handleGoogleAuth() {
@@ -1629,7 +1640,11 @@
     if (!list) return;
     if (!firebaseReady() || !firestore) {
       list.replaceChildren();
-      const li=document.createElement('li'); li.className='leaderboard-empty'; li.textContent=say('authNotReady');
+      const li=document.createElement('li'); li.className='leaderboard-empty';
+      li.textContent = !firebaseReady() ? say('authNotReady') :
+        (firebaseInitError
+          ? (language==='en' ? 'Firebase initialization error: ' : 'Firebase 初始化錯誤：') + firebaseInitError
+          : (language==='en' ? 'Firebase is still loading. Refresh in a moment.' : 'Firebase 正在載入，請稍後重新整理。'));
       list.appendChild(li); return;
     }
     try {
@@ -1886,7 +1901,9 @@
 
   $('launchBtn').onclick = () => { document.body.classList.add('show-rules'); };
   $('rulesBack').onclick = () => { document.body.classList.remove('show-rules'); };
+  $('rulesRead').onchange = e => { $('rulesStart').disabled = !e.target.checked; };
   $('rulesStart').onclick = () => {
+    if (!$('rulesRead').checked) return;
     document.body.classList.remove('pre-game','show-rules');
     init();
   };
