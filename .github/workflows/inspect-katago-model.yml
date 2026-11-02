@@ -1,4 +1,4 @@
-name: Inspect KataGo model metadata safely
+name: Inspect KataGo ONNX field
 
 on:
   push:
@@ -13,31 +13,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Locate the masked alert prefix without revealing the token
+      - name: Identify the ONNX field holding the alert value
         shell: bash
         run: |
+          python -m pip install --quiet onnx
           python - <<'PY'
           from pathlib import Path
+          import onnx
 
-          data = Path("models/katago.onnx").read_bytes()
+          path = Path("models/katago.onnx")
+          raw = path.read_bytes()
           needle = b"hf_gpele"
-          offsets = []
-          start = 0
-          while True:
-              pos = data.find(needle, start)
-              if pos < 0:
-                  break
-              offsets.append(pos)
-              start = pos + 1
-          print(f"MODEL_SIZE_BYTES={len(data)}")
-          print(f"ALERT_PREFIX_COUNT={len(offsets)}")
-          print(f"CR_BYTES={data.count(bytes([13]))}")
-          print(f"LF_BYTES={data.count(bytes([10]))}")
-          for pos in offsets:
-              end = pos + len(needle)
-              while end < len(data) and (
-                  48 <= data[end] <= 57 or 65 <= data[end] <= 90 or 97 <= data[end] <= 122
-              ):
-                  end += 1
-              print(f"ALERT_PREFIX_OFFSET={pos} ALNUM_RUN_AFTER_HF_PREFIX={end-pos-3}")
+          print(f"MODEL_SIZE_BYTES={len(raw)}")
+          print(f"ALERT_PREFIX_RAW_COUNT={raw.count(needle)}")
+          model = onnx.load_model(str(path), load_external_data=False)
+          print("ONNX_PARSE=OK")
+
+          found = []
+          def walk(message, field_path):
+              for field, value in message.ListFields():
+                  values = value if field.is_repeated else [value]
+                  for index, item in enumerate(values):
+                      item_path = f"{field_path}.{field.name}"
+                      if field.is_repeated:
+                          item_path += f"[{index}]"
+                      if field.type == field.TYPE_MESSAGE:
+                          walk(item, item_path)
+                      elif field.type in (field.TYPE_STRING, field.TYPE_BYTES):
+                          blob = item if isinstance(item, bytes) else item.encode("utf-8")
+                          if needle in blob:
+                              found.append((item_path, field.type, len(blob), blob.count(needle)))
+
+          walk(model, "ModelProto")
+          print(f"PROTOBUF_FIELD_MATCH_COUNT={len(found)}")
+          for field_path, field_type, field_length, count in found:
+              kind = "BYTES" if field_type == field_type.TYPE_BYTES else "STRING"
+              print(f"FIELD={field_path} TYPE={kind} VALUE_BYTES={field_length} MATCHES={count}")
           PY
