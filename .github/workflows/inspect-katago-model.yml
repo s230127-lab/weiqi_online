@@ -1,4 +1,4 @@
-name: Inspect KataGo quantized weight
+name: Inspect KataGo quantized tensor links
 
 on:
   push:
@@ -13,51 +13,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Read the quantization zero point safely
+      - name: Inspect tensor consumers and quantization annotations
         shell: bash
         run: |
-          python -m pip install --quiet onnx numpy
+          python -m pip install --quiet onnx
           python - <<'PY'
-          from pathlib import Path
           import onnx
-          from onnx import numpy_helper
 
           model = onnx.load_model("models/katago.onnx", load_external_data=False)
           tensor = model.graph.initializer[626]
-          offset = tensor.raw_data.find(b"hf_gpele")
-          end = offset + 8
-          raw = tensor.raw_data
-          while end < len(raw) and (
-              48 <= raw[end] <= 57 or 65 <= raw[end] <= 90 or 97 <= raw[end] <= 122
-          ):
-              end += 1
-          print(f"TENSOR_NAME={tensor.name}")
-          print(f"TENSOR_DATA_TYPE={onnx.TensorProto.DataType.Name(tensor.data_type)}")
-          print(f"TENSOR_DIMS={list(tensor.dims)}")
-          print(f"MATCH_OFFSET_IN_TENSOR={offset}")
-          print(f"MATCH_LENGTH={end-offset}")
-          channel_width = 1
-          for dim in tensor.dims[1:]:
-              channel_width *= dim
-          channel_index = offset // channel_width
-          print(f"OUTPUT_CHANNEL_INDEX={channel_index}")
-
-          initializers = {item.name: item for item in model.graph.initializer}
-          consumers = [n for n in model.graph.node if n.op_type == "DequantizeLinear" and n.input and n.input[0] == tensor.name]
-          print(f"DEQUANTIZE_CONSUMER_COUNT={len(consumers)}")
+          print(f"TENSOR={tensor.name}")
+          consumers = [node for node in model.graph.node if tensor.name in node.input]
+          print(f"CONSUMER_COUNT={len(consumers)}")
           for node in consumers:
-              axis = 1
-              for attr in node.attribute:
-                  if attr.name == "axis":
-                      axis = attr.i
-              print(f"DEQUANTIZE_AXIS={axis}")
-              if len(node.input) > 2 and node.input[2] in initializers:
-                  zp_tensor = initializers[node.input[2]]
-                  zp = numpy_helper.to_array(zp_tensor).reshape(-1)
-                  idx = channel_index if axis == 0 and len(zp) > 1 else 0
-                  print(f"ZERO_POINT_TENSOR={zp_tensor.name}")
-                  print(f"ZERO_POINT_LENGTH={len(zp)}")
-                  print(f"NEUTRAL_UINT8_VALUE={int(zp[idx])}")
-              else:
-                  print("ZERO_POINT_INPUT_ABSENT_DEFAULTS_TO_ZERO")
+              positions = [i for i, name in enumerate(node.input) if name == tensor.name]
+              print(f"CONSUMER_OP={node.op_type} INPUT_POSITIONS={positions} NODE={node.name}")
+
+          annotations = [
+              item for item in model.graph.quantization_annotation
+              if item.tensor_name == tensor.name
+          ]
+          print(f"QUANTIZATION_ANNOTATION_COUNT={len(annotations)}")
+          for annotation in annotations:
+              for entry in annotation.quant_parameter_tensor_names:
+                  print(f"QUANT_PARAM_KEY={entry.key} TENSOR={entry.value}")
+
+          print(f"OTHER_INITIALIZERS_WITH_SIMILAR_NAME={sum(1 for item in model.graph.initializer if 'weight_quantized' in item.name and item.name != tensor.name)}")
           PY
