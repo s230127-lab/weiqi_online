@@ -191,6 +191,19 @@
     .top-tools { gap:5px; }
     .top-tools select, .top-tools button { padding:7px 8px; font-size:.86rem; }
   }
+  .game-clock { display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border:1px solid var(--line); border-radius:6px; background:var(--panel); font-size:.9rem; white-space:nowrap; }
+  .game-clock strong { font-variant-numeric:tabular-nums; letter-spacing:.04em; }
+  #gameLeaderboardPanel { display:none; position:fixed; inset:0; z-index:80; padding:18px; background:rgba(0,0,0,.55); align-items:center; justify-content:center; overflow:auto; }
+  #gameLeaderboardPanel.show { display:flex; }
+  .game-rank-card { width:min(100%,560px); max-height:min(88vh,760px); overflow:auto; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:16px; padding:clamp(16px,4vw,26px); box-shadow:0 18px 60px rgba(0,0,0,.35); }
+  .game-rank-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .game-rank-head h2 { margin:0; font-size:1.35rem; }
+  .game-rank-filter { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:14px 0; color:var(--muted); }
+  .game-rank-filter select { flex:1; min-width:140px; }
+  #gameLeaderboardList { margin:0; padding-left:2rem; }
+  #gameLeaderboardList li { padding:9px 4px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; }
+  #gameLeaderboardList .rank-score { white-space:nowrap; color:var(--muted); font-variant-numeric:tabular-nums; }
+  #gameLeaderboardList .rank-name { overflow-wrap:anywhere; }
 
 </style>
 </head>
@@ -244,6 +257,9 @@
 <header>
   <h1>圍棋<small>Weiqi</small></h1>
   <div class="top-tools">
+    <button id="homeBtn">首頁</button>
+    <span class="game-clock"><span id="gameTimerLabel">用時</span><strong id="gameTimer">00:00</strong></span>
+    <button id="gameLeaderboardBtn">等級排行榜</button>
     <select id="gameLang" aria-label="Language"><option value="zh">繁中</option><option value="en">EN</option></select>
     <label id="gameRecordLabel" style="display:none;align-items:center;gap:5px;color:var(--muted);font-size:.85rem"><span id="gameRecordLabelText">記錄為</span><select id="gameRecordColor"><option value="1">黑方</option><option value="2">白方</option></select></label>
     <button id="headerAuth">Google 登入</button>
@@ -251,6 +267,25 @@
     <button id="new" class="primary">新遊戲</button>
   </div>
 </header>
+
+<div id="gameLeaderboardPanel" aria-hidden="true">
+  <section class="game-rank-card" role="dialog" aria-modal="true" aria-labelledby="gameLeaderboardTitle">
+    <div class="game-rank-head">
+      <h2 id="gameLeaderboardTitle">各等級最快勝局</h2>
+      <button id="closeGameLeaderboard">關閉</button>
+    </div>
+    <label class="game-rank-filter" id="gameRankLevelLabel">電腦等級
+      <select id="gameRankLevel">
+        <option value="1">Lv 1</option>
+        <option value="2">Lv 2</option>
+        <option value="3" selected>Lv 3</option>
+        <option value="4">Lv 4</option>
+        <option value="5">Lv 5</option>
+      </select>
+    </label>
+    <ol id="gameLeaderboardList"><li class="leaderboard-empty">尚無完成紀錄。</li></ol>
+  </section>
+</div>
 
 <div class="layout">
 <div class="opts">
@@ -335,12 +370,15 @@
       rankTitle:"排行榜 · 前 10 名", refresh:"重新整理", noRanks:"目前還沒有排名紀錄。",
       loadRanksFailed:"暫時無法載入排行榜。請稍後再試。",
       rankColor:"雙人模式記錄我的棋色", black:"黑方", white:"白方",
+      home:"首頁", gameLeaderboard:"等級排行榜", close:"關閉", timerLabel:"用時",
+      levelRankTitle:"各等級最快勝局", rankLevel:"電腦等級", noLevelRanks:"這個等級尚無勝局紀錄。",
+      loadLevelRanksFailed:"暫時無法載入此等級排行榜。", levelTimeSaved:"已更新此等級的個人最佳時間。",
       rulesIntro:"開始前請先閱讀以下規則。閱讀完畢後，勾選確認即可開始對弈。",
       rulesReadText:"我已閱讀並了解以上規則", rulesStart:"開始對弈",
       rules:[
         "黑先白後，雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」（自殺），不可下；能提子則可。沒有氣的棋塊會被提走。",
         "禁止全局同形：不可使盤面重現先前出現過的任何局面（打劫亦屬此類）。",
-        "雙方連續虛手即終局。點選棋塊標記死子（或使用自動標記），再數子。採中國規則的數子法（活子加圍住的空點），黑貼 3又3/4 子（相當 7.5 目）。中國規則未規定 9 路，本遊戲 9 路用 3又1/2 子（7 目）。",
+        "雙方連續虛手即終局。點選棋塊標記死子（或使用自動標記），再數子。採中國規則的數子法（活子加圍住的空點）。",
         "面對面模式：把裝置平放在兩人中間，白方坐上方、黑方坐下方，各自的資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。",
         "Lv 5 使用儲存在本專案 models/katago.onnx 的 KataGo 模型。只有選擇 Lv 5 時，網頁才會從本專案載入模型；瀏覽器會嘗試快取，下次可重用。模型推論完全在你的裝置上執行，不會呼叫遠端 AI 推論 API。首次載入仍需傳輸約 75 MB 模型資料。",
         "Lv 1 隨機落子。Lv 2 使用戰術規則（提子、叫吃、避免自打吃）。Lv 3 與 Lv 4 加入蒙地卡羅模擬，Lv 4 思考最久。電腦完全在瀏覽器內運算，在 9 路棋盤上最強。"
@@ -365,7 +403,7 @@
       details:[
         "黑先白後，雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」（自殺），不可下；沒有氣的棋塊會被提走。",
         "禁止全局同形：不可使盤面重現先前出現過的任何局面（打劫亦屬此類）。",
-        "雙方連續虛手即終局。點選棋塊標記死子（或使用自動標記），再數子。採中國規則數子法；黑貼 3又3/4 子（相當 7.5 目）。中國規則未規定 9 路，本遊戲 9 路用 3又1/2 子（7 目）。",
+        "雙方連續虛手即終局。點選棋塊標記死子（或使用自動標記），再數子。採中國規則數子法（活子加圍住的空點）。",
         "面對面模式：把裝置平放在兩人中間，白方坐上方、黑方坐下方，各自資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。",
         "Lv 5 使用儲存在本專案 models/katago.onnx 的 KataGo 模型。模型推論完全在你的裝置上執行，不會呼叫遠端 AI 推論 API。首次載入約需下載 75 MB。",
         "Lv 1 隨機落子。Lv 2 使用基本戰術規則。Lv 3 與 Lv 4 加入蒙地卡羅模擬；Lv 4 思考較久。電腦在瀏覽器內運算。"
@@ -379,12 +417,15 @@
       rankTitle:"Leaderboard · Top 10",refresh:"Refresh",noRanks:"No ranked games yet.",
       loadRanksFailed:"The leaderboard is temporarily unavailable. Please try again.",
       rankColor:"In two-player modes, record me as",black:"Black",white:"White",
+      home:"Home", gameLeaderboard:"Level leaderboard", close:"Close", timerLabel:"Time",
+      levelRankTitle:"Fastest wins by level", rankLevel:"Computer level", noLevelRanks:"No winning records for this level yet.",
+      loadLevelRanksFailed:"This level's leaderboard is temporarily unavailable.", levelTimeSaved:"Your personal best for this level has been updated.",
       rulesIntro:"Please read the rules below. When you have finished, tick the confirmation box to begin playing.",
       rulesReadText:"I have read and understood the rules above", rulesStart:"Start playing",
       rules:[
         "Black plays first, then White; players alternate one move at a time. A point where a played stone immediately has no liberties is forbidden (suicide), unless the move captures opposing stones. Groups with no liberties are captured and removed.",
         "Positional superko is enforced: a move may not recreate any earlier board position, including ko.",
-        "Two consecutive passes end the game. Mark dead groups by tapping them or using Auto-mark, then count. Chinese area scoring counts living stones plus surrounded empty points. Black receives a handicap of 7.5 points on 13×13 and 19×19 boards. Chinese rules do not specify 9×9 handicap; this game uses 7 points on 9×9.",
+        "Two consecutive passes end the game. Mark dead groups by tapping them or using Auto-mark, then count using Chinese area scoring: living stones plus surrounded empty points.",
         "Face-to-face mode: place the device between the two players, with White at the top and Black at the bottom. Each player's information and controls face them. Resignation requires two presses to prevent accidental resignations.",
         "Lv 5 uses the KataGo model stored at models/katago.onnx. The page loads the model from this project only when Lv 5 is selected. Your browser may cache it for reuse. Inference runs entirely on your device and does not call a remote AI inference API. The first load transfers about 75 MB.",
         "Lv 1 plays random moves. Lv 2 uses tactical rules (captures, atari, and avoiding self-atari). Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks the longest. The computer runs entirely in your browser and is strongest on a 9×9 board."
@@ -409,7 +450,7 @@
       details:[
         "Black plays first. Players alternate one move at a time. A group with no liberties is captured. Suicide is illegal unless the move captures opposing stones.",
         "Positional superko is used: a move cannot recreate any earlier board position.",
-        "Two consecutive passes end the game. Mark dead groups, then count the living stones and surrounded points using Chinese area scoring. Black receives a handicap of 7.5 points on 13×13 and 19×19; 9×9 uses a 7-point handicap.",
+        "Two consecutive passes end the game. Mark dead groups, then count the living stones and surrounded empty points using Chinese area scoring.",
         "Face-to-face mode: place the device between the players, with White at the top and Black at the bottom. Controls face each player. Resignation requires a second confirmation.",
         "Lv 5 loads the KataGo model stored at models/katago.onnx. Inference runs locally in your browser; no remote AI inference API is used. The first load transfers about 75 MB.",
         "Lv 1 plays randomly. Lv 2 uses basic tactical rules. Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks longer. The computer runs in your browser."
@@ -429,7 +470,8 @@
     const labels = {
       launchBtn:'launch',rulesStart:'play',rulesBack:'back',googleSignIn:'signIn',headerAuth:currentUser?'signOut':'signIn',
       refreshRanks:'refresh',leaderboardTitle:'rankTitle',rulesTitle:'rulesTitle',rulesIntro:'rulesIntro',
-      menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
+      homeBtn:'home',gameLeaderboardBtn:'gameLeaderboard',closeGameLeaderboard:'close',
+      gameLeaderboardTitle:'levelRankTitle',menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
       autoRestartLabel:'autoRestart'
     };
     for (const [id,key] of Object.entries(labels)) if ($(id)) $(id).textContent = say(key);
@@ -439,6 +481,8 @@
     $('recordColor').options[1].text = say('white');
     if ($('gameRecordColor')) { $('gameRecordColor').options[0].text=say('black'); $('gameRecordColor').options[1].text=say('white'); }
     if ($('gameRecordLabelText')) $('gameRecordLabelText').textContent = language==='en'?'Record as':'記錄為';
+    if ($('gameTimerLabel')) $('gameTimerLabel').textContent = say('timerLabel');
+    if ($('gameRankLevelLabel')) $('gameRankLevelLabel').childNodes[0].textContent = say('rankLevel') + ' ';
     const modeOpts = $('mode').options;
     [say('modeBot'),say('modeTwo'),say('modeFace')].forEach((v,i)=>modeOpts[i].text=v);
     const levelOpts = $('level').options;
@@ -463,13 +507,29 @@
       ? (language==='en' ? 'Signed in as ' : '已登入：') + (currentUser.displayName || currentUser.email || currentUser.uid)
       : (firebaseReady() ? say('loginForResults') : say('authNotReady'));
     if (refresh && board) update();
-    if (refresh) refreshLeaderboard();
+    if (refresh) { refreshLeaderboard(); if ($('gameLeaderboardPanel')?.classList.contains('show')) refreshLevelLeaderboard(); }
   }
 
 
   let N, board, turn, caps, prevBoard, lastMove, passes, phase, dead = new Set(), history;
   let seenList = [], seenSet = new Set(), moveLog = [];
   let mode = 'bot', level = 3, human = B, busy = false, token = 0, resultHTML = '';
+  let gameStartedAt = 0, gameEndedAt = null;
+  function elapsedGameMs() {
+    if (!gameStartedAt) return 0;
+    return Math.max(0, (gameEndedAt == null ? performance.now() : gameEndedAt) - gameStartedAt);
+  }
+  function formatDuration(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), sec = total % 60;
+    return h ? [h, String(m).padStart(2,'0'), String(sec).padStart(2,'0')].join(':')
+      : String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+  }
+  function updateGameTimer() {
+    const el = $('gameTimer');
+    if (el) el.textContent = formatDuration(elapsedGameMs());
+  }
+  setInterval(updateGameTimer, 500);
 
   const opp = c => (c === B ? W : B);
   const idx = (x, y) => y * N + x;
@@ -870,6 +930,9 @@
     token++;
     busy = false;
     readSettings();
+    gameStartedAt = performance.now();
+    gameEndedAt = null;
+    updateGameTimer();
     N = +$('size').value;
     fastInit(N);
     loadNet();
@@ -1589,10 +1652,13 @@
     }
   }
   function recordGame(winner) {
+    if (gameEndedAt == null) gameEndedAt = performance.now();
+    const durationMs = Math.round(elapsedGameMs());
+    updateGameTimer();
     const myColor = mode === 'bot' ? human : Number(($('gameRecordColor') ? $('gameRecordColor').value : $('recordColor').value) || B);
     const outcome = winner === 0 ? 'draw' : winner === myColor ? 'win' : 'loss';
     pendingResults.push({
-      outcome, boardSize:N, mode, color:myColor,
+      outcome, boardSize:N, mode, color:myColor, level:mode === 'bot' ? level : null, durationMs,
       playedAt:Date.now(),
       displayMode: mode === 'bot' ? ('bot-lv-' + level) : mode
     });
@@ -1607,6 +1673,26 @@
         result.appendChild(note);
       }
     }
+  }
+  async function saveLevelBest(item) {
+    const user = currentUser;
+    if (!user || !firestore || item.mode !== 'bot' || item.outcome !== 'win' || !item.level || !item.durationMs) return;
+    const ref = firestore.collection('levelLeaderboard').doc('lv' + item.level).collection('players').doc(user.uid);
+    const bestTimeMs = Math.max(1, Math.round(item.durationMs));
+    await firestore.runTransaction(async tx => {
+      const snap = await tx.get(ref);
+      const old = snap.exists ? snap.data() : null;
+      if (!old || bestTimeMs < Number(old.bestTimeMs || Infinity)) {
+        tx.set(ref, {
+          uid:user.uid,
+          level:item.level,
+          displayName:(user.displayName || 'Go player').slice(0,80),
+          bestTimeMs,
+          boardSize:item.boardSize,
+          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    });
   }
   async function savePendingResults() {
     if (!currentUser || !firestore || savingResults) return;
@@ -1636,6 +1722,8 @@
           };
           tx.set(ref,data);
         });
+        try { await saveLevelBest(item); }
+        catch (rankError) { console.warn('Saving level leaderboard time failed:', rankError); }
         pendingResults.shift();
       }
       setAuthMessage(say('saved'));
@@ -1686,6 +1774,63 @@
     }
   }
 
+  async function refreshLevelLeaderboard() {
+    const list = $('gameLeaderboardList');
+    if (!list) return;
+    const levelNo = Math.max(1, Math.min(5, Number($('gameRankLevel').value || 1)));
+    if (!firestore) {
+      list.replaceChildren();
+      const li = document.createElement('li'); li.className = 'leaderboard-empty';
+      li.textContent = say('authNotReady'); list.appendChild(li); return;
+    }
+    try {
+      const snap = await firestore.collection('levelLeaderboard').doc('lv' + levelNo)
+        .collection('players').orderBy('bestTimeMs','asc').limit(10).get();
+      const entries = snap.docs.map(doc => doc.data());
+      list.replaceChildren();
+      entries.forEach((entry,index) => {
+        const li = document.createElement('li');
+        const name = document.createElement('span'); name.className = 'rank-name';
+        name.textContent = (index + 1) + '. ' + (entry.displayName || 'Go player');
+        const score = document.createElement('span'); score.className = 'rank-score';
+        const sizeText = entry.boardSize ? ' · ' + entry.boardSize + '×' + entry.boardSize : '';
+        score.textContent = formatDuration(entry.bestTimeMs || 0) + sizeText;
+        li.append(name,score); list.appendChild(li);
+      });
+      if (!entries.length) {
+        const li = document.createElement('li'); li.className = 'leaderboard-empty';
+        li.textContent = say('noLevelRanks'); list.appendChild(li);
+      }
+    } catch (error) {
+      console.warn('Level leaderboard fetch failed:',error);
+      list.replaceChildren();
+      const li = document.createElement('li'); li.className = 'leaderboard-empty';
+      li.textContent = say('loadLevelRanksFailed'); list.appendChild(li);
+    }
+  }
+
+  function openGameLeaderboard() {
+    $('gameRankLevel').value = String(mode === 'bot' ? level : Number($('level').value || 3));
+    $('gameLeaderboardPanel').classList.add('show');
+    $('gameLeaderboardPanel').setAttribute('aria-hidden','false');
+    refreshLevelLeaderboard();
+  }
+  function closeGameLeaderboard() {
+    $('gameLeaderboardPanel').classList.remove('show');
+    $('gameLeaderboardPanel').setAttribute('aria-hidden','true');
+  }
+  function returnHome() {
+    clearRestart();
+    stopFx();
+    token++;
+    busy = false;
+    if (gameEndedAt == null && gameStartedAt) gameEndedAt = performance.now();
+    updateGameTimer();
+    closeGameLeaderboard();
+    document.body.classList.remove('show-rules','face-on','show-opts');
+    document.body.classList.add('pre-game');
+  }
+
   function fmtZi(x) {
     const w = Math.floor(x + 1e-9), f = Math.round((x - w) * 4);
     const t = ['', '1/4', '1/2', '3/4', ''][f];
@@ -1714,6 +1859,7 @@
   }
 
   function update() {
+    updateGameTimer();
     $('capB').textContent = role(B) + say('captures') + caps[B];
     $('capW').textContent = role(W) + say('captures') + caps[W];
     $('sB').classList.toggle('active', phase === 'play' && turn === B);
@@ -1913,7 +2059,11 @@
     if (phase === 'mark') toggleDead(p[0], p[1]); else play(p[0], p[1]);
   });
 
-  $('launchBtn').onclick = () => { document.body.classList.add('show-rules'); };
+  $('launchBtn').onclick = () => {
+    $('rulesRead').checked = false;
+    $('rulesStart').disabled = true;
+    document.body.classList.add('show-rules');
+  };
   $('rulesBack').onclick = () => { document.body.classList.remove('show-rules'); };
   $('rulesRead').onchange = e => { $('rulesStart').disabled = !e.target.checked; };
   $('rulesStart').onclick = () => {
@@ -1925,6 +2075,12 @@
   $('gameLang').onchange = e => applyLanguage(e.target.value);
   $('googleSignIn').onclick = handleGoogleAuth;
   $('headerAuth').onclick = handleGoogleAuth;
+  $('homeBtn').onclick = returnHome;
+  $('gameLeaderboardBtn').onclick = openGameLeaderboard;
+  $('closeGameLeaderboard').onclick = closeGameLeaderboard;
+  $('gameLeaderboardPanel').addEventListener('click', e => { if (e.target === $('gameLeaderboardPanel')) closeGameLeaderboard(); });
+  $('gameRankLevel').onchange = refreshLevelLeaderboard;
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGameLeaderboard(); });
   $('refreshRanks').onclick = refreshLeaderboard;
   $('recordColor').onchange = () => { if ($('gameRecordColor')) $('gameRecordColor').value = $('recordColor').value; };
   $('gameRecordColor').onchange = () => { $('recordColor').value = $('gameRecordColor').value; };
