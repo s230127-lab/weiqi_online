@@ -338,14 +338,14 @@
       rulesIntro:"開始前請先閱讀以下規則。閱讀完畢後，勾選確認即可開始對弈。",
       rulesReadText:"我已閱讀並了解以上規則", rulesStart:"開始對弈",
       rules:[
-        "棋盤由交叉點組成。黑方先行，之後雙方輪流下一子；每回合只能在一個空交叉點落子。",
-        "同色相連的棋子形成棋塊。棋塊相鄰的空交叉點稱為「氣」；棋塊沒有任何氣時，便會被提走。",
-        "落子後自己的棋塊若沒有氣，而且沒有因此提走對方棋子，該步就是自殺手，不能下。",
-        "本遊戲禁止全局同形：不能讓棋盤重現之前出現過的局面，打劫也適用。",
-        "雙方連續虛手即進入終局。雙方確認死子後標記死子，再按「數子」計算結果。",
-        "可以逐一點選棋塊標記死子，也可使用「自動標記死子」；自動判定結果仍建議由雙方確認。"
+        "黑先白後，雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」（自殺），不可下；能提子則可。沒有氣的棋塊會被提走。",
+        "禁止全局同形：不可使盤面重現先前出現過的任何局面（打劫亦屬此類）。",
+        "雙方連續虛手即終局。點選棋塊標記死子（或使用自動標記），再數子。採中國規則的數子法（活子加圍住的空點），黑貼 3又3/4 子（相當 7.5 目）。中國規則未規定 9 路，本遊戲 9 路用 3又1/2 子（7 目）。",
+        "面對面模式：把裝置平放在兩人中間，白方坐上方、黑方坐下方，各自的資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。",
+        "Lv 5 使用儲存在本專案 models/katago.onnx 的 KataGo 模型。只有選擇 Lv 5 時，網頁才會從本專案載入模型；瀏覽器會嘗試快取，下次可重用。模型推論完全在你的裝置上執行，不會呼叫遠端 AI 推論 API。首次載入仍需傳輸約 75 MB 模型資料。",
+        "Lv 1 隨機落子。Lv 2 使用戰術規則（提子、叫吃、避免自打吃）。Lv 3 與 Lv 4 加入蒙地卡羅模擬，Lv 4 思考最久。電腦完全在瀏覽器內運算，在 9 路棋盤上最強。"
       ],
-      komi:"計分採中國規則數子法：計算活棋與所圍空點。13 路及 19 路黑貼 7.5 子；本遊戲 9 路黑貼 7 子。",
+      komi:"",
       menu:"設定", newGame:"新遊戲", modeBot:"人機對弈", modeTwo:"雙人對弈", modeFace:"面對面對弈（同一裝置）",
       level1:"Lv 1 · 入門",level2:"Lv 2 · 初級",level3:"Lv 3 · 中級",level4:"Lv 4 · 高級",level5:"Lv 5 · AI 模型（KataGo，首次使用時下載）",
       youBlack:"你執黑",youWhite:"你執白",autoRestart:"結束後自動開新局",size9:"9 路",size13:"13 路",size19:"19 路",
@@ -382,14 +382,14 @@
       rulesIntro:"Please read the rules below. When you have finished, tick the confirmation box to begin playing.",
       rulesReadText:"I have read and understood the rules above", rulesStart:"Start playing",
       rules:[
-        "The board is made of intersections. Black plays first, then players alternate, placing one stone on an empty intersection per turn.",
-        "Connected stones of the same color form a group. Empty neighboring intersections are its liberties. A group with no liberties is captured and removed.",
-        "A move that leaves your own group with no liberties is illegal unless it captures opposing stones.",
-        "This game uses positional superko: a move may not recreate any previous board position, including a ko repetition.",
-        "The game enters scoring after both players pass consecutively. Agree on dead stones, mark them, then select Score.",
-        "You can tap a group to mark it dead or use Auto-mark dead stones. Both players should review automatic marking."
+        "Black plays first, then White; players alternate one move at a time. A point where a played stone immediately has no liberties is forbidden (suicide), unless the move captures opposing stones. Groups with no liberties are captured and removed.",
+        "Positional superko is enforced: a move may not recreate any earlier board position, including ko.",
+        "Two consecutive passes end the game. Mark dead groups by tapping them or using Auto-mark, then count. Chinese area scoring counts living stones plus surrounded empty points. Black gives komi of 7.5 points on 13×13 and 19×19 boards. Chinese rules do not specify 9×9 komi; this game uses 7 points on 9×9.",
+        "Face-to-face mode: place the device between the two players, with White at the top and Black at the bottom. Each player's information and controls face them. Resignation requires two presses to prevent accidental resignations.",
+        "Lv 5 uses the KataGo model stored at models/katago.onnx. The page loads the model from this project only when Lv 5 is selected. Your browser may cache it for reuse. Inference runs entirely on your device and does not call a remote AI inference API. The first load transfers about 75 MB.",
+        "Lv 1 plays random moves. Lv 2 uses tactical rules (captures, atari, and avoiding self-atari). Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks the longest. The computer runs entirely in your browser and is strongest on a 9×9 board."
       ],
-      komi:"Scoring uses Chinese area scoring: living stones plus surrounded empty points. Komi is 7.5 points on 13×13 and 19×19 boards; this game uses 7 points on 9×9.",
+      komi:"",
       menu:"Settings",newGame:"New game",modeBot:"Play vs computer",modeTwo:"Two players",modeFace:"Face-to-face (same device)",
       level1:"Lv 1 · Beginner",level2:"Lv 2 · Easy",level3:"Lv 3 · Intermediate",level4:"Lv 4 · Advanced",level5:"Lv 5 · AI model (KataGo; downloads on first use)",
       youBlack:"You play Black",youWhite:"You play White",autoRestart:"Automatically start a new game after finishing",size9:"9×9",size13:"13×13",size19:"19×19",
