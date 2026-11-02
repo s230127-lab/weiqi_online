@@ -158,7 +158,8 @@
   /* Welcome, rules, Google account and leaderboard */
   body.pre-game > header, body.pre-game > .layout { display:none; }
   .entry-screen { width:min(100%, 760px); margin:0 auto; padding:clamp(18px,4vw,34px); }
-  #welcome { min-height:calc(100vh - 24px); display:flex; flex-direction:column; justify-content:center; gap:18px; }
+  #welcome { min-height:calc(100vh - 24px); display:none; flex-direction:column; justify-content:center; gap:18px; }
+  body.pre-game:not(.show-rules) #welcome { display:flex; }
   body.pre-game #rulesScreen { display:none; }
   body.show-rules #welcome { display:none; }
   body.show-rules #rulesScreen { display:block; }
@@ -237,6 +238,7 @@
   <h1>圍棋<small>Weiqi</small></h1>
   <div class="top-tools">
     <select id="gameLang" aria-label="Language"><option value="zh">繁中</option><option value="en">EN</option></select>
+    <label id="gameRecordLabel" style="display:none;align-items:center;gap:5px;color:var(--muted);font-size:.85rem"><span id="gameRecordLabelText">記錄為</span><select id="gameRecordColor"><option value="1">黑方</option><option value="2">白方</option></select></label>
     <button id="headerAuth">Google 登入</button>
     <button id="menu" style="display:none">設定</button>
     <button id="new" class="primary">新遊戲</button>
@@ -426,6 +428,8 @@
     $('rankColorLabel').childNodes[0].textContent = say('rankColor') + ' ';
     $('recordColor').options[0].text = say('black');
     $('recordColor').options[1].text = say('white');
+    if ($('gameRecordColor')) { $('gameRecordColor').options[0].text=say('black'); $('gameRecordColor').options[1].text=say('white'); }
+    if ($('gameRecordLabelText')) $('gameRecordLabelText').textContent = language==='en'?'Record as':'記錄為';
     const modeOpts = $('mode').options;
     [say('modeBot'),say('modeTwo'),say('modeFace')].forEach((v,i)=>modeOpts[i].text=v);
     const levelOpts = $('level').options;
@@ -843,6 +847,8 @@
     $('level').style.display = $('color').style.display = mode === 'bot' ? '' : 'none';
     document.body.classList.toggle('face-on', mode === 'face');
     $('menu').style.display = mode === 'face' ? '' : 'none';
+    $('gameRecordLabel').style.display = mode === 'bot' ? 'none' : 'inline-flex';
+    if ($('gameRecordColor')) $('gameRecordColor').value = $('recordColor').value;
   }
 
   function init() {
@@ -1537,7 +1543,7 @@
     }
   }
   function recordGame(winner) {
-    const myColor = mode === 'bot' ? human : Number($('recordColor').value || B);
+    const myColor = mode === 'bot' ? human : Number(($('gameRecordColor') ? $('gameRecordColor').value : $('recordColor').value) || B);
     const outcome = winner === 0 ? 'draw' : winner === myColor ? 'win' : 'loss';
     pendingResults.push({
       outcome, boardSize:N, mode, color:myColor,
@@ -1857,6 +1863,8 @@
   $('googleSignIn').onclick = handleGoogleAuth;
   $('headerAuth').onclick = handleGoogleAuth;
   $('refreshRanks').onclick = refreshLeaderboard;
+  $('recordColor').onchange = () => { if ($('gameRecordColor')) $('gameRecordColor').value = $('recordColor').value; };
+  $('gameRecordColor').onchange = () => { $('recordColor').value = $('gameRecordColor').value; };
   $('new').onclick = init;
   $('autoRestart').onchange = () => {
     if (!$('autoRestart').checked) { clearRestart(); update(); }
