@@ -31,6 +31,44 @@ service cloud.firestore {
           + request.resource.data.draws;
     }
 
+    match /levelLeaderboard/{level}/players/{uid} {
+      function validLevelPath() {
+        return level in ['lv1', 'lv2', 'lv3', 'lv4', 'lv5'];
+      }
+
+      function validLevelEntry() {
+        return request.resource.data.uid == uid
+          && request.resource.data.displayName is string
+          && request.resource.data.displayName.size() <= 80
+          && request.resource.data.level is int
+          && request.resource.data.bestTimeMs is int
+          && request.resource.data.bestTimeMs > 0
+          && request.resource.data.bestTimeMs <= 86400000
+          && request.resource.data.boardSize in [9, 13, 19]
+          && request.resource.data.updatedAt is timestamp
+          && ((level == 'lv1' && request.resource.data.level == 1)
+            || (level == 'lv2' && request.resource.data.level == 2)
+            || (level == 'lv3' && request.resource.data.level == 3)
+            || (level == 'lv4' && request.resource.data.level == 4)
+            || (level == 'lv5' && request.resource.data.level == 5));
+      }
+
+      // Public read lets everyone view each level's fastest winning times.
+      allow read: if validLevelPath();
+
+      // Each signed-in player can create or improve only their own record.
+      allow create: if validLevelPath()
+        && isOwner(uid)
+        && validLevelEntry();
+
+      allow update: if validLevelPath()
+        && isOwner(uid)
+        && validLevelEntry()
+        && request.resource.data.bestTimeMs <= resource.data.bestTimeMs;
+
+      allow delete: if false;
+    }
+
     match /leaderboard/{uid} {
       // Public read is needed to show the top 10 on the welcome screen.
       allow read: if true;
