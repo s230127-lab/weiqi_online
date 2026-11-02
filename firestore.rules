@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function validProfile() {
+      return request.resource.data.uid is string
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 80
+        && request.resource.data.photoURL is string
+        && request.resource.data.photoURL.size() <= 500
+        && request.resource.data.lastPlayed is timestamp;
+    }
+
+    function validStats() {
+      return request.resource.data.wins is int
+        && request.resource.data.losses is int
+        && request.resource.data.draws is int
+        && request.resource.data.games is int
+        && request.resource.data.points is int
+        && request.resource.data.wins >= 0
+        && request.resource.data.losses >= 0
+        && request.resource.data.draws >= 0
+        && request.resource.data.games >= 1
+        && request.resource.data.points >= 0
+        && request.resource.data.games == request.resource.data.wins
+          + request.resource.data.losses + request.resource.data.draws
+        && request.resource.data.points == request.resource.data.wins * 3
+          + request.resource.data.draws;
+    }
+
+    match /leaderboard/{uid} {
+      // Public read is needed to show the top 10 on the welcome screen.
+      allow read: if true;
+
+      // A new player may create only their own first result.
+      allow create: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && validProfile()
+        && validStats()
+        && request.resource.data.games == 1;
+
+      // Every update must represent exactly one additional game.
+      allow update: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && validProfile()
+        && validStats()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName', 'photoURL', 'lastPlayed',
+          'wins', 'losses', 'draws', 'games', 'points'
+        ])
+        && (request.resource.data.wins - resource.data.wins) in [0, 1]
+        && (request.resource.data.losses - resource.data.losses) in [0, 1]
+        && (request.resource.data.draws - resource.data.draws) in [0, 1]
+        && (request.resource.data.wins - resource.data.wins)
+          + (request.resource.data.losses - resource.data.losses)
+          + (request.resource.data.draws - resource.data.draws) == 1
+        && request.resource.data.games == resource.data.games + 1
+        && request.resource.data.points == resource.data.points
+          + 3 * (request.resource.data.wins - resource.data.wins)
+          + (request.resource.data.draws - resource.data.draws);
+
+      allow delete: if false;
+    }
+  }
+}
