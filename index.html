@@ -384,7 +384,7 @@
       rules:[
         "Black plays first, then White; players alternate one move at a time. A point where a played stone immediately has no liberties is forbidden (suicide), unless the move captures opposing stones. Groups with no liberties are captured and removed.",
         "Positional superko is enforced: a move may not recreate any earlier board position, including ko.",
-        "Two consecutive passes end the game. Mark dead groups by tapping them or using Auto-mark, then count. Chinese area scoring counts living stones plus surrounded empty points. Black gives komi of 7.5 points on 13×13 and 19×19 boards. Chinese rules do not specify 9×9 komi; this game uses 7 points on 9×9.",
+        "Two consecutive passes end the game. Mark dead groups by tapping them or using Auto-mark, then count. Chinese area scoring counts living stones plus surrounded empty points. Black receives a handicap of 7.5 points on 13×13 and 19×19 boards. Chinese rules do not specify 9×9 handicap; this game uses 7 points on 9×9.",
         "Face-to-face mode: place the device between the two players, with White at the top and Black at the bottom. Each player's information and controls face them. Resignation requires two presses to prevent accidental resignations.",
         "Lv 5 uses the KataGo model stored at models/katago.onnx. The page loads the model from this project only when Lv 5 is selected. Your browser may cache it for reuse. Inference runs entirely on your device and does not call a remote AI inference API. The first load transfers about 75 MB.",
         "Lv 1 plays random moves. Lv 2 uses tactical rules (captures, atari, and avoiding self-atari). Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks the longest. The computer runs entirely in your browser and is strongest on a 9×9 board."
@@ -401,7 +401,7 @@
       deadAnalysis:"Analyzing…",confirmResign:"Confirm resign?",suicide:"Illegal move: suicide",superko:"Illegal move: repeated position",
       resultDraw:"Draw.",youWin:"You win!",compWin:"Computer wins",blackWin:"Black wins",whiteWin:"White wins",
       resigned:"Opponent resigned",blackResigned:"Black wins (White resigned).",whiteResigned:"White wins (Black resigned).",
-      blackWins:"Black wins",whiteWins:"White wins",scoreHead:"Black {b} · White {w}. Komi: {k} stones ({m} points).",
+      blackWins:"Black wins",whiteWins:"White wins",scoreHead:"Black {b} · White {w}. Handicap: {k} stones ({m} points).",
       scoreWin:"{side} wins by {n} stones.",rankPoints:"{p} pts · W {w} · L {l} · D {d}",
       saved:"Game result saved.",needLogin:"This result is not saved yet. Sign in with Google to record it.",
       saveFailed:"Could not save the result. Check Firebase configuration and Firestore rules.",
@@ -409,7 +409,7 @@
       details:[
         "Black plays first. Players alternate one move at a time. A group with no liberties is captured. Suicide is illegal unless the move captures opposing stones.",
         "Positional superko is used: a move cannot recreate any earlier board position.",
-        "Two consecutive passes end the game. Mark dead groups, then count the living stones and surrounded points using Chinese area scoring. Black gives komi of 7.5 points on 13×13 and 19×19; 9×9 uses 7 points.",
+        "Two consecutive passes end the game. Mark dead groups, then count the living stones and surrounded points using Chinese area scoring. Black receives a handicap of 7.5 points on 13×13 and 19×19; 9×9 uses a 7-point handicap.",
         "Face-to-face mode: place the device between the players, with White at the top and Black at the bottom. Controls face each player. Resignation requires a second confirmation.",
         "Lv 5 loads the KataGo model stored at models/katago.onnx. Inference runs locally in your browser; no remote AI inference API is used. The first load transfers about 75 MB.",
         "Lv 1 plays randomly. Lv 2 uses basic tactical rules. Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks longer. The computer runs in your browser."
