@@ -13,42 +13,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect only the reported line without printing the candidate
+      - name: Locate the masked alert prefix without revealing the token
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
           data = Path("models/katago.onnx").read_bytes()
-          lines = data.split(b"\\n")
-          line_number = 13143
-          print(f"MODEL_SIZE_BYTES={len(data)}")
-          print(f"TOTAL_LF_LINES={len(lines)}")
-          if len(lines) < line_number:
-              print("REPORTED_LINE_NOT_PRESENT")
-              raise SystemExit(0)
-
-          line = lines[line_number - 1]
-          print(f"REPORTED_LINE_BYTES={len(line)}")
-          print(f"HF_PREFIX_COUNT_ON_REPORTED_LINE={line.count(b'hf_')}")
-
-          def safe_ascii(chunk):
-              return "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
-
+          needle = b"hf_gpele"
+          offsets = []
           start = 0
           while True:
-              pos = line.find(b"hf_", start)
+              pos = data.find(needle, start)
               if pos < 0:
                   break
-              end = pos + 3
-              while end < len(line) and (48 <= line[end] <= 57 or 65 <= line[end] <= 90 or 97 <= line[end] <= 122):
+              offsets.append(pos)
+              start = pos + 1
+          print(f"MODEL_SIZE_BYTES={len(data)}")
+          print(f"ALERT_PREFIX_COUNT={len(offsets)}")
+          print(f"CR_BYTES={data.count(bytes([13]))}")
+          print(f"LF_BYTES={data.count(bytes([10]))}")
+          for pos in offsets:
+              end = pos + len(needle)
+              while end < len(data) and (
+                  48 <= data[end] <= 57 or 65 <= data[end] <= 90 or 97 <= data[end] <= 122
+              ):
                   end += 1
-              before = line[max(0, pos - 50):pos]
-              after = line[end:min(len(line), end + 50)]
-              print(
-                  f"MATCH offset={sum(len(x)+1 for x in lines[:line_number-1])+pos} "
-                  f"contiguous_alnum_length={end-pos-3} "
-                  f"before={safe_ascii(before)!r} after={safe_ascii(after)!r}"
-              )
-              start = pos + 3
+              print(f"ALERT_PREFIX_OFFSET={pos} ALNUM_RUN_AFTER_HF_PREFIX={end-pos-3}")
           PY
