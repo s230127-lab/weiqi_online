@@ -1,4 +1,4 @@
-name: Inspect KataGo quantized tensor links
+name: Inspect KataGo ConvInteger zero point
 
 on:
   push:
@@ -13,30 +13,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect tensor consumers and quantization annotations
+      - name: Read the quantized weight zero point
         shell: bash
         run: |
-          python -m pip install --quiet onnx
+          python -m pip install --quiet onnx numpy
           python - <<'PY'
           import onnx
+          from onnx import numpy_helper
 
           model = onnx.load_model("models/katago.onnx", load_external_data=False)
           tensor = model.graph.initializer[626]
-          print(f"TENSOR={tensor.name}")
-          consumers = [node for node in model.graph.node if tensor.name in node.input]
+          consumers = [n for n in model.graph.node if tensor.name in n.input]
+          initializers = {item.name: item for item in model.graph.initializer}
           print(f"CONSUMER_COUNT={len(consumers)}")
           for node in consumers:
-              positions = [i for i, name in enumerate(node.input) if name == tensor.name]
-              print(f"CONSUMER_OP={node.op_type} INPUT_POSITIONS={positions} NODE={node.name}")
-
-          annotations = [
-              item for item in model.graph.quantization_annotation
-              if item.tensor_name == tensor.name
-          ]
-          print(f"QUANTIZATION_ANNOTATION_COUNT={len(annotations)}")
-          for annotation in annotations:
-              for entry in annotation.quant_parameter_tensor_names:
-                  print(f"QUANT_PARAM_KEY={entry.key} TENSOR={entry.value}")
-
-          print(f"OTHER_INITIALIZERS_WITH_SIMILAR_NAME={sum(1 for item in model.graph.initializer if 'weight_quantized' in item.name and item.name != tensor.name)}")
+              print(f"CONSUMER_OP={node.op_type}")
+              print(f"CONSUMER_INPUT_COUNT={len(node.input)}")
+              for index, name in enumerate(node.input):
+                  print(f"INPUT_{index}_NAME={name}")
+                  if name in initializers:
+                      parameter = initializers[name]
+                      values = numpy_helper.to_array(parameter).reshape(-1)
+                      print(f"INPUT_{index}_TYPE={onnx.TensorProto.DataType.Name(parameter.data_type)}")
+                      print(f"INPUT_{index}_SHAPE={list(parameter.dims)}")
+                      print(f"INPUT_{index}_VALUE_COUNT={len(values)}")
+                      if len(values) <= 4:
+                          print(f"INPUT_{index}_VALUES={[int(v) for v in values]}")
+              if node.op_type == "ConvInteger" and len(node.input) > 3:
+                  zp_name = node.input[3]
+                  if zp_name in initializers:
+                      zp = numpy_helper.to_array(initializers[zp_name]).reshape(-1)
+                      print(f"WEIGHT_ZERO_POINT_TENSOR={zp_name}")
+                      print(f"WEIGHT_ZERO_POINT_VALUES={[int(v) for v in zp[:4]]}")
           PY
