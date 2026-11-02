@@ -1047,7 +1047,7 @@
     const diff = sB - N * N / 2 - kz;      // >0 黑勝
     phase = 'done';
     const head = language === 'en'
-      ? `Black ${sB} · White ${sW}. Komi: ${fmtZi(kz)} stones (${komi()} points).<br>`
+      ? `Black ${sB} · White ${sW}. Handicap: ${fmtZi(kz)} stones (${komi()} points).<br>`
       : `黑 ${sB} 子 · 白 ${sW} 子。黑貼 ${fmtZi(kz)} 子(相當 ${komi()} 目)。<br>`;
     const winner = diff > 0 ? B : diff < 0 ? W : 0;
     const result = diff === 0 ? '<b>' + say('resultDraw') + '</b>'
