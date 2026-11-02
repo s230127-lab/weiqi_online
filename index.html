@@ -1571,9 +1571,19 @@
       }
     } catch (error) {
       console.warn('Google sign-in failed:', error);
-      setAuthMessage(language==='en'
-        ? 'Google sign-in failed. Allow pop-ups and try again.'
-        : 'Google 登入失敗。請允許彈出視窗後再試。');
+      const code = error && error.code ? error.code : 'unknown';
+      const detail = error && error.message ? error.message : String(error);
+      let hint = '';
+      if (code === 'auth/popup-blocked') {
+        hint = language==='en' ? 'The browser blocked the sign-in window. Allow pop-ups for this site and try again.' : '瀏覽器封鎖了登入視窗。請允許此網站開啟彈出式視窗後再試。';
+      } else if (code === 'auth/unauthorized-domain') {
+        hint = language==='en' ? 'This website domain is not authorized in Firebase Authentication.' : '這個網站網域尚未加入 Firebase Authentication 的授權網域。';
+      } else if (code === 'auth/popup-closed-by-user') {
+        hint = language==='en' ? 'The sign-in window was closed before sign-in finished.' : '登入視窗在登入完成前被關閉。';
+      } else {
+        hint = language==='en' ? 'Google sign-in failed.' : 'Google 登入失敗。';
+      }
+      setAuthMessage(hint + ' (' + code + ') ' + detail);
     }
   }
   function recordGame(winner) {
