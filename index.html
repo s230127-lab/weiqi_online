@@ -1508,7 +1508,18 @@
     else setAuthMessage(say('loginForResults'));
   }
   function initFirebase() {
-    if (!firebaseReady() || !window.firebase) { updateAuthButtons(); refreshLeaderboard(); return; }
+    if (!firebaseReady()) {
+      updateAuthButtons();
+      refreshLeaderboard();
+      return;
+    }
+    if (!window.firebase) {
+      setAuthMessage(language==='en'
+        ? 'Firebase SDK did not load. Check your internet connection or whether your browser blocks gstatic.com.'
+        : 'Firebase 程式庫未能載入。請檢查網絡連線，或瀏覽器是否封鎖 gstatic.com。');
+      refreshLeaderboard();
+      return;
+    }
     try {
       if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
       firebaseAuth = firebase.auth();
@@ -1521,12 +1532,18 @@
       });
     } catch (error) {
       console.error('Firebase initialization failed:', error);
-      setAuthMessage(say('authNotReady'));
+      setAuthMessage((language==='en' ? 'Firebase initialization error: ' : 'Firebase 初始化錯誤：') + (error && error.message ? error.message : String(error)));
     }
   }
   async function handleGoogleAuth() {
-    if (!firebaseReady() || !firebaseAuth) {
+    if (!firebaseReady()) {
       setAuthMessage(say('authNotReady'));
+      return;
+    }
+    if (!firebaseAuth) {
+      setAuthMessage(language==='en'
+        ? 'Firebase is not initialized. Reload the page; if this continues, check whether the Firebase SDK scripts are blocked.'
+        : 'Firebase 尚未初始化。請重新載入頁面；若問題持續，請檢查 Firebase 程式庫是否被瀏覽器封鎖。');
       return;
     }
     try {
