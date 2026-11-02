@@ -242,7 +242,6 @@
     <h1 id="rulesTitle">圍棋規則</h1>
     <p id="rulesIntro" class="entry-sub">開始前請先閱讀基本規則。</p>
     <ol id="rulesList" class="rule-list"></ol>
-    <p id="rulesKomi" class="entry-sub"></p>
     <button id="rulesReadButton" type="button" aria-pressed="false" style="width:100%;text-align:left;margin-top:18px;min-height:48px">我已閱讀規則</button>
     <div class="entry-actions" style="margin-top:12px">
       <button id="rulesBack">返回</button>
@@ -380,7 +379,6 @@
         "Lv 5 使用儲存在本專案 models/katago.onnx 的 KataGo 模型。只有選擇 Lv 5 時，網頁才會從本專案載入模型；瀏覽器會嘗試快取，下次可重用。模型推論完全在你的裝置上執行，不會呼叫遠端 AI 推論 API。首次載入仍需傳輸約 75 MB 模型資料。",
         "Lv 1 隨機落子。Lv 2 使用戰術規則（提子、叫吃、避免自打吃）。Lv 3 與 Lv 4 加入蒙地卡羅模擬，Lv 4 思考最久。電腦完全在瀏覽器內運算，在 9 路棋盤上最強。"
       ],
-      komi:"",
       menu:"設定", newGame:"新遊戲", modeBot:"人機對弈", modeTwo:"雙人對弈", modeFace:"面對面對弈（同一裝置）",
       level1:"Lv 1 · 入門",level2:"Lv 2 · 初級",level3:"Lv 3 · 中級",level4:"Lv 4 · 高級",level5:"Lv 5 · AI 模型（KataGo，首次使用時下載）",
       youBlack:"你執黑",youWhite:"你執白",autoRestart:"結束後自動開新局",size9:"9 路",size13:"13 路",size19:"19 路",
@@ -427,7 +425,6 @@
         "Lv 5 uses the KataGo model stored at models/katago.onnx. The page loads the model from this project only when Lv 5 is selected. Your browser may cache it for reuse. Inference runs entirely on your device and does not call a remote AI inference API. The first load transfers about 75 MB.",
         "Lv 1 plays random moves. Lv 2 uses tactical rules (captures, atari, and avoiding self-atari). Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks the longest. The computer runs entirely in your browser and is strongest on a 9×9 board."
       ],
-      komi:"",
       menu:"Settings",newGame:"New game",modeBot:"Play vs computer",modeTwo:"Two players",modeFace:"Face-to-face (same device)",
       level1:"Lv 1 · Beginner",level2:"Lv 2 · Easy",level3:"Lv 3 · Intermediate",level4:"Lv 4 · Advanced",level5:"Lv 5 · AI model (KataGo; downloads on first use)",
       youBlack:"You play Black",youWhite:"You play White",autoRestart:"Automatically start a new game after finishing",size9:"9×9",size13:"13×13",size19:"19×19",
@@ -497,7 +494,6 @@
     if (detailsEl) detailsEl.querySelectorAll('p').forEach((p,i)=>p.textContent=I18N[language].details[i] || '');
     const list = $('rulesList'); list.replaceChildren();
     I18N[language].rules.forEach(item => { const li=document.createElement('li'); li.textContent=item; list.appendChild(li); });
-    $('rulesKomi').textContent = say('komi');
     if ($('rulesReadButton')) $('rulesReadButton').textContent = say('rulesReadText');
     if ($('rulesStart')) $('rulesStart').textContent = say('rulesStart');
     $('authStatus').textContent = currentUser
