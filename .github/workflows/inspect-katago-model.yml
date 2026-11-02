@@ -1,0 +1,39 @@
+name: Inspect KataGo model metadata safely
+
+on:
+  push:
+    paths:
+      - ".github/workflows/inspect-katago-model.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find and describe Hugging Face-like strings without printing them
+        shell: bash
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          path = Path("models/katago.onnx")
+          data = path.read_bytes()
+          matches = list(re.finditer(rb"hf_[A-Za-z0-9]{20,}", data))
+          print(f"MODEL_SIZE_BYTES={len(data)}")
+          print(f"CANDIDATE_COUNT={len(matches)}")
+
+          def safe_ascii(chunk):
+              return "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
+
+          for match in matches:
+              before = data[max(0, match.start() - 60):match.start()]
+              after = data[match.end():match.end() + 60]
+              print(
+                  f"CANDIDATE offset={match.start()} length={match.end()-match.start()} "
+                  f"before={safe_ascii(before)!r} after={safe_ascii(after)!r}"
+              )
+          PY
