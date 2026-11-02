@@ -243,10 +243,7 @@
     <p id="rulesIntro" class="entry-sub">開始前請先閱讀基本規則。</p>
     <ol id="rulesList" class="rule-list"></ol>
     <p id="rulesKomi" class="entry-sub"></p>
-    <label style="display:flex;gap:10px;align-items:flex-start;margin-top:18px;line-height:1.6">
-      <input id="rulesRead" type="checkbox" style="width:20px;height:20px;flex:0 0 auto;margin-top:3px">
-      <span id="rulesReadText">我已閱讀並了解以上規則</span>
-    </label>
+    <button id="rulesReadButton" type="button" aria-pressed="false" style="width:100%;text-align:left;margin-top:18px;min-height:48px">我已閱讀規則</button>
     <div class="entry-actions" style="margin-top:12px">
       <button id="rulesBack">返回</button>
       <button id="rulesStart" class="primary" disabled>閱讀後開始對弈</button>
@@ -374,7 +371,7 @@
       levelRankTitle:"各等級最快勝局", rankLevel:"電腦等級", noLevelRanks:"這個等級尚無勝局紀錄。",
       loadLevelRanksFailed:"暫時無法載入此等級排行榜。", levelTimeSaved:"已更新此等級的個人最佳時間。",
       rulesIntro:"開始前請先閱讀以下規則。閱讀完畢後，勾選確認即可開始對弈。",
-      rulesReadText:"我已閱讀並了解以上規則", rulesStart:"開始對弈",
+      rulesReadText:"我已閱讀規則", rulesStart:"開始對弈",
       rules:[
         "黑先白後，雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」（自殺），不可下；能提子則可。沒有氣的棋塊會被提走。",
         "禁止全局同形：不可使盤面重現先前出現過的任何局面（打劫亦屬此類）。",
@@ -421,7 +418,7 @@
       levelRankTitle:"Fastest wins by level", rankLevel:"Computer level", noLevelRanks:"No winning records for this level yet.",
       loadLevelRanksFailed:"This level's leaderboard is temporarily unavailable.", levelTimeSaved:"Your personal best for this level has been updated.",
       rulesIntro:"Please read the rules below. When you have finished, tick the confirmation box to begin playing.",
-      rulesReadText:"I have read and understood the rules above", rulesStart:"Start playing",
+      rulesReadText:"I have read the rules", rulesStart:"Start playing",
       rules:[
         "Black plays first, then White; players alternate one move at a time. A point where a played stone immediately has no liberties is forbidden (suicide), unless the move captures opposing stones. Groups with no liberties are captured and removed.",
         "Positional superko is enforced: a move may not recreate any earlier board position, including ko.",
@@ -501,7 +498,7 @@
     const list = $('rulesList'); list.replaceChildren();
     I18N[language].rules.forEach(item => { const li=document.createElement('li'); li.textContent=item; list.appendChild(li); });
     $('rulesKomi').textContent = say('komi');
-    if ($('rulesReadText')) $('rulesReadText').textContent = say('rulesReadText');
+    if ($('rulesReadButton')) $('rulesReadButton').textContent = say('rulesReadText');
     if ($('rulesStart')) $('rulesStart').textContent = say('rulesStart');
     $('authStatus').textContent = currentUser
       ? (language==='en' ? 'Signed in as ' : '已登入：') + (currentUser.displayName || currentUser.email || currentUser.uid)
@@ -2060,14 +2057,20 @@
   });
 
   $('launchBtn').onclick = () => {
-    $('rulesRead').checked = false;
+    $('rulesReadButton').setAttribute('aria-pressed','false');
+    $('rulesReadButton').classList.remove('primary');
     $('rulesStart').disabled = true;
     document.body.classList.add('show-rules');
   };
   $('rulesBack').onclick = () => { document.body.classList.remove('show-rules'); };
-  $('rulesRead').onchange = e => { $('rulesStart').disabled = !e.target.checked; };
+  $('rulesReadButton').onclick = () => {
+    const accepted = $('rulesReadButton').getAttribute('aria-pressed') !== 'true';
+    $('rulesReadButton').setAttribute('aria-pressed',String(accepted));
+    $('rulesReadButton').classList.toggle('primary',accepted);
+    $('rulesStart').disabled = !accepted;
+  };
   $('rulesStart').onclick = () => {
-    if (!$('rulesRead').checked) return;
+    if ($('rulesReadButton').getAttribute('aria-pressed') !== 'true') return;
     document.body.classList.remove('pre-game','show-rules');
     init();
   };
