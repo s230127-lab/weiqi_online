@@ -90,12 +90,33 @@ models/katago.onnx
 - **數子：** 雙方連續虛手後，標記死子並按「數子」計算結果。
 - **新遊戲：** 按「新遊戲」，或更改模式、棋盤尺寸、棋色及電腦等級以重新開始。
 
+## 歡迎頁、英文介面與排行榜
+
+開啟網站會先看到歡迎頁。按「開始遊戲」後會先顯示規則，閱讀後再按「開始對弈」。右上方可在繁體中文與 English 之間切換；語言選擇會保存在此瀏覽器。
+
+排行榜使用 Google 登入與 Firebase Authentication / Cloud Firestore。未設定 Firebase 時，遊戲本身仍可遊玩，但登入、保存成績與排行榜不會運作。請依照以下步驟啟用：
+
+1. 在 [Firebase Console](https://console.firebase.google.com/) 建立 Firebase 專案，並新增一個 Web App。
+2. 在 **Authentication → Sign-in method** 啟用 **Google** 登入。
+3. 在 **Firestore Database** 建立資料庫。
+4. 將 Web App 的設定值（apiKey、authDomain、projectId、appId）填入 `index.html` 中的 `FIREBASE_CONFIG`。這些是瀏覽器端公開設定，不是 Admin SDK 私密金鑰；切勿把服務帳戶私密金鑰放進網頁。
+5. 在 Firebase Authentication 的 **Authorized domains** 加入 GitHub Pages 網域（例如 `s230127-lab.github.io`），以及你實際使用的自訂網域。
+6. 將本專案的 `firestore.rules` 發佈到 Firebase Firestore Rules。
+
+### 成績與排名
+
+- 必須先使用 Google 登入，對局結果才會寫入排行榜；未登入時，結果會暫存在目前頁面的記憶體中，登入後會嘗試補存。
+- 人機模式以你選擇的黑棋或白棋計算勝負。雙人／面對面模式可選擇以哪一方作為登入玩家。
+- 勝局 3 分、和局 1 分、敗局 0 分；排行榜顯示前 10 名，按積分、勝局數及勝率排序。
+- Firestore 規則限制使用者只能更新自己的排名文件，並要求每次更新恰好新增一局及對應積分。
+- 這是休閒排行榜，不是防作弊競技伺服器：目前遊戲在瀏覽器本機運算，伺服器不會重新驗證完整棋譜，因此使用者仍可能透過修改瀏覽器程式偽造成績。正式競技用途應增加伺服器端棋譜驗證。
+
 ## 技術資訊
 
 - 單頁網頁應用程式，主要遊戲程式寫在 `index.html`。
 - 使用 HTML Canvas 繪製棋盤與棋子。
 - KataGo 模型格式為 ONNX，由 ONNX Runtime Web 在瀏覽器執行。
-- 不需要自建後端，也不需要 AI 推論 API 金鑰。
+- Lv 1–5 的遊戲與 AI 推論不需要自建後端或 AI 推論 API 金鑰；Google 登入及排行榜需要設定 Firebase。
 - Lv 1–4 的電腦策略在瀏覽器內執行；Lv 5 亦在瀏覽器內執行模型推論。
 
 ## 授權與模型說明
