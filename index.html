@@ -450,8 +450,10 @@
     $('sW').querySelector('b').textContent = say('white');
     $('faceTop').querySelector('.fp-name').textContent = say('white');
     $('faceBottom').querySelector('.fp-name').textContent = say('black');
-    $('details summary').textContent = say('detailTitle');
-    $('details').querySelectorAll('p').forEach((p,i)=>p.textContent=I18N[language].details[i] || '');
+    const detailsEl = document.querySelector('details');
+    const detailsSummary = document.querySelector('details summary');
+    if (detailsSummary) detailsSummary.textContent = say('detailTitle');
+    if (detailsEl) detailsEl.querySelectorAll('p').forEach((p,i)=>p.textContent=I18N[language].details[i] || '');
     const list = $('rulesList'); list.replaceChildren();
     I18N[language].rules.forEach(item => { const li=document.createElement('li'); li.textContent=item; list.appendChild(li); });
     $('rulesKomi').textContent = say('komi');
@@ -465,7 +467,7 @@
   }
 
 
-  let N, board, turn, caps, prevBoard, lastMove, passes, phase, dead, history;
+  let N, board, turn, caps, prevBoard, lastMove, passes, phase, dead = new Set(), history;
   let seenList = [], seenSet = new Set(), moveLog = [];
   let mode = 'bot', level = 3, human = B, busy = false, token = 0, resultHTML = '';
 
