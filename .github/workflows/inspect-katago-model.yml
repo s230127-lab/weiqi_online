@@ -1,4 +1,4 @@
-name: Inspect KataGo ONNX tensor
+name: Inspect KataGo quantized weight
 
 on:
   push:
@@ -13,32 +13,51 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect the affected tensor without printing the secret
+      - name: Read the quantization zero point safely
         shell: bash
         run: |
-          python -m pip install --quiet onnx
+          python -m pip install --quiet onnx numpy
           python - <<'PY'
           from pathlib import Path
           import onnx
+          from onnx import numpy_helper
 
-          model_path = Path("models/katago.onnx")
-          model = onnx.load_model(str(model_path), load_external_data=False)
+          model = onnx.load_model("models/katago.onnx", load_external_data=False)
           tensor = model.graph.initializer[626]
+          offset = tensor.raw_data.find(b"hf_gpele")
+          end = offset + 8
           raw = tensor.raw_data
-          needle = b"hf_gpele"
-          offset = raw.find(needle)
-          end = offset + len(needle)
           while end < len(raw) and (
               48 <= raw[end] <= 57 or 65 <= raw[end] <= 90 or 97 <= raw[end] <= 122
           ):
               end += 1
-          print("ONNX_PARSE=OK")
           print(f"TENSOR_NAME={tensor.name}")
           print(f"TENSOR_DATA_TYPE={onnx.TensorProto.DataType.Name(tensor.data_type)}")
           print(f"TENSOR_DIMS={list(tensor.dims)}")
-          print(f"RAW_DATA_BYTES={len(raw)}")
           print(f"MATCH_OFFSET_IN_TENSOR={offset}")
           print(f"MATCH_LENGTH={end-offset}")
-          print(f"MATCH_ALIGNED_TO_ELEMENT_4={(offset % 4)==0}")
-          print(f"MATCH_ALIGNED_TO_ELEMENT_2={(offset % 2)==0}")
+          channel_width = 1
+          for dim in tensor.dims[1:]:
+              channel_width *= dim
+          channel_index = offset // channel_width
+          print(f"OUTPUT_CHANNEL_INDEX={channel_index}")
+
+          initializers = {item.name: item for item in model.graph.initializer}
+          consumers = [n for n in model.graph.node if n.op_type == "DequantizeLinear" and n.input and n.input[0] == tensor.name]
+          print(f"DEQUANTIZE_CONSUMER_COUNT={len(consumers)}")
+          for node in consumers:
+              axis = 1
+              for attr in node.attribute:
+                  if attr.name == "axis":
+                      axis = attr.i
+              print(f"DEQUANTIZE_AXIS={axis}")
+              if len(node.input) > 2 and node.input[2] in initializers:
+                  zp_tensor = initializers[node.input[2]]
+                  zp = numpy_helper.to_array(zp_tensor).reshape(-1)
+                  idx = channel_index if axis == 0 and len(zp) > 1 else 0
+                  print(f"ZERO_POINT_TENSOR={zp_tensor.name}")
+                  print(f"ZERO_POINT_LENGTH={len(zp)}")
+                  print(f"NEUTRAL_UINT8_VALUE={int(zp[idx])}")
+              else:
+                  print("ZERO_POINT_INPUT_ABSENT_DEFAULTS_TO_ZERO")
           PY
