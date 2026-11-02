@@ -950,7 +950,7 @@
     const w = opp(loser);
     showResult(w === B ? say('blackResigned') : say('whiteResigned'));
     recordGame(w);
-    celebrate(w, 'resigned');
+    celebrate(w, say('resigned'));
     scheduleRestart();
     $('score').style.display = 'none';
     $('auto').style.display = 'none';
@@ -1552,7 +1552,16 @@
       displayMode: mode === 'bot' ? ('bot-lv-' + level) : mode
     });
     if (currentUser) savePendingResults();
-    else setAuthMessage(say('needLogin'));
+    else {
+      setAuthMessage(say('needLogin'));
+      const result = $('result');
+      if (!$('resultAuthNote')) {
+        const note = document.createElement('p');
+        note.id = 'resultAuthNote';
+        note.textContent = say('needLogin');
+        result.appendChild(note);
+      }
+    }
   }
   async function savePendingResults() {
     if (!currentUser || !firestore || savingResults) return;
@@ -1571,8 +1580,8 @@
           const addDraw = item.outcome === 'draw' ? 1 : 0;
           const data = {
             uid:currentUser.uid,
-            displayName:(currentUser.displayName || currentUser.email || 'Go player').slice(0,80),
-            photoURL:currentUser.photoURL || '',
+            displayName:(currentUser.displayName || 'Go player').slice(0,80),
+            photoURL:'',
             wins:(old.wins || 0)+addWin,
             losses:(old.losses || 0)+addLoss,
             draws:(old.draws || 0)+addDraw,
@@ -1585,6 +1594,8 @@
         pendingResults.shift();
       }
       setAuthMessage(say('saved'));
+      const note = $('resultAuthNote');
+      if (note) note.remove();
       refreshLeaderboard();
     } catch (error) {
       console.error('Saving game result failed:', error);
@@ -1689,10 +1700,10 @@
       else if (act === 'auto') autoMark();
       else if (act === 'score') countScore();
       else if (act === 'resign') {
-        if (btn.dataset.arm) { delete btn.dataset.arm; btn.textContent = '認輸'; resign(c); }
+        if (btn.dataset.arm) { delete btn.dataset.arm; btn.textContent = say('resign'); resign(c); }
         else {
           btn.dataset.arm = '1'; btn.textContent = say('confirmResign');
-          setTimeout(() => { if (btn.dataset.arm) { delete btn.dataset.arm; btn.textContent = '認輸'; } }, 3000);
+          setTimeout(() => { if (btn.dataset.arm) { delete btn.dataset.arm; btn.textContent = say('resign'); } }, 3000);
         }
       }
     });
