@@ -1,4 +1,4 @@
-name: Inspect KataGo ONNX field
+name: Inspect KataGo ONNX tensor
 
 on:
   push:
@@ -13,41 +13,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Identify the ONNX field holding the alert value
+      - name: Inspect the affected tensor without printing the secret
         shell: bash
         run: |
           python -m pip install --quiet onnx
           python - <<'PY'
           from pathlib import Path
-          from google.protobuf.descriptor import FieldDescriptor
           import onnx
 
-          path = Path("models/katago.onnx")
-          raw = path.read_bytes()
+          model_path = Path("models/katago.onnx")
+          model = onnx.load_model(str(model_path), load_external_data=False)
+          tensor = model.graph.initializer[626]
+          raw = tensor.raw_data
           needle = b"hf_gpele"
-          print(f"MODEL_SIZE_BYTES={len(raw)}")
-          print(f"ALERT_PREFIX_RAW_COUNT={raw.count(needle)}")
-          model = onnx.load_model(str(path), load_external_data=False)
+          offset = raw.find(needle)
+          end = offset + len(needle)
+          while end < len(raw) and (
+              48 <= raw[end] <= 57 or 65 <= raw[end] <= 90 or 97 <= raw[end] <= 122
+          ):
+              end += 1
           print("ONNX_PARSE=OK")
-
-          found = []
-          def walk(message, field_path):
-              for field, value in message.ListFields():
-                  values = value if field.is_repeated else [value]
-                  for index, item in enumerate(values):
-                      item_path = f"{field_path}.{field.name}"
-                      if field.is_repeated:
-                          item_path += f"[{index}]"
-                      if field.type == FieldDescriptor.TYPE_MESSAGE:
-                          walk(item, item_path)
-                      elif field.type in (FieldDescriptor.TYPE_STRING, FieldDescriptor.TYPE_BYTES):
-                          blob = item if isinstance(item, bytes) else item.encode("utf-8")
-                          if needle in blob:
-                              found.append((item_path, field.type, len(blob), blob.count(needle)))
-
-          walk(model, "ModelProto")
-          print(f"PROTOBUF_FIELD_MATCH_COUNT={len(found)}")
-          for field_path, field_type, field_length, count in found:
-              kind = "BYTES" if field_type == FieldDescriptor.TYPE_BYTES else "STRING"
-              print(f"FIELD={field_path} TYPE={kind} VALUE_BYTES={field_length} MATCHES={count}")
+          print(f"TENSOR_NAME={tensor.name}")
+          print(f"TENSOR_DATA_TYPE={onnx.TensorProto.DataType.Name(tensor.data_type)}")
+          print(f"TENSOR_DIMS={list(tensor.dims)}")
+          print(f"RAW_DATA_BYTES={len(raw)}")
+          print(f"MATCH_OFFSET_IN_TENSOR={offset}")
+          print(f"MATCH_LENGTH={end-offset}")
+          print(f"MATCH_ALIGNED_TO_ELEMENT_4={(offset % 4)==0}")
+          print(f"MATCH_ALIGNED_TO_ELEMENT_2={(offset % 2)==0}")
           PY
