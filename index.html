@@ -465,6 +465,14 @@
       ]
     }
   };
+  // Central translation lookup used by every screen, button, rules list and status message.
+  // Keep this helper directly after I18N so startup and Firebase callbacks can always use it.
+  function say(key) {
+    const dict = I18N[language] || I18N.zh;
+    const value = dict && dict[key];
+    return value == null ? String(key) : value;
+  }
+
   function fmtText(key, values) {
     return Object.entries(values || {}).reduce((out, [k,v]) => out.replaceAll('{' + k + '}', String(v)), say(key));
   }
