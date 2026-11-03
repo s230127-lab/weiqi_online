@@ -1554,7 +1554,7 @@
       if (b[p] !== EMPTY) continue;
       const r = tryMove(b, p % N, (p / N) | 0, pla);
       if (!r) continue;
-      if (seenSet.has(posKey(r.board))) { bin[6 * n + p] = 1; continue; }
+      if (forbiddenPositions.has(posKey(r.board))) { bin[6 * n + p] = 1; continue; }
       legal.push(p);
     }
     for (let k = 1; k <= 5; k++) {
