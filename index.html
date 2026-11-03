@@ -393,7 +393,7 @@
         "Lv 6 使用 Leela Zero 舊版 WebGL 引擎與神經網路，在瀏覽器內透過 WebAssembly 和 WebGL 執行；第一次使用會從固定版本的第三方 CDN 載入引擎及模型。這是 2017 年的瀏覽器移植版，並非最新 Leela Zero。" 
       ],
       menu:"設定", newGame:"新遊戲", modeBot:"人機對弈", modeTwo:"雙人對弈", modeFace:"面對面對弈（同一裝置）",
-      level1:"Lv 1 · 入門",level2:"Lv 2 · 初級",level3:"Lv 3 · 中級",level4:"Lv 4 · 高級",level5:"Lv 5 · AI 模型（KataGo，首次使用時下載）",level6:"Lv 6 · Leela Zero（舊版 WebGL，首次載入）",
+      level1:"Lv 1 · 入門",level2:"Lv 2 · 初級",level3:"Lv 3 · 中級",level4:"Lv 4 · 高級",level5:"Lv 5 · AI 模型（KataGo，首次使用時下載）",level6:"Lv 6 · Leela Zero（舊版 WebGL；僅支援 19 路）",
       youBlack:"你執黑",youWhite:"你執白",autoRestart:"結束後自動開新局",size9:"9 路",size13:"13 路",size19:"19 路",
       undo:"悔棋",pass:"虛手",resign:"認輸",autoMark:"自動標記死子",score:"數子",
       blackTurn:"黑方落子",whiteTurn:"白方落子",botThinking:"電腦思考中…",markDead:"點選死子",gameOver:"對局結束",
@@ -440,7 +440,7 @@
         "Lv 6 uses the legacy Leela Zero WebGL engine and neural network, running in your browser through WebAssembly and WebGL. On first use, the engine and model are loaded from a pinned third-party CDN. This is the 2017 browser port, not the latest Leela Zero engine."
       ],
       menu:"Settings",newGame:"New game",modeBot:"Play vs computer",modeTwo:"Two players",modeFace:"Face-to-face (same device)",
-      level1:"Lv 1 · Beginner",level2:"Lv 2 · Easy",level3:"Lv 3 · Intermediate",level4:"Lv 4 · Advanced",level5:"Lv 5 · AI model (KataGo; downloads on first use)",level6:"Lv 6 · Leela Zero (legacy WebGL; loads on first use)",
+      level1:"Lv 1 · Beginner",level2:"Lv 2 · Easy",level3:"Lv 3 · Intermediate",level4:"Lv 4 · Advanced",level5:"Lv 5 · AI model (KataGo; downloads on first use)",level6:"Lv 6 · Leela Zero (legacy WebGL; 19×19 only)",
       youBlack:"You play Black",youWhite:"You play White",autoRestart:"Automatically start a new game after finishing",size9:"9×9",size13:"13×13",size19:"19×19",
       undo:"Undo",pass:"Pass",resign:"Resign",autoMark:"Auto-mark dead stones",score:"Score",
       blackTurn:"Black to play",whiteTurn:"White to play",botThinking:"Computer thinking…",markDead:"Mark dead stones",gameOver:"Game over",
@@ -1055,6 +1055,13 @@
     gameEndedAt = null;
     updateGameTimer();
     N = +$('size').value;
+    const leelaBoardUnsupported = N !== 19;
+    $('lvLeela').disabled = leelaBoardUnsupported;
+    const leelaFallback = mode === 'bot' && level === 6 && leelaBoardUnsupported;
+    if (leelaFallback) {
+      $('level').value = '4';
+      level = 4;
+    }
     fastInit(N);
     loadNet();
     if (mode === 'face') document.body.classList.remove('show-opts');
@@ -1073,6 +1080,11 @@
     $('auto').style.display = 'none';
     resize();
     update();
+    if (leelaFallback) {
+      $('msg').textContent = language === 'en'
+        ? 'The legacy Leela Zero engine supports 19×19 only. Switched to Lv 4 for this board size.'
+        : '此舊版 Leela Zero 引擎只支援 19×19 棋盤；目前已自動改用 Lv 4。';
+    }
     maybeBot();
   }
 
