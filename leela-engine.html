@@ -60,7 +60,12 @@
       var current = pendingCommand;
       pendingCommand = null;
       clearTimeout(current.timer);
-      current.resolve(line.replace(/^[=?]\s*/, '').trim());
+      var response = line.replace(/^[=?]\\s*/, '').trim();
+      if (line.charAt(0) === '?') {
+        current.reject(new Error('Leela Zero rejected GTP command "' + current.command + '": ' + response));
+      } else {
+        current.resolve(response);
+      }
     }
   }
 
@@ -116,7 +121,7 @@
     commandBusy = true;
     try {
       var size = Number(request.size);
-      if (![9, 13, 19].includes(size)) throw new Error('Leela Zero supports 9, 13, or 19 lines.');
+      if (size !== 19) throw new Error('This legacy Leela Zero browser build supports 19×19 boards only. Choose a 19×19 board or another AI level.');
       await gtp('boardsize ' + size);
       await gtp('clear_board');
       await gtp('komi ' + (size === 9 ? '7' : '7.5'));
