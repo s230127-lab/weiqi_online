@@ -233,6 +233,32 @@
   #gameLeaderboardList .rank-score { white-space:nowrap; color:var(--muted); font-variant-numeric:tabular-nums; }
   #gameLeaderboardList .rank-name { overflow-wrap:anywhere; }
 
+
+  /* First-play guide */
+  .guide-backdrop[hidden] { display:none !important; }
+  .guide-backdrop {
+    position:fixed; inset:0; z-index:10000; display:grid; place-items:center;
+    padding:18px; background:rgba(12,16,13,.68); backdrop-filter:blur(3px);
+  }
+  .guide-dialog {
+    width:min(100%,560px); background:var(--panel); color:var(--ink);
+    border:1px solid var(--line); border-radius:16px; padding:clamp(18px,4vw,28px);
+    box-shadow:0 20px 60px rgba(0,0,0,.3);
+  }
+  .guide-meta,.guide-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .guide-meta { color:var(--muted); font-size:.9rem; }
+  .guide-dialog h2 { margin:18px 0 10px; font-size:1.35rem; }
+  .guide-dialog p { margin:0; line-height:1.8; min-height:7em; }
+  .guide-actions { margin-top:24px; flex-wrap:wrap; }
+  .guide-action-group { display:flex; gap:8px; margin-left:auto; }
+  .guide-close { min-width:40px; min-height:40px; padding:4px 10px; font-size:1.2rem; }
+  @media (max-width:480px) {
+    .guide-dialog p { min-height:0; }
+    .guide-actions { align-items:stretch; }
+    .guide-actions > button { flex:1 1 100%; }
+    .guide-action-group { width:100%; margin-left:0; }
+    .guide-action-group button { flex:1; }
+  }
 </style>
 </head>
 <body class="pre-game">
@@ -286,12 +312,32 @@
   </div>
 </section>
 
+<div id="playGuide" class="guide-backdrop" hidden>
+  <section class="guide-dialog" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+    <div class="guide-meta">
+      <span id="guideProgress" aria-live="polite"></span>
+      <button id="guideClose" class="guide-close" type="button" aria-label="關閉導覽">×</button>
+    </div>
+    <h2 id="guideTitle">新手導覽</h2>
+    <p id="guideText" aria-live="polite" aria-atomic="true"></p>
+    <div class="guide-actions">
+      <button id="guideSkip" type="button">略過導覽</button>
+      <div class="guide-action-group">
+        <button id="guidePrev" type="button">上一步</button>
+        <button id="guideNext" class="primary" type="button">下一步</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+
 
 
 <header>
   <h1>圍棋<small>Weiqi</small></h1>
   <div class="top-tools">
     <button id="homeBtn">首頁</button>
+    <button id="guideBtn">新手導覽</button>
     <span class="game-clock"><span id="gameTimerLabel">用時</span><strong id="gameTimer">00:00</strong></span>
     <button id="gameLeaderboardBtn">等級排行榜</button>
     <select id="gameLang" aria-label="Language"><option value="zh">繁中</option><option value="en">EN</option></select>
@@ -437,6 +483,15 @@
     zh: {
       launch:"開始遊戲", play:"開始對弈", back:"返回", rulesTitle:"圍棋規則",
       welcomeSubtitle:"與電腦對弈，或與朋友在同一部裝置上對弈。支援手機、平板與電腦。",
+      guideButton:"新手導覽",guideTitle:"圍棋新手導覽",guideProgress:"第 {current} 步，共 {total} 步",
+      guidePrevious:"上一步",guideNext:"下一步",guideFinish:"完成",guideSkip:"略過導覽",guideClose:"關閉導覽",
+      guideSteps:[
+        {title:"選擇玩法與棋盤",text:"在棋盤上方選擇人機對弈、雙人對弈或面對面對弈。你也可以選擇 9 路、13 路或 19 路棋盤；較小的棋盤通常更適合初學者。"},
+        {title:"設定電腦與棋色",text:"人機模式可選擇電腦等級，以及自己執黑或執白。Lv 1–4 在瀏覽器內運算；Lv 5 首次使用會下載約 75 MB 的 KataGo 模型；Lv 6 是舊版 Leela Zero，僅支援 19 路棋盤。"},
+        {title:"在交叉點落子",text:"黑方先行，之後輪流下在棋盤的交叉點。點擊或觸控交叉點即可落子。相連的棋子形成棋塊，棋塊旁的空交叉點稱為「氣」；沒有氣的對方棋塊會被提走。"},
+        {title:"使用對局按鈕",text:"「悔棋」返回上一個局面；「虛手」跳過一回合；「認輸」結束對局。雙方連續虛手後進入終局，請標記死子，再按「數子」計分。遊戲採用中國規則的數子法。"},
+        {title:"與朋友同機對弈",text:"雙人模式讓兩位玩家輪流使用同一棋盤。面對面模式可把平板或筆電平放在兩人中間，白方坐上方、黑方坐下方，雙方的資訊與按鈕會朝向各自一側。右上方可切換語言，也可隨時按「新手導覽」重看說明。"}
+      ],
       signIn:"使用 Google 登入以記錄成績", signOut:"登出", loginForResults:"登入後即可保存勝負紀錄並登上排行榜。",
       authNotReady:"排行榜登入尚未設定。請先在 Firebase 建立專案並填入網站設定。",
       rankTitle:"排行榜 · 前 10 名", refresh:"重新整理", noRanks:"目前還沒有排名紀錄。",
@@ -505,6 +560,15 @@
     en: {
       launch:"Start game",play:"Play",back:"Back",rulesTitle:"Rules of Go",
       welcomeSubtitle:"Play against the computer or a friend on the same device. Works on phones, tablets and computers.",
+      guideButton:"How to play",guideTitle:"A quick guide to Go",guideProgress:"Step {current} of {total}",
+      guidePrevious:"Previous",guideNext:"Next",guideFinish:"Finish",guideSkip:"Skip guide",guideClose:"Close guide",
+      guideSteps:[
+        {title:"Choose a game and board",text:"Use the selectors above the board to choose Play vs computer, Two players or Face-to-face. You can also choose a 9×9, 13×13 or 19×19 board. Smaller boards are often easier for beginners."},
+        {title:"Set the computer and your colour",text:"In Play vs computer mode, choose a computer level and whether you play Black or White. Lv 1–4 run in your browser. The first use of Lv 5 downloads the roughly 75 MB KataGo model. Lv 6 is a legacy Leela Zero port and supports 19×19 only."},
+        {title:"Play on an intersection",text:"Black moves first, then players take turns placing stones on the board intersections. Click or tap an intersection to play. Connected stones form a group; the empty neighbouring intersections are its liberties. An opposing group with no liberties is captured."},
+        {title:"Use the game controls",text:"Undo returns to the previous position, Pass skips a turn, and Resign ends the game. Two consecutive passes end the game. Mark dead groups, then select Count to score using Chinese area scoring."},
+        {title:"Play with someone beside you",text:"Two-player mode lets two people take turns on the same board. In Face-to-face mode, place a tablet or laptop between the players, with White at the top and Black at the bottom; each side's information and controls face that player. Change the language in the top bar, or reopen this guide at any time."}
+      ],
       signIn:"Sign in with Google to save results",signOut:"Sign out",loginForResults:"Sign in to save game results and appear on the leaderboard.",
       authNotReady:"Google sign-in and rankings are not configured yet. Set up Firebase and add this site's web-app configuration.",
       rankTitle:"Leaderboard · Top 10",refresh:"Refresh",noRanks:"No ranked games yet.",
@@ -582,13 +646,43 @@
   function fmtText(key, values) {
     return Object.entries(values || {}).reduce((out, [k,v]) => out.replaceAll('{' + k + '}', String(v)), say(key));
   }
+
+  const GUIDE_STORAGE_KEY = 'weiqi-first-play-guide-v1';
+  let guideStep = 0;
+  function hasCompletedGuide() {
+    try { return localStorage.getItem(GUIDE_STORAGE_KEY) === 'done'; } catch (e) { return false; }
+  }
+  function renderGuide() {
+    const steps = (I18N[language] || I18N.zh).guideSteps || [];
+    if (!steps.length || !$('playGuide')) return;
+    guideStep = Math.max(0, Math.min(guideStep, steps.length - 1));
+    $('guideProgress').textContent = fmtText('guideProgress', {current:guideStep + 1,total:steps.length});
+    $('guideTitle').textContent = steps[guideStep].title;
+    $('guideText').textContent = steps[guideStep].text;
+    $('guidePrev').textContent = say('guidePrevious');
+    $('guidePrev').disabled = guideStep === 0;
+    $('guideNext').textContent = guideStep === steps.length - 1 ? say('guideFinish') : say('guideNext');
+    $('guideSkip').textContent = say('guideSkip');
+    $('guideClose').setAttribute('aria-label', say('guideClose'));
+  }
+  function openGuide() {
+    guideStep = 0;
+    renderGuide();
+    $('playGuide').hidden = false;
+    $('guideNext').focus();
+  }
+  function closeGuide() {
+    $('playGuide').hidden = true;
+    try { localStorage.setItem(GUIDE_STORAGE_KEY, 'done'); } catch (e) {}
+    if ($('guideBtn')) $('guideBtn').focus();
+  }
   function applyLanguage(next, refresh = true) {
     language = next === 'en' ? 'en' : 'zh';
     try { localStorage.setItem('weiqi-language', language); } catch (e) {}
     document.documentElement.lang = language === 'en' ? 'en' : 'zh-Hant';
     ['langSelect','gameLang'].forEach(id => { if ($(id)) $(id).value = language; });
     const labels = {
-      launchBtn:'launch',rulesStart:'play',rulesBack:'back',googleSignIn:'signIn',headerAuth:currentUser?'signOut':'signIn',
+      launchBtn:'launch',rulesStart:'play',rulesBack:'back',guideBtn:'guideButton',googleSignIn:'signIn',headerAuth:currentUser?'signOut':'signIn',
       refreshRanks:'refresh',leaderboardTitle:'rankTitle',rulesTitle:'rulesTitle',rulesIntro:'rulesIntro',
       homeBtn:'home',gameLeaderboardBtn:'gameLeaderboard',closeGameLeaderboard:'close',
       gameLeaderboardTitle:'levelRankTitle',menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
@@ -631,6 +725,7 @@
     I18N[language].rules.forEach(item => { const li=document.createElement('li'); li.textContent=item; list.appendChild(li); });
     if ($('rulesReadButton')) $('rulesReadButton').textContent = say('rulesReadText');
     if ($('rulesStart')) $('rulesStart').textContent = say('rulesStart');
+    if ($('playGuide') && !$('playGuide').hidden) renderGuide();
     $('authStatus').textContent = currentUser
       ? (language==='en' ? 'Signed in as ' : '已登入：') + (currentUser.displayName || currentUser.email || currentUser.uid)
       : (firebaseReady() ? say('loginForResults') : say('authNotReady'));
@@ -2968,8 +3063,10 @@
   };
   $('rulesStart').onclick = () => {
     if ($('rulesReadButton').getAttribute('aria-pressed') !== 'true') return;
+    const firstPlay = !hasCompletedGuide();
     document.body.classList.remove('pre-game','show-rules');
     init();
+    if (firstPlay) openGuide();
   };
   $('langSelect').onchange = e => applyLanguage(e.target.value);
   $('gameLang').onchange = e => applyLanguage(e.target.value);
@@ -2980,7 +3077,31 @@
   $('closeGameLeaderboard').onclick = closeGameLeaderboard;
   $('gameLeaderboardPanel').addEventListener('click', e => { if (e.target === $('gameLeaderboardPanel')) closeGameLeaderboard(); });
   $('gameRankLevel').onchange = refreshLevelLeaderboard;
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGameLeaderboard(); });
+  $('guideBtn').onclick = openGuide;
+  $('guideClose').onclick = closeGuide;
+  $('guideSkip').onclick = closeGuide;
+  $('guidePrev').onclick = () => { guideStep = Math.max(0, guideStep - 1); renderGuide(); };
+  $('guideNext').onclick = () => {
+    const steps = (I18N[language] || I18N.zh).guideSteps || [];
+    if (guideStep >= steps.length - 1) closeGuide();
+    else { guideStep++; renderGuide(); }
+  };
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (!$('playGuide').hidden) closeGuide();
+      else closeGameLeaderboard();
+      return;
+    }
+    if (e.key === 'Tab' && !$('playGuide').hidden) {
+      const focusable = Array.from($('playGuide').querySelectorAll('button:not(:disabled)'));
+      if (!focusable.length) return;
+      if (e.shiftKey && document.activeElement === focusable[0]) {
+        e.preventDefault(); focusable[focusable.length - 1].focus();
+      } else if (!e.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+        e.preventDefault(); focusable[0].focus();
+      }
+    }
+  });
   $('refreshRanks').onclick = refreshLeaderboard;
   $('recordColor').onchange = () => { if ($('gameRecordColor')) $('gameRecordColor').value = $('recordColor').value; };
   $('gameRecordColor').onchange = () => { $('recordColor').value = $('gameRecordColor').value; };
