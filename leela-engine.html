@@ -32,9 +32,10 @@
   // Pinned to the original browser build so its engine and network files stay compatible.
   var ENGINE_BASE = 'https://cdn.jsdelivr.net/gh/NTT123/leela-zero@565ae3380946546504bb38c67a714b6c70300a23/src/docs/';
   var NETWORK_HASH = 'a1151640f6b2c753a36e61f10851bb028dd6068416fbba343cadaa417c365632';
-  var inputarray = new Float32Array(19 * 19 * 18);
-  var outputarray = new Float32Array(19 * 19 + 2);
-  var filearray = new Uint8Array(19 * 19 * 18);
+  // TensorFire's global forwardjs() callback reads these by global name.
+  window.inputarray = new Float32Array(19 * 19 * 18);
+  window.outputarray = new Float32Array(19 * 19 + 2);
+  window.filearray = new Uint8Array(19 * 19 * 18);
   var pendingCommand = null;
   var commandBusy = false;
   var runtimeReady = false;
@@ -168,9 +169,9 @@
         var inbuf = Module._malloc(inputBytes);
         var outbuf = Module._malloc(outputBytes);
         var filebuf = Module._malloc(fileBytes);
-        inputarray = Module.HEAPF32.subarray(inbuf / 4, inbuf / 4 + 19 * 19 * 18);
-        outputarray = Module.HEAPF32.subarray(outbuf / 4, outbuf / 4 + 19 * 19 + 2);
-        filearray = Module.HEAPU8.subarray(filebuf, filebuf + 19 * 19 * 18);
+        window.inputarray = Module.HEAPF32.subarray(inbuf / 4, inbuf / 4 + 19 * 19 * 18);
+        window.outputarray = Module.HEAPF32.subarray(outbuf / 4, outbuf / 4 + 19 * 19 + 2);
+        window.filearray = Module.HEAPU8.subarray(filebuf, filebuf + 19 * 19 * 18);
         Module.ccall('set_input_buffer', 'void', ['number'], [inbuf]);
         Module.ccall('set_output_buffer', 'void', ['number'], [outbuf]);
         Module.ccall('set_file_buffer', 'void', ['number'], [filebuf]);
