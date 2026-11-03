@@ -871,7 +871,7 @@
       if (board[idx(x, y)] !== EMPTY) continue;
       const r = tryMove(board, x, y, color);
       if (!r) continue;
-      if (forbiddenPositions.has(posKey(r.board))) { bin[6 * n + p] = 1; continue; }
+      if (seenSet.has(posKey(r.board))) continue;
       if (ownEye(x, y, color)) continue;
       let s = r.captured * 10;
       const seenG = new Set();
