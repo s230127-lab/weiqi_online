@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "index.html"
+      - "leela-engine.html"
       - ".github/workflows/validate-game.yml"
   pull_request:
     paths:
@@ -18,19 +19,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check the inline game script syntax
+      - name: Check the game and Leela Zero bridge script syntax
         shell: bash
         run: |
           python - <<'PY'
           import re
           from pathlib import Path
 
-          html = Path("index.html").read_text(encoding="utf-8")
-          scripts = re.findall(r"<script([^>]*)>(.*?)</script>", html, flags=re.I | re.S)
-          inline = [body for attrs, body in scripts if "src=" not in attrs.lower() and body.strip()]
-          if len(inline) != 1:
-              raise SystemExit(f"Expected exactly one inline game script, found {len(inline)}")
-          Path("/tmp/weiqi-inline.js").write_text(inline[0], encoding="utf-8")
-          print("Extracted the inline game script.")
+          for html_name, output_name in [
+              ("index.html", "/tmp/weiqi-inline.js"),
+              ("leela-engine.html", "/tmp/leela-engine-inline.js"),
+          ]:
+              html = Path(html_name).read_text(encoding="utf-8")
+              scripts = re.findall(r"<script([^>]*)>(.*?)</script>", html, flags=re.I | re.S)
+              inline = [body for attrs, body in scripts if "src=" not in attrs.lower() and body.strip()]
+              if len(inline) != 1:
+                  raise SystemExit(f"{html_name}: expected one inline script, found {len(inline)}")
+              Path(output_name).write_text(inline[0], encoding="utf-8")
+              print(f"Extracted inline JavaScript from {html_name}.")
           PY
           node --check /tmp/weiqi-inline.js
+          node --check /tmp/leela-engine-inline.js
