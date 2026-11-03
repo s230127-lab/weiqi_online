@@ -1109,7 +1109,7 @@
   }
 
   function autoMark() {
-    if (phase !== 'mark' || busy) return;
+    if (phase !== 'mark' || busy || aiAnalysisBusy || fullGameBusy) return;
     busy = true;
     $('msg').textContent = say('deadAnalysis');
     const tok = token;
@@ -1291,7 +1291,7 @@
   }
 
   function countScore() {
-    if (busy) return;
+    if (busy || aiAnalysisBusy || fullGameBusy) return;
     const b = Uint8Array.from(board);
     dead.forEach(i => (b[i] = EMPTY));
     let sB = 0, sW = 0;
@@ -1724,6 +1724,7 @@
     };
 
     const rootOutput = await evaluate(root);
+    let hasScoreLead = rootOutput.scoreLeadBlack != null;
     const canForce = forcedMove !== null && root.children.has(forcedMove);
     const forcedCount = canForce
       ? Math.max(1, Math.min(Math.floor(visitCount / 2), Math.floor(visitCount * 0.1)))
@@ -1755,10 +1756,12 @@
         const margin = scoreFast(node.board) - komi();
         blackWinRate = margin > 0 ? 1 : margin < 0 ? 0 : 0.5;
         scoreLeadBlack = margin;
+        hasScoreLead = true;
       } else {
         const output = node.evaluation || await evaluate(node);
         if (cancelled()) break;
         blackWinRate = output.blackWinRate;
+        if (output.scoreLeadBlack != null) hasScoreLead = true;
         scoreLeadBlack = output.scoreLeadBlack == null ? 0 : output.scoreLeadBlack;
       }
 
@@ -1792,7 +1795,7 @@
     return {
       visits:completed,
       blackWinRate:root.visits ? root.blackWinSum / root.visits : rootOutput.blackWinRate,
-      scoreLeadBlack:root.visits ? root.scoreSum / root.visits : rootOutput.scoreLeadBlack,
+      scoreLeadBlack:hasScoreLead ? (root.visits ? root.scoreSum / root.visits : rootOutput.scoreLeadBlack) : null,
       moves, ownership, hasValue:rootOutput.hasValue, hasOwnership:!!ownership
     };
   }
@@ -1851,7 +1854,8 @@
         const label = document.createElement('span');
         label.textContent = gtpMoveLabel(move.move);
         const detail = document.createElement('span');
-        detail.textContent = move.visits + ' ' + say('analysisVisitsLabel') + ' · ' + (move.blackWinRate * 100).toFixed(1) + '%';
+        detail.textContent = move.visits + ' ' + say('analysisVisitsLabel') + ' · ' +
+          say('analysisBlackWinRate') + ' ' + (move.blackWinRate * 100).toFixed(1) + '%';
         button.append(label, detail);
         li.appendChild(button);
         list.appendChild(li);
@@ -2689,6 +2693,8 @@
     $('pass').disabled = phase !== 'play' || aiAnalysisBusy || fullGameBusy;
     $('undo').disabled = busy || aiAnalysisBusy || fullGameBusy;
     $('resign').disabled = aiAnalysisBusy || fullGameBusy || phase !== 'play';
+    $('auto').disabled = aiAnalysisBusy || fullGameBusy;
+    $('score').disabled = aiAnalysisBusy || fullGameBusy;
     if (phase === 'play') {
       $('msg').textContent = busy ? say('botThinking')
         : (turn === B ? say('black') : say('white')) + say('turnSuffix') + (passes === 1 ? say('waitPass') : '');
@@ -2957,6 +2963,22 @@
     if (!Number.isInteger(index) || !aiAnalysisResult.moves[index]) return;
     aiAnalysisSelected = index;
     draw();
+    renderAIAnalysis();
+  });
+  $('gameAnalysisMoves').addEventListener('click', e => {
+    const button = e.target.closest ? e.target.closest('button[data-game-analysis-index]') : null;
+    if (!button) return;
+    const index = Number(button.dataset.gameAnalysisIndex);
+    if (!Number.isInteger(index) || !fullGameResults[index]) return;
+    selectedFullGameIndex = index;
+    renderAIAnalysis();
+  });
+  $('analysisChart').addEventListener('click', e => {
+    if (!fullGameResults.length) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / Math.max(1,rect.width);
+    selectedFullGameIndex = Math.max(0,Math.min(fullGameResults.length-1,
+      Math.round(x*(fullGameResults.length-1))));
     renderAIAnalysis();
   });
   $('autoRestart').onchange = () => {
