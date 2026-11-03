@@ -33,7 +33,7 @@ service cloud.firestore {
 
     match /levelLeaderboard/{level}/players/{uid} {
       function validLevelPath() {
-        return level in ['lv1', 'lv2', 'lv3', 'lv4', 'lv5'];
+        return level in ['lv1', 'lv2', 'lv3', 'lv4', 'lv5', 'lv6'];
       }
 
       function validLevelEntry() {
@@ -50,7 +50,8 @@ service cloud.firestore {
             || (level == 'lv2' && request.resource.data.level == 2)
             || (level == 'lv3' && request.resource.data.level == 3)
             || (level == 'lv4' && request.resource.data.level == 4)
-            || (level == 'lv5' && request.resource.data.level == 5));
+            || (level == 'lv5' && request.resource.data.level == 5)
+            || (level == 'lv6' && request.resource.data.level == 6));
       }
 
       // Public read lets everyone view each level's fastest winning times.
