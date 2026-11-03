@@ -127,8 +127,8 @@ Lv 6 使用 [NTT123/leela-zero 的瀏覽器版移植](https://github.com/NTT123/
 - 單頁網頁應用程式，主要遊戲程式寫在 `index.html`。
 - 使用 HTML Canvas 繪製棋盤與棋子。
 - KataGo 模型格式為 ONNX，由 ONNX Runtime Web 在瀏覽器執行。
-- Lv 1–5 的遊戲與 AI 推論不需要自建後端或 AI 推論 API 金鑰；Google 登入及排行榜需要設定 Firebase。
-- Lv 1–4 的電腦策略在瀏覽器內執行；Lv 5 亦在瀏覽器內執行模型推論。
+- Lv 1–6 的遊戲與 AI 推論不需要自建後端或 AI 推論 API 金鑰；Google 登入及排行榜需要設定 Firebase。
+- Lv 1–4 的電腦策略在瀏覽器內執行；Lv 5 使用 KataGo ONNX；Lv 6 使用舊版 Leela Zero WebAssembly／WebGL 瀏覽器移植。
 
 ## 授權與模型說明
 
