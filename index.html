@@ -1198,6 +1198,7 @@
 
   function resign(loser) {
     if (phase === 'done') return;
+    clearAIAnalysis();
     token++; busy = false;
     phase = 'done';
     const w = opp(loser);
@@ -2194,6 +2195,7 @@
   function returnHome() {
     clearRestart();
     stopFx();
+    clearAIAnalysis();
     token++;
     busy = false;
     if (gameEndedAt == null && gameStartedAt) gameEndedAt = performance.now();
@@ -2238,6 +2240,7 @@
     $('sW').classList.toggle('active', phase === 'play' && turn === W);
     $('pass').disabled = phase !== 'play' || aiAnalysisBusy;
     $('undo').disabled = busy || aiAnalysisBusy;
+    $('resign').disabled = aiAnalysisBusy || phase !== 'play';
     if (phase === 'play') {
       $('msg').textContent = busy ? say('botThinking')
         : (turn === B ? say('black') : say('white')) + say('turnSuffix') + (passes === 1 ? say('waitPass') : '');
