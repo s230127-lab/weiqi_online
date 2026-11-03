@@ -92,6 +92,18 @@
     padding: 12px 14px; font-size: .95rem; line-height: 1.55; display: none;
   }
   .result.show { display: block; }
+  .ai-analysis { width:100%; padding:12px 14px; background:var(--panel); border:1px solid var(--line); border-radius:8px; }
+  .ai-analysis-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .ai-analysis-head strong { display:block; font-size:1rem; }
+  .ai-analysis-head p, .analysis-disclaimer { margin:4px 0 0; color:var(--muted); font-size:.82rem; line-height:1.5; }
+  .analysis-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .analysis-actions button { min-height:36px; padding:6px 9px; font-size:.86rem; }
+  .analysis-summary { margin:10px 0 6px; font-size:.92rem; font-variant-numeric:tabular-nums; }
+  .analysis-moves { margin:6px 0 0; padding-left:1.6rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:6px; }
+  .analysis-moves li { padding-left:2px; }
+  .analysis-moves button { display:flex; align-items:center; justify-content:space-between; width:100%; gap:8px; min-height:36px; padding:5px 8px; font-size:.88rem; }
+  .analysis-moves button[aria-pressed="true"] { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 14%,var(--panel)); }
+  .analysis-disclaimer { margin-top:8px; }
   details { width: 100%;  font-size: .88rem; color: var(--muted); line-height: 1.6; }
   summary { cursor: pointer; padding: 6px 0; }
   details p { margin: 4px 0; }
@@ -106,8 +118,8 @@
       max-width: 1120px;
       display: grid;
       grid-template-columns: minmax(0, 1fr) 340px;
-      grid-template-rows: auto auto auto auto 1fr;
-      grid-template-areas: "wrap opts" "wrap status" "wrap controls" "wrap result" "wrap details";
+      grid-template-rows: auto auto auto auto auto 1fr;
+      grid-template-areas: "wrap opts" "wrap status" "wrap controls" "wrap result" "wrap analysis" "wrap details";
       column-gap: 24px; row-gap: 12px; align-items: start;
     }
     #wrap { grid-area: wrap; width: 100%; max-width: calc(100vh - 110px); min-width: 360px; justify-self: start; }
@@ -117,6 +129,7 @@
     .status .msg { grid-column: 1 / -1; order: -1; font-size: 1rem; padding: 4px 0; }
     .controls { grid-area: controls; }
     .result { grid-area: result; }
+    .ai-analysis { grid-area: analysis; }
     details { grid-area: details; }
     select, button { font-size: 1rem; }
   }
@@ -135,7 +148,7 @@
   .fp-result { flex-basis: 100%; text-align: center; display: none; line-height: 1.5; }
   .fp-result.show { display: block; }
   body.face-on:not(.show-opts) .opts,
-  body.face-on .status, body.face-on .controls, body.face-on .result, body.face-on details { display: none; }
+  body.face-on .status, body.face-on .controls, body.face-on .result, body.face-on .ai-analysis, body.face-on details { display: none; }
   body.face-on .layout { display: flex; flex-direction: column; width: 100%; max-width: max(440px, calc(100vh - 250px)); margin: 0 auto; }
   body.face-on #wrap { max-width: none; min-width: 0; }
 
@@ -341,6 +354,22 @@
 
 <div class="result" id="result"></div>
 
+<section class="ai-analysis" id="aiAnalysisPanel" aria-labelledby="aiAnalysisTitle">
+  <div class="ai-analysis-head">
+    <div>
+      <strong id="aiAnalysisTitle">AI 分析（Kaya 風格）</strong>
+      <p id="aiAnalysisHint">使用本機 KataGo ONNX 模型，提供局面估值與推薦著手。</p>
+    </div>
+    <div class="analysis-actions">
+      <button id="analyzePositionBtn" class="primary" type="button">分析目前局面</button>
+      <button id="clearAnalysisBtn" type="button">清除分析</button>
+    </div>
+  </div>
+  <div class="analysis-summary" id="aiAnalysisSummary" aria-live="polite">尚未分析。按「分析目前局面」開始。</div>
+  <ol class="analysis-moves" id="aiAnalysisMoves"></ol>
+  <p class="analysis-disclaimer" id="aiAnalysisDisclaimer">快速局面分析；推薦百分比是合法著手中的模型政策分布，不是實戰勝率。本功能尚未包含完整 Kaya MCTS 搜索、整盤分析或領地熱圖。</p>
+</section>
+
 <details>
   <summary>規則與電腦等級</summary>
   <p>黑先白後,雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」(自殺),不可下;能提子則可。沒有氣的棋塊會被提走。</p>
@@ -407,6 +436,11 @@
       scoreWin:"{side}勝 {n} 子。", rankPoints:"{p} 分 · 勝 {w} · 敗 {l} · 和 {d}",
       saved:"已保存本局成績。", needLogin:"本局尚未保存。請使用 Google 登入以記錄成績。",
       saveFailed:"成績保存失敗；請檢查 Firebase 設定及 Firestore 規則。",
+      aiAnalysisTitle:"AI 分析（Kaya 風格）",
+      aiAnalysisHint:"使用本機 KataGo ONNX 模型，提供局面估值與推薦著手；不會把棋局傳到遠端分析服務。",
+      analyzePosition:"分析目前局面",clearAnalysis:"清除分析",analysisLoading:"正在載入模型並分析局面…",
+      analysisEmpty:"尚未分析。按「分析目前局面」開始。",analysisUnavailable:"目前局面無法分析。",analysisFailed:"分析失敗：",
+      analysisBlackValue:"黑方局面價值估計",analysisPolicyLabel:"模型政策偏好",
       detailTitle:"規則與電腦等級",
       details:[
         "黑先白後，雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」（自殺），不可下；沒有氣的棋塊會被提走。",
@@ -454,6 +488,11 @@
       scoreWin:"{side} wins by {n} stones.",rankPoints:"{p} pts · W {w} · L {l} · D {d}",
       saved:"Game result saved.",needLogin:"This result is not saved yet. Sign in with Google to record it.",
       saveFailed:"Could not save the result. Check Firebase configuration and Firestore rules.",
+      aiAnalysisTitle:"AI Analysis (Kaya-inspired)",
+      aiAnalysisHint:"Uses the local KataGo ONNX model for position evaluation and move suggestions. No remote analysis service is called.",
+      analyzePosition:"Analyze current position",clearAnalysis:"Clear analysis",analysisLoading:"Loading the model and analyzing…",
+      analysisEmpty:"Not analyzed yet. Select “Analyze current position” to begin.",analysisUnavailable:"This position cannot be analyzed.",analysisFailed:"Analysis failed: ",
+      analysisBlackValue:"Estimated Black position value",analysisPolicyLabel:"Model policy preference",
       detailTitle:"Rules and computer levels",
       details:[
         "Black plays first. Players alternate one move at a time. A group with no liberties is captured. Suicide is illegal unless the move captures opposing stones.",
@@ -486,7 +525,8 @@
       refreshRanks:'refresh',leaderboardTitle:'rankTitle',rulesTitle:'rulesTitle',rulesIntro:'rulesIntro',
       homeBtn:'home',gameLeaderboardBtn:'gameLeaderboard',closeGameLeaderboard:'close',
       gameLeaderboardTitle:'levelRankTitle',menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
-      autoRestartLabel:'autoRestart'
+      autoRestartLabel:'autoRestart',analyzePositionBtn:'analyzePosition',clearAnalysisBtn:'clearAnalysis',
+      aiAnalysisTitle:'aiAnalysisTitle',aiAnalysisHint:'aiAnalysisHint',aiAnalysisDisclaimer:'analysisDisclaimer'
     };
     for (const [id,key] of Object.entries(labels)) if ($(id)) $(id).textContent = say(key);
     $('welcomeSubtitle').textContent = say('welcomeSubtitle');
@@ -519,6 +559,7 @@
     $('authStatus').textContent = currentUser
       ? (language==='en' ? 'Signed in as ' : '已登入：') + (currentUser.displayName || currentUser.email || currentUser.uid)
       : (firebaseReady() ? say('loginForResults') : say('authNotReady'));
+    if (typeof renderAIAnalysis === 'function') renderAIAnalysis();
     if (refresh && board) update();
     if (refresh) { refreshLeaderboard(); if ($('gameLeaderboardPanel')?.classList.contains('show')) refreshLevelLeaderboard(); }
   }
@@ -1048,6 +1089,7 @@
   function init() {
     clearRestart();
     stopFx();
+    clearAIAnalysis();
     token++;
     busy = false;
     readSettings();
@@ -1096,6 +1138,7 @@
   }
 
   function play(x, y) {
+    clearAIAnalysis();
     const r = tryMove(board, x, y, turn);
     if (!r) return flash('不可下:自殺手');
     if (seenSet.has(posKey(r.board))) return flash('不可下:禁止全局同形');
@@ -1114,6 +1157,7 @@
 
   function pass() {
     if (phase !== 'play') return;
+    clearAIAnalysis();
     snapshot();
     prevBoard = board;
     passes++;
@@ -1132,7 +1176,8 @@
   }
 
   function undo() {
-    if (busy || !history.length) return;
+    if (busy || aiAnalysisBusy || !history.length) return;
+    clearAIAnalysis();
     clearRestart();
     stopFx();
     do {
@@ -1217,6 +1262,8 @@
   // layout (KataGo g104 / V4). If your model needs different slots, change them here.
   const KG = { komiScale: 20, passEnds: 12, wave: 13 };
   let net = null, netPromise = null;
+  let aiAnalysisResult = null, aiAnalysisBusy = false, aiAnalysisSequence = 0;
+  let aiAnalysisMarks = [], aiAnalysisSelected = -1;
 
   function ensureOrt() {
     if (window.ort) return Promise.resolve();
@@ -1484,7 +1531,128 @@
       const ea = Math.exp(a - mx), eb = Math.exp(b - mx), ec = Math.exp(c - mx);
       value = (ea - eb) / (ea + eb + ec);           // win − loss for the player to move
     }
-    return { pol, value, L };
+    return { pol, value, hasValue: !!(out.value && out.value.data && out.value.data.length >= 3), L };
+  }
+
+
+  /* ================= Kaya-inspired local position analysis =================
+     Reuses this project's KataGo ONNX model and local inference path.
+     This is a quick policy/value evaluation, not Kaya's full MCTS analysis tree. */
+  function analysisPositionKey() {
+    return N + ':' + turn + ':' + passes + ':' + posKey(board) + ':' + moveLog.length;
+  }
+
+  function renderAIAnalysis() {
+    const runButton = $('analyzePositionBtn');
+    const clearButton = $('clearAnalysisBtn');
+    if (!runButton || !clearButton) return;
+    runButton.disabled = aiAnalysisBusy || busy || phase !== 'play';
+    clearButton.disabled = aiAnalysisBusy || (!aiAnalysisResult && !aiAnalysisMarks.length);
+    runButton.textContent = aiAnalysisBusy ? say('analysisLoading') : say('analyzePosition');
+    ['mode','level','color','size','new'].forEach(id => { if ($(id)) $(id).disabled = aiAnalysisBusy; });
+    const summary = $('aiAnalysisSummary');
+    const list = $('aiAnalysisMoves');
+    list.replaceChildren();
+    if (aiAnalysisBusy) {
+      summary.textContent = say('analysisLoading');
+      return;
+    }
+    if (!aiAnalysisResult) {
+      summary.textContent = say('analysisEmpty');
+      return;
+    }
+    if (aiAnalysisResult.error) {
+      summary.textContent = say('analysisFailed') + aiAnalysisResult.error;
+      return;
+    }
+    const result = aiAnalysisResult;
+    summary.textContent = result.hasValue
+      ? say('analysisBlackValue') + '：' + result.blackValue.toFixed(1) + '%'
+      : say('analysisUnavailable');
+    result.moves.forEach((move, index) => {
+      const li = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.analysisIndex = String(index);
+      button.setAttribute('aria-pressed', String(aiAnalysisSelected === index));
+      const label = document.createElement('span');
+      label.textContent = move.label;
+      const percent = document.createElement('span');
+      percent.textContent = move.policy.toFixed(1) + '%';
+      percent.title = say('analysisPolicyLabel');
+      button.append(label, percent);
+      li.appendChild(button);
+      list.appendChild(li);
+    });
+  }
+
+  function clearAIAnalysis() {
+    aiAnalysisSequence++;
+    aiAnalysisResult = null;
+    aiAnalysisBusy = false;
+    aiAnalysisMarks = [];
+    aiAnalysisSelected = -1;
+    renderAIAnalysis();
+    draw();
+  }
+
+  async function analyzeCurrentPosition() {
+    if (aiAnalysisBusy || busy || phase !== 'play') return;
+    const seq = ++aiAnalysisSequence;
+    const key = analysisPositionKey();
+    aiAnalysisBusy = true;
+    aiAnalysisResult = null;
+    aiAnalysisMarks = [];
+    aiAnalysisSelected = -1;
+    renderAIAnalysis();
+    update();
+    const boardSnapshot = board.slice();
+    const movesSnapshot = moveLog.map(m => ({ c:m.c, p:m.p }));
+    const sideToMove = turn;
+    const passFlag = passes === 1;
+    try {
+      const model = net || await getNet();
+      if (seq !== aiAnalysisSequence) return;
+      net = model;
+      const encoded = encodeKata(boardSnapshot, sideToMove, movesSnapshot, passFlag);
+      if (!encoded.legal.length) throw new Error('No legal moves are available.');
+      const output = await nnRun(model, encoded);
+      if (seq !== aiAnalysisSequence || key !== analysisPositionKey()) return;
+      const candidates = encoded.legal
+        .map(p => ({ p, logit: output.pol(p) }))
+        .filter(m => Number.isFinite(m.logit))
+        .sort((a,b) => b.logit - a.logit);
+      if (!candidates.length) throw new Error('The model returned no legal move suggestions.');
+      const maxLogit = candidates[0].logit;
+      const weights = candidates.map(m => Math.exp(Math.max(-60, m.logit - maxLogit)));
+      const total = weights.reduce((a,b) => a + b, 0) || 1;
+      const letters = 'ABCDEFGHJKLMNOPQRST';
+      const moves = candidates.slice(0,5).map(m => {
+        const x = m.p % N, y = (m.p / N) | 0;
+        return {
+          p: m.p,
+          label: letters[x] + String(N - y),
+          policy: Math.exp(Math.max(-60, m.logit - maxLogit)) / total * 100
+        };
+      });
+      const sideValue = Math.max(-1, Math.min(1, output.value));
+      const blackValue = Math.max(0, Math.min(100,
+        sideToMove === B ? 50 + sideValue * 50 : 50 - sideValue * 50));
+      aiAnalysisResult = { key, hasValue:output.hasValue, blackValue, moves };
+      aiAnalysisMarks = moves.map(m => m.p);
+      aiAnalysisSelected = 0;
+    } catch (error) {
+      if (seq === aiAnalysisSequence) {
+        netPromise = null;
+        aiAnalysisResult = { key, error:error && error.message ? error.message : String(error), moves:[], hasValue:false };
+      }
+    } finally {
+      if (seq === aiAnalysisSequence) {
+        aiAnalysisBusy = false;
+        renderAIAnalysis();
+        update();
+      }
+    }
   }
 
   async function nnTurn(tok, color, cands) {
@@ -2068,8 +2236,8 @@
     $('capW').textContent = role(W) + say('captures') + caps[W];
     $('sB').classList.toggle('active', phase === 'play' && turn === B);
     $('sW').classList.toggle('active', phase === 'play' && turn === W);
-    $('pass').disabled = phase !== 'play';
-    $('undo').disabled = busy;
+    $('pass').disabled = phase !== 'play' || aiAnalysisBusy;
+    $('undo').disabled = busy || aiAnalysisBusy;
     if (phase === 'play') {
       $('msg').textContent = busy ? say('botThinking')
         : (turn === B ? say('black') : say('white')) + say('turnSuffix') + (passes === 1 ? say('waitPass') : '');
@@ -2210,6 +2378,22 @@
       const v = board[idx(x, y)];
       if (v) stone(pad + x * cell, pad + y * cell, v, dead.has(idx(x, y)) ? 0.35 : 1);
     }
+    if (aiAnalysisMarks.length) {
+      aiAnalysisMarks.forEach((p, rank) => {
+        const x = p % N, y = (p / N) | 0;
+        if (board[idx(x,y)] !== EMPTY) return;
+        const px = pad + x * cell, py = pad + y * cell;
+        ctx.beginPath();
+        ctx.arc(px, py, cell * 0.31, 0, Math.PI * 2);
+        ctx.fillStyle = rank === aiAnalysisSelected ? 'rgba(179,38,30,.92)' : 'rgba(47,93,80,.82)';
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold ' + Math.max(9, cell * 0.28) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(rank + 1), px, py);
+      });
+    }
     if (lastMove && phase === 'play') {
       const [lx, ly] = lastMove;
       ctx.beginPath();
@@ -2233,7 +2417,7 @@
   }
 
   function canHuman() {
-    if (busy) return false;
+    if (busy || aiAnalysisBusy) return false;
     if (phase === 'mark') return true;
     if (phase !== 'play') return false;
     return mode !== 'bot' || turn === human;
@@ -2295,6 +2479,17 @@
   $('recordColor').onchange = () => { if ($('gameRecordColor')) $('gameRecordColor').value = $('recordColor').value; };
   $('gameRecordColor').onchange = () => { $('recordColor').value = $('gameRecordColor').value; };
   $('new').onclick = init;
+  $('analyzePositionBtn').onclick = analyzeCurrentPosition;
+  $('clearAnalysisBtn').onclick = clearAIAnalysis;
+  $('aiAnalysisMoves').addEventListener('click', e => {
+    const button = e.target.closest ? e.target.closest('button[data-analysis-index]') : null;
+    if (!button || !aiAnalysisResult || aiAnalysisResult.error) return;
+    const index = Number(button.dataset.analysisIndex);
+    if (!Number.isInteger(index) || !aiAnalysisResult.moves[index]) return;
+    aiAnalysisSelected = index;
+    draw();
+    renderAIAnalysis();
+  });
   $('autoRestart').onchange = () => {
     if (!$('autoRestart').checked) { clearRestart(); update(); }
     else if (phase === 'done') scheduleRestart();
