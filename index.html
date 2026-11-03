@@ -279,6 +279,7 @@
         <option value="3" selected>Lv 3</option>
         <option value="4">Lv 4</option>
         <option value="5">Lv 5</option>
+        <option value="6">Lv 6</option>
       </select>
     </label>
     <ol id="gameLeaderboardList"><li class="leaderboard-empty">尚無完成紀錄。</li></ol>
@@ -298,6 +299,7 @@
     <option value="3" selected>Lv 3 · 中級</option>
     <option value="4">Lv 4 · 高級</option>
     <option value="5" id="lvNet">Lv 5 · AI 模型(KataGo，首次使用時下載)</option>
+    <option value="6" id="lvLeela">Lv 6 · Leela Zero（舊版 WebGL，首次使用時載入）</option>
   </select>
   <select id="color" aria-label="你的棋色">
     <option value="1" selected>你執黑</option>
@@ -379,10 +381,11 @@
         "雙方連續虛手即終局。點選棋塊標記死子（或使用自動標記），再數子。採中國規則的數子法（活子加圍住的空點）。",
         "面對面模式：把裝置平放在兩人中間，白方坐上方、黑方坐下方，各自的資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。",
         "Lv 5 使用儲存在本專案 models/katago.onnx 的 KataGo 模型。只有選擇 Lv 5 時，網頁才會從本專案載入模型；瀏覽器會嘗試快取，下次可重用。模型推論完全在你的裝置上執行，不會呼叫遠端 AI 推論 API。首次載入仍需傳輸約 75 MB 模型資料。",
-        "Lv 1 隨機落子。Lv 2 使用戰術規則（提子、叫吃、避免自打吃）。Lv 3 與 Lv 4 加入蒙地卡羅模擬，Lv 4 思考最久。電腦完全在瀏覽器內運算，在 9 路棋盤上最強。"
+        "Lv 1 隨機落子。Lv 2 使用戰術規則（提子、叫吃、避免自打吃）。Lv 3 與 Lv 4 加入蒙地卡羅模擬，Lv 4 思考最久。電腦完全在瀏覽器內運算，在 9 路棋盤上最強。",
+        "Lv 6 使用 Leela Zero 舊版 WebGL 引擎與神經網路，在瀏覽器內透過 WebAssembly 和 WebGL 執行；第一次使用會從固定版本的第三方 CDN 載入引擎及模型。這是 2017 年的瀏覽器移植版，並非最新 Leela Zero。" 
       ],
       menu:"設定", newGame:"新遊戲", modeBot:"人機對弈", modeTwo:"雙人對弈", modeFace:"面對面對弈（同一裝置）",
-      level1:"Lv 1 · 入門",level2:"Lv 2 · 初級",level3:"Lv 3 · 中級",level4:"Lv 4 · 高級",level5:"Lv 5 · AI 模型（KataGo，首次使用時下載）",
+      level1:"Lv 1 · 入門",level2:"Lv 2 · 初級",level3:"Lv 3 · 中級",level4:"Lv 4 · 高級",level5:"Lv 5 · AI 模型（KataGo，首次使用時下載）",level6:"Lv 6 · Leela Zero（舊版 WebGL，首次載入）",
       youBlack:"你執黑",youWhite:"你執白",autoRestart:"結束後自動開新局",size9:"9 路",size13:"13 路",size19:"19 路",
       undo:"悔棋",pass:"虛手",resign:"認輸",autoMark:"自動標記死子",score:"數子",
       blackTurn:"黑方落子",whiteTurn:"白方落子",botThinking:"電腦思考中…",markDead:"點選死子",gameOver:"對局結束",
@@ -403,7 +406,7 @@
         "雙方連續虛手即終局。點選棋塊標記死子（或使用自動標記），再數子。採中國規則數子法（活子加圍住的空點）。",
         "面對面模式：把裝置平放在兩人中間，白方坐上方、黑方坐下方，各自資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。",
         "Lv 5 使用儲存在本專案 models/katago.onnx 的 KataGo 模型。模型推論完全在你的裝置上執行，不會呼叫遠端 AI 推論 API。首次載入約需下載 75 MB。",
-        "Lv 1 隨機落子。Lv 2 使用基本戰術規則。Lv 3 與 Lv 4 加入蒙地卡羅模擬；Lv 4 思考較久。電腦在瀏覽器內運算。"
+        "Lv 1 隨機落子。Lv 2 使用基本戰術規則。Lv 3 與 Lv 4 加入蒙地卡羅模擬；Lv 4 思考較久。電腦在瀏覽器內運算。Lv 6 使用 2017 年舊版 Leela Zero WebGL 引擎與模型，透過 WebAssembly／WebGL 在瀏覽器本機運算；首次使用會載入第三方引擎與模型。"
       ]
     },
     en: {
@@ -425,10 +428,11 @@
         "Two consecutive passes end the game. Mark dead groups by tapping them or using Auto-mark, then count using Chinese area scoring: living stones plus surrounded empty points.",
         "Face-to-face mode: place the device between the two players, with White at the top and Black at the bottom. Each player's information and controls face them. Resignation requires two presses to prevent accidental resignations.",
         "Lv 5 uses the KataGo model stored at models/katago.onnx. The page loads the model from this project only when Lv 5 is selected. Your browser may cache it for reuse. Inference runs entirely on your device and does not call a remote AI inference API. The first load transfers about 75 MB.",
-        "Lv 1 plays random moves. Lv 2 uses tactical rules (captures, atari, and avoiding self-atari). Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks the longest. The computer runs entirely in your browser and is strongest on a 9×9 board."
+        "Lv 1 plays random moves. Lv 2 uses tactical rules (captures, atari, and avoiding self-atari). Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks the longest. The computer runs entirely in your browser and is strongest on a 9×9 board.",
+        "Lv 6 uses the legacy Leela Zero WebGL engine and neural network, running in your browser through WebAssembly and WebGL. On first use, the engine and model are loaded from a pinned third-party CDN. This is the 2017 browser port, not the latest Leela Zero engine."
       ],
       menu:"Settings",newGame:"New game",modeBot:"Play vs computer",modeTwo:"Two players",modeFace:"Face-to-face (same device)",
-      level1:"Lv 1 · Beginner",level2:"Lv 2 · Easy",level3:"Lv 3 · Intermediate",level4:"Lv 4 · Advanced",level5:"Lv 5 · AI model (KataGo; downloads on first use)",
+      level1:"Lv 1 · Beginner",level2:"Lv 2 · Easy",level3:"Lv 3 · Intermediate",level4:"Lv 4 · Advanced",level5:"Lv 5 · AI model (KataGo; downloads on first use)",level6:"Lv 6 · Leela Zero (legacy WebGL; loads on first use)",
       youBlack:"You play Black",youWhite:"You play White",autoRestart:"Automatically start a new game after finishing",size9:"9×9",size13:"13×13",size19:"19×19",
       undo:"Undo",pass:"Pass",resign:"Resign",autoMark:"Auto-mark dead stones",score:"Score",
       blackTurn:"Black to play",whiteTurn:"White to play",botThinking:"Computer thinking…",markDead:"Mark dead stones",gameOver:"Game over",
@@ -449,7 +453,7 @@
         "Two consecutive passes end the game. Mark dead groups, then count the living stones and surrounded empty points using Chinese area scoring.",
         "Face-to-face mode: place the device between the players, with White at the top and Black at the bottom. Controls face each player. Resignation requires a second confirmation.",
         "Lv 5 loads the KataGo model stored at models/katago.onnx. Inference runs locally in your browser; no remote AI inference API is used. The first load transfers about 75 MB.",
-        "Lv 1 plays randomly. Lv 2 uses basic tactical rules. Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks longer. The computer runs in your browser."
+        "Lv 1 plays randomly. Lv 2 uses basic tactical rules. Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks longer. The computer runs in your browser. Lv 6 uses the 2017 legacy Leela Zero WebGL engine and model, running locally in your browser through WebAssembly and WebGL; the engine and model are loaded from a third-party source on first use."
       ]
     }
   };
@@ -480,7 +484,7 @@
     const modeOpts = $('mode').options;
     [say('modeBot'),say('modeTwo'),say('modeFace')].forEach((v,i)=>modeOpts[i].text=v);
     const levelOpts = $('level').options;
-    ['level1','level2','level3','level4','level5'].forEach((k,i)=>levelOpts[i].text=say(k));
+    ['level1','level2','level3','level4','level5','level6'].forEach((k,i)=>levelOpts[i].text=say(k));
     $('color').options[0].text = say('youBlack');
     $('color').options[1].text = say('youWhite');
     ['size9','size13','size19'].forEach((k,i)=>$('size').options[i].text=say(k));
@@ -804,6 +808,113 @@
     })();
   }
 
+
+  /* ================= Leela Zero browser engine ================= */
+  let leelaFrame = null, leelaReadyPromise = null, leelaRequestId = 0;
+  const leelaPending = new Map();
+  let leelaReadyResolve = null, leelaReadyReject = null, leelaReadyTimer = null;
+
+  window.addEventListener('message', event => {
+    if (!leelaFrame || event.source !== leelaFrame.contentWindow || event.origin !== location.origin) return;
+    const data = event.data || {};
+    if (data.type === 'status') {
+      if (mode === 'bot' && level === 6 && phase === 'play') {
+        $('msg').textContent = data.message || (language === 'en' ? 'Loading Leela Zero…' : '正在載入 Leela Zero…');
+      }
+      return;
+    }
+    if (data.type === 'ready') {
+      clearTimeout(leelaReadyTimer);
+      if (leelaReadyResolve) leelaReadyResolve();
+      leelaReadyResolve = leelaReadyReject = null;
+      return;
+    }
+    if (data.type === 'error') {
+      clearTimeout(leelaReadyTimer);
+      if (leelaReadyReject) leelaReadyReject(new Error(data.message || 'Leela Zero failed to initialize.'));
+      leelaReadyResolve = leelaReadyReject = null;
+      return;
+    }
+    if (data.type === 'move' || data.type === 'moveError') {
+      const item = leelaPending.get(data.id);
+      if (!item) return;
+      clearTimeout(item.timer);
+      leelaPending.delete(data.id);
+      if (data.type === 'moveError') item.reject(new Error(data.message || 'Leela Zero move failed.'));
+      else item.resolve(data.move || null);
+    }
+  });
+
+  function ensureLeela() {
+    if (leelaReadyPromise) return leelaReadyPromise;
+    leelaReadyPromise = new Promise((resolve, reject) => {
+      leelaReadyResolve = resolve;
+      leelaReadyReject = reject;
+      leelaFrame = document.createElement('iframe');
+      leelaFrame.title = 'Leela Zero WebGL engine';
+      leelaFrame.setAttribute('aria-hidden', 'true');
+      leelaFrame.style.cssText = 'position:fixed;left:-12000px;top:0;width:320px;height:320px;border:0;opacity:0.01;pointer-events:none';
+      leelaFrame.src = new URL('leela-engine.html', document.baseURI).href;
+      leelaReadyTimer = setTimeout(() => {
+        if (leelaReadyReject) leelaReadyReject(new Error('Leela Zero took too long to initialize. Check WebGL support and your network connection.'));
+        leelaReadyResolve = leelaReadyReject = null;
+      }, 120000);
+      leelaFrame.onerror = () => {
+        if (leelaReadyReject) leelaReadyReject(new Error('Could not open leela-engine.html.'));
+        leelaReadyResolve = leelaReadyReject = null;
+      };
+      document.body.appendChild(leelaFrame);
+    }).catch(error => {
+      clearTimeout(leelaReadyTimer);
+      if (leelaFrame) leelaFrame.remove();
+      leelaFrame = null;
+      leelaReadyPromise = null;
+      throw error;
+    });
+    return leelaReadyPromise;
+  }
+
+  async function requestLeelaMove(color) {
+    await ensureLeela();
+    return new Promise((resolve, reject) => {
+      const id = ++leelaRequestId;
+      const timer = setTimeout(() => {
+        leelaPending.delete(id);
+        reject(new Error('Leela Zero did not return a move in time.'));
+      }, 150000);
+      leelaPending.set(id, { resolve, reject, timer });
+      leelaFrame.contentWindow.postMessage({
+        type: 'move',
+        id,
+        size: N,
+        color,
+        moves: moveLog.map(m => ({ c: m.c, p: m.p }))
+      }, location.origin);
+    });
+  }
+
+  async function leelaTurn(tok, color) {
+    busy = true;
+    update();
+    try {
+      const mv = await requestLeelaMove(color);
+      if (tok !== token) return;
+      if (!mv) return finishBot(tok, null);
+      const check = tryMove(board, mv.x, mv.y, color);
+      if (!check || seenSet.has(posKey(check.board))) {
+        throw new Error('Leela Zero returned a move that is illegal under this game’s rules.');
+      }
+      finishBot(tok, mv);
+    } catch (error) {
+      if (tok !== token) return;
+      console.error('Leela Zero error:', error);
+      busy = false;
+      update();
+      $('msg').textContent = (language === 'en' ? 'Leela Zero error: ' : 'Leela Zero 載入或運算失敗：') +
+        (error && error.message ? error.message : String(error));
+    }
+  }
+
   function maybeBot() {
     if (mode !== 'bot' || phase !== 'play' || turn !== botColor() || busy) return;
     busy = true;
@@ -820,6 +931,7 @@
 
   function botTurn(tok) {
     const color = botColor();
+    if (level === 6) { leelaTurn(tok, color); return; }
     const cands = genCands(color);
     if (!cands.length || (passes === 1 && botAhead(color))) return finishBot(tok, null);
     cands.sort((a, b) => b.s - a.s);
@@ -1770,7 +1882,7 @@
   async function refreshLevelLeaderboard() {
     const list = $('gameLeaderboardList');
     if (!list) return;
-    const levelNo = Math.max(1, Math.min(5, Number($('gameRankLevel').value || 1)));
+    const levelNo = Math.max(1, Math.min(6, Number($('gameRankLevel').value || 1)));
     if (!firestore) {
       list.replaceChildren();
       const li = document.createElement('li'); li.className = 'leaderboard-empty';
