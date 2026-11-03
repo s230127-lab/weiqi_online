@@ -104,6 +104,18 @@
   .analysis-moves button { display:flex; align-items:center; justify-content:space-between; width:100%; gap:8px; min-height:36px; padding:5px 8px; font-size:.88rem; }
   .analysis-moves button[aria-pressed="true"] { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 14%,var(--panel)); }
   .analysis-disclaimer { margin-top:8px; }
+  .analysis-tools { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:9px; }
+  .analysis-tools label { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:.84rem; }
+  .analysis-tools select { min-height:34px; padding:4px 8px; font-size:.86rem; }
+  .analysis-tools input { accent-color:var(--accent); width:17px; height:17px; }
+  .analysis-progress { color:var(--muted); font-size:.84rem; margin:8px 0 0; min-height:1.2em; }
+  .analysis-chart-wrap { margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
+  #analysisChart { display:block; width:100%; height:150px; touch-action:pan-y; }
+  .analysis-chart-label { color:var(--muted); font-size:.8rem; }
+  .game-analysis-list { margin:8px 0 0; padding-left:2rem; max-height:260px; overflow:auto; }
+  .game-analysis-list li { margin:3px 0; }
+  .game-analysis-list button { width:100%; text-align:left; min-height:34px; padding:5px 8px; font-size:.84rem; }
+  .game-analysis-list button[aria-pressed="true"] { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 14%,var(--panel)); }
   details { width: 100%;  font-size: .88rem; color: var(--muted); line-height: 1.6; }
   summary { cursor: pointer; padding: 6px 0; }
   details p { margin: 4px 0; }
@@ -362,12 +374,31 @@
     </div>
     <div class="analysis-actions">
       <button id="analyzePositionBtn" class="primary" type="button">分析目前局面</button>
+      <button id="analyzeFullGameBtn" type="button">整盤逐手分析</button>
+      <button id="stopFullGameBtn" type="button" hidden>停止</button>
       <button id="clearAnalysisBtn" type="button">清除分析</button>
     </div>
   </div>
+  <div class="analysis-tools">
+    <label>每局面搜索量
+      <select id="analysisVisits" aria-label="每局面搜索量">
+        <option value="12">12 次（快速）</option>
+        <option value="24" selected>24 次（平衡）</option>
+        <option value="48">48 次（較深入）</option>
+        <option value="96">96 次（深入）</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="showOwnershipToggle" disabled>顯示領地熱圖</label>
+  </div>
   <div class="analysis-summary" id="aiAnalysisSummary" aria-live="polite">尚未分析。按「分析目前局面」開始。</div>
   <ol class="analysis-moves" id="aiAnalysisMoves"></ol>
-  <p class="analysis-disclaimer" id="aiAnalysisDisclaimer">快速局面分析；推薦百分比是合法著手中的模型政策分布，不是實戰勝率。本功能尚未包含完整 Kaya MCTS 搜索、整盤分析或領地熱圖。</p>
+  <p class="analysis-progress" id="aiAnalysisProgress" aria-live="polite"></p>
+  <div class="analysis-chart-wrap" id="analysisChartWrap" hidden>
+    <div class="analysis-chart-label" id="analysisChartLabel">整盤黑方勝率估計走勢</div>
+    <canvas id="analysisChart" width="900" height="180"></canvas>
+    <ol class="game-analysis-list" id="gameAnalysisMoves"></ol>
+  </div>
+  <p class="analysis-disclaimer" id="aiAnalysisDisclaimer">使用 KataGo ONNX 模型進行 PUCT MCTS 搜索；訪問數、分支勝率與目數為模型估計。整盤逐手分析及領地熱圖依模型輸出提供。</p>
 </section>
 
 <details>
@@ -437,10 +468,21 @@
       saved:"已保存本局成績。", needLogin:"本局尚未保存。請使用 Google 登入以記錄成績。",
       saveFailed:"成績保存失敗；請檢查 Firebase 設定及 Firestore 規則。",
       aiAnalysisTitle:"AI 分析（Kaya 風格）",
-      aiAnalysisHint:"使用本機 KataGo ONNX 模型，提供局面估值與推薦著手；不會把棋局傳到遠端分析服務。",
-      analyzePosition:"分析目前局面",clearAnalysis:"清除分析",analysisLoading:"正在載入模型並分析局面…",
-      analysisEmpty:"尚未分析。按「分析目前局面」開始。",analysisUnavailable:"目前局面無法分析。",analysisFailed:"分析失敗：",
-      analysisBlackValue:"黑方局面價值估計",analysisPolicyLabel:"模型政策偏好",
+      aiAnalysisHint:"使用本機 KataGo ONNX 模型進行 PUCT MCTS 搜索，提供推薦著手、勝率與目數估計。",
+      analyzePosition:"分析目前局面",analyzeFullGame:"整盤逐手分析",stopAnalysis:"停止",clearAnalysis:"清除分析",
+      analysisLoading:"正在載入模型並搜索…",analysisEmpty:"尚未分析。按「分析目前局面」開始。",
+      analysisUnavailable:"目前局面無法分析。",analysisFailed:"分析失敗：",
+      analysisBlackWinRate:"黑方勝率估計",analysisScoreLead:"黑方領先目數估計",
+      analysisVisitsLabel:"訪問",analysisPolicyLabel:"先驗政策",analysisBest:"最佳著手",
+      analysisProgress:"搜索進度",analysisNoOwnership:"此模型未提供 ownership 輸出，無法顯示領地熱圖。",
+      analysisNoMoves:"目前沒有可分析的棋步。",analysisFullStart:"整盤分析準備中…",
+      analysisFullProgress:"第 {current}/{total} 個局面，搜索 {visits}/{totalVisits} 次",
+      analysisFullDone:"整盤分析完成，共 {count} 個局面。",
+      analysisFullStopped:"已停止整盤分析，完成 {count} 個局面。",
+      analysisGameTitle:"整盤黑方勝率估計走勢",analysisMove:"第 {n} 手",
+      analysisPass:"虛手",analysisGood:"良好",analysisInaccuracy:"輕微失誤",analysisMistake:"失誤",analysisBlunder:"重大失誤",
+      analysisMoveReview:"最佳 {best} · 實際 {played} · 預估損失 {loss} 個百分點",
+      analysisPolicyLabel:"模型先驗政策",
       detailTitle:"規則與電腦等級",
       details:[
         "黑先白後，雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」（自殺），不可下；沒有氣的棋塊會被提走。",
@@ -489,10 +531,21 @@
       saved:"Game result saved.",needLogin:"This result is not saved yet. Sign in with Google to record it.",
       saveFailed:"Could not save the result. Check Firebase configuration and Firestore rules.",
       aiAnalysisTitle:"AI Analysis (Kaya-inspired)",
-      aiAnalysisHint:"Uses the local KataGo ONNX model for position evaluation and move suggestions. No remote analysis service is called.",
-      analyzePosition:"Analyze current position",clearAnalysis:"Clear analysis",analysisLoading:"Loading the model and analyzing…",
-      analysisEmpty:"Not analyzed yet. Select “Analyze current position” to begin.",analysisUnavailable:"This position cannot be analyzed.",analysisFailed:"Analysis failed: ",
-      analysisBlackValue:"Estimated Black position value",analysisPolicyLabel:"Model policy preference",
+      aiAnalysisHint:"Runs PUCT MCTS with the local KataGo ONNX model to estimate candidate moves, win rates and score leads.",
+      analyzePosition:"Analyze current position",analyzeFullGame:"Review every move",stopAnalysis:"Stop",clearAnalysis:"Clear analysis",
+      analysisLoading:"Loading model and searching…",analysisEmpty:"Not analyzed yet. Select “Analyze current position” to begin.",
+      analysisUnavailable:"This position cannot be analyzed.",analysisFailed:"Analysis failed: ",
+      analysisBlackWinRate:"Estimated Black win rate",analysisScoreLead:"Estimated Black score lead",
+      analysisVisitsLabel:"Visits",analysisPolicyLabel:"Prior policy",analysisBest:"Best move",
+      analysisProgress:"Search progress",analysisNoOwnership:"This model has no ownership output, so the territory heatmap is unavailable.",
+      analysisNoMoves:"There are no moves to analyze.",analysisFullStart:"Preparing full-game analysis…",
+      analysisFullProgress:"Position {current}/{total}, searching {visits}/{totalVisits} visits",
+      analysisFullDone:"Full-game analysis complete: {count} positions.",
+      analysisFullStopped:"Full-game analysis stopped: {count} positions completed.",
+      analysisGameTitle:"Estimated Black win rate throughout the game",analysisMove:"Move {n}",
+      analysisPass:"Pass",analysisGood:"Good",analysisInaccuracy:"Inaccuracy",analysisMistake:"Mistake",analysisBlunder:"Blunder",
+      analysisMoveReview:"Best {best} · Played {played} · Estimated loss {loss} percentage points",
+      analysisPolicyLabel:"Model prior policy",
       detailTitle:"Rules and computer levels",
       details:[
         "Black plays first. Players alternate one move at a time. A group with no liberties is captured. Suicide is illegal unless the move captures opposing stones.",
@@ -525,8 +578,10 @@
       refreshRanks:'refresh',leaderboardTitle:'rankTitle',rulesTitle:'rulesTitle',rulesIntro:'rulesIntro',
       homeBtn:'home',gameLeaderboardBtn:'gameLeaderboard',closeGameLeaderboard:'close',
       gameLeaderboardTitle:'levelRankTitle',menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
-      autoRestartLabel:'autoRestart',analyzePositionBtn:'analyzePosition',clearAnalysisBtn:'clearAnalysis',
-      aiAnalysisTitle:'aiAnalysisTitle',aiAnalysisHint:'aiAnalysisHint',aiAnalysisDisclaimer:'analysisDisclaimer'
+      autoRestartLabel:'autoRestart',analyzePositionBtn:'analyzePosition',analyzeFullGameBtn:'analyzeFullGame',
+      stopFullGameBtn:'stopAnalysis',clearAnalysisBtn:'clearAnalysis',
+      aiAnalysisTitle:'aiAnalysisTitle',aiAnalysisHint:'aiAnalysisHint',aiAnalysisDisclaimer:'analysisDisclaimer',
+      analysisChartLabel:'analysisGameTitle'
     };
     for (const [id,key] of Object.entries(labels)) if ($(id)) $(id).textContent = say(key);
     $('welcomeSubtitle').textContent = say('welcomeSubtitle');
@@ -1264,7 +1319,8 @@
   const KG = { komiScale: 20, passEnds: 12, wave: 13 };
   let net = null, netPromise = null;
   let aiAnalysisResult = null, aiAnalysisBusy = false, aiAnalysisSequence = 0;
-  let aiAnalysisMarks = [], aiAnalysisSelected = -1;
+  let aiAnalysisMarks = [], aiAnalysisSelected = -1, showOwnership = false;
+  let fullGameBusy = false, fullGameSequence = 0, fullGameResults = [], selectedFullGameIndex = -1;
 
   function ensureOrt() {
     if (window.ort) return Promise.resolve();
