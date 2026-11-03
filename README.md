@@ -15,7 +15,7 @@
 ## 遊戲功能
 
 - **三種對弈模式：** 人機對弈、雙人對弈、面對面對弈。
-- **五種電腦等級：** 從入門到 KataGo 模型。
+- **六種電腦等級：** 從入門到 KataGo 與 Leela Zero 模型。
 - **三種棋盤尺寸：** 9 路、13 路、19 路。
 - **黑白棋色選擇：** 人機模式可選擇執黑或執白。
 - **對局操作：** 悔棋、虛手、認輸、新遊戲。
@@ -42,6 +42,7 @@
 | Lv 3 | 中級 | 加入蒙地卡羅模擬，評估候選棋步。 |
 | Lv 4 | 高級 | 使用更多模擬思考，通常比 Lv 3 花費更長時間。 |
 | Lv 5 | KataGo AI | 使用專案內的 ONNX 模型進行推論。 |
+| Lv 6 | Leela Zero（舊版 WebGL） | 使用瀏覽器版 WebAssembly／WebGL 引擎與神經網路。 |
 
 電腦在瀏覽器內運算，不需要連接遠端 AI 推論服務。不同裝置的運算效能會影響思考時間；目前的電腦策略在 9 路棋盤上較能發揮。
 
@@ -62,6 +63,16 @@ models/katago.onnx
 - **載入失敗：** 若模型無法載入，遊戲會改用 Lv 4 的電腦策略。請確認網站可以讀取 `models/katago.onnx`，並重新整理頁面後再試。
 
 模型檔案已直接存放於本專案的 `models/katago.onnx`，遊戲會在選擇 Lv 5 時才載入，不需要額外的模型下載工作流程。
+
+## Leela Zero（Lv 6）
+
+Lv 6 使用 [NTT123/leela-zero 的瀏覽器版移植](https://github.com/NTT123/leela-zero/tree/565ae3380946546504bb38c67a714b6c70300a23/src/docs)。這是 2017 年的舊版 WebGL／WebAssembly 示範，不是最新 Leela Zero 桌面引擎。原始專案的瀏覽器示範資訊可參閱 [Neural GO](https://ntt123.github.io/leela-zero/)。
+
+- **首次使用：** 網頁會載入 `leela-engine.html`，再從固定版本的 jsDelivr CDN 取得引擎程式、WebAssembly 記憶體初始化檔與神經網路資料。請保持網路連線。
+- **本機運算：** 載入後，神經網路推論透過瀏覽器的 WebGL 執行，Leela Zero 引擎以 WebAssembly 執行；遊戲棋盤與落子紀錄會傳給本機 iframe，不會呼叫遠端 AI 推論 API。
+- **瀏覽器需求：** 需要支援 WebGL 的瀏覽器。若 WebGL 或 CDN 載入失敗，Lv 6 會顯示錯誤，不會假裝成 KataGo 或靜默切換模型。
+- **版本限制：** 這是歷史示範版本，可能不適用於部分較新的瀏覽器或裝置；其實際棋力也取決於隨附的舊網路權重。
+- **授權：** Leela Zero 原始程式採 GPL-3.0；請參閱 [上游授權文件](https://github.com/NTT123/leela-zero/blob/565ae3380946546504bb38c67a714b6c70300a23/COPYING)。相關瀏覽器移植與模型檔案的權利聲明以原始專案為準。
 
 ## 基本規則
 
