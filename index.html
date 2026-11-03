@@ -1651,10 +1651,25 @@
     const total = weights.reduce((a,b) => a + b, 0) || 1;
     node.children = new Map();
     candidates.forEach((p, i) => {
-      const child = makeSearchChild(node, p, weights[i] / total);
-      if (child) node.children.set(p, child);
+      node.children.set(p, {
+        move:p, prior:weights[i] / total, stateReady:false,
+        visits:0, blackWinSum:0, scoreSum:0, children:null,
+        expanded:false, evaluation:null
+      });
     });
     node.expanded = true;
+  }
+
+  function materializeSearchChild(parent, edge) {
+    if (!edge || edge.stateReady) return edge;
+    const child = makeSearchChild(parent, edge.move, edge.prior);
+    if (!child) {
+      parent.children.delete(edge.move);
+      return null;
+    }
+    Object.assign(edge, child);
+    edge.stateReady = true;
+    return edge;
   }
 
   function chooseSearchChild(node) {
@@ -1707,17 +1722,15 @@
       let node = root;
       const path = [root];
       if (visit < forcedCount) {
-        node = root.children.get(forcedMove);
-        path.push(node);
+        node = materializeSearchChild(root, root.children.get(forcedMove));
       } else {
-        const child = chooseSearchChild(root);
-        if (!child) break;
-        node = child;
-        path.push(node);
+        node = materializeSearchChild(root, chooseSearchChild(root));
       }
+      if (!node) continue;
+      path.push(node);
 
       while (node.expanded && node.children && node.children.size && node.passes < 2) {
-        const child = chooseSearchChild(node);
+        const child = materializeSearchChild(node, chooseSearchChild(node));
         if (!child) break;
         node = child;
         path.push(node);
