@@ -1566,7 +1566,7 @@
     return out;
   }
 
-  async function nnRun(m, enc) {
+  async function nnRun(m, enc, pla = turn) {
     const S = m.pad || N, ort = window.ort, names = m.session.inputNames;
     const feeds = {};
     feeds[names.indexOf('bin_input') >= 0 ? 'bin_input' : names[0]] = new ort.Tensor('float32', padTo(enc.bin, S), [1, 22, S, S]);
@@ -1577,7 +1577,7 @@
     catch (e) {
       if (m.pad || N === 19) throw e;
       m.pad = 19;                                   // fixed-size 19×19 model: pad the board
-      return nnRun(m, enc);
+      return nnRun(m, enc, pla);
     }
     m.ms = m.ms ? m.ms * 0.5 + (performance.now() - t0) * 0.5 : performance.now() - t0;
     const pd = (out.policy || out[m.session.outputNames[0]]).data, L = S * S + 1;
@@ -2659,9 +2659,9 @@
     $('capW').textContent = role(W) + say('captures') + caps[W];
     $('sB').classList.toggle('active', phase === 'play' && turn === B);
     $('sW').classList.toggle('active', phase === 'play' && turn === W);
-    $('pass').disabled = phase !== 'play' || aiAnalysisBusy;
-    $('undo').disabled = busy || aiAnalysisBusy;
-    $('resign').disabled = aiAnalysisBusy || phase !== 'play';
+    $('pass').disabled = phase !== 'play' || aiAnalysisBusy || fullGameBusy;
+    $('undo').disabled = busy || aiAnalysisBusy || fullGameBusy;
+    $('resign').disabled = aiAnalysisBusy || fullGameBusy || phase !== 'play';
     if (phase === 'play') {
       $('msg').textContent = busy ? say('botThinking')
         : (turn === B ? say('black') : say('white')) + say('turnSuffix') + (passes === 1 ? say('waitPass') : '');
@@ -2672,6 +2672,7 @@
     }
     updateFace();
     draw();
+    renderAIAnalysis();
   }
 
   /* ================= face-to-face panels */
@@ -2802,6 +2803,19 @@
       const v = board[idx(x, y)];
       if (v) stone(pad + x * cell, pad + y * cell, v, dead.has(idx(x, y)) ? 0.35 : 1);
     }
+    if (showOwnership && aiAnalysisResult && aiAnalysisResult.ownership &&
+        aiAnalysisResult.key === analysisPositionKey()) {
+      for (let p = 0; p < aiAnalysisResult.ownership.length; p++) {
+        if (board[p] !== EMPTY) continue;
+        const value = aiAnalysisResult.ownership[p];
+        const alpha = 0.08 + Math.min(0.42, Math.abs(value) * 0.42);
+        const x = p % N, y = (p / N) | 0;
+        ctx.fillStyle = value >= 0
+          ? 'rgba(43,77,151,' + alpha.toFixed(3) + ')'
+          : 'rgba(177,65,54,' + alpha.toFixed(3) + ')';
+        ctx.fillRect(pad + x * cell - cell * 0.42, pad + y * cell - cell * 0.42, cell * 0.84, cell * 0.84);
+      }
+    }
     if (aiAnalysisMarks.length) {
       aiAnalysisMarks.forEach((p, rank) => {
         const x = p % N, y = (p / N) | 0;
@@ -2841,7 +2855,7 @@
   }
 
   function canHuman() {
-    if (busy || aiAnalysisBusy) return false;
+    if (busy || aiAnalysisBusy || fullGameBusy) return false;
     if (phase === 'mark') return true;
     if (phase !== 'play') return false;
     return mode !== 'bot' || turn === human;
