@@ -2918,7 +2918,11 @@
   $('gameRecordColor').onchange = () => { $('recordColor').value = $('gameRecordColor').value; };
   $('new').onclick = init;
   $('analyzePositionBtn').onclick = analyzeCurrentPosition;
+  $('analyzeFullGameBtn').onclick = analyzeFullGame;
+  $('stopFullGameBtn').onclick = stopFullGameAnalysis;
   $('clearAnalysisBtn').onclick = clearAIAnalysis;
+  $('showOwnershipToggle').onchange = e => { showOwnership = !!e.target.checked; draw(); };
+  $('analysisVisits').onchange = () => { clearAIAnalysis(); };
   $('aiAnalysisMoves').addEventListener('click', e => {
     const button = e.target.closest ? e.target.closest('button[data-analysis-index]') : null;
     if (!button || !aiAnalysisResult || aiAnalysisResult.error) return;
