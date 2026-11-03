@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<base href="https://cdn.jsdelivr.net/gh/NTT123/leela-zero@565ae3380946546504bb38c67a714b6c70300a23/src/docs/">
+<title>Leela Zero browser engine</title>
+<style>
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}
+  #stylize-canvas{position:fixed;left:-10000px;top:0;width:512px;height:512px}
+  #canvas{position:fixed;left:-10000px;top:0;width:1px;height:1px}
+  .progress{position:fixed;left:-10000px;top:0}
+</style>
+</head>
+<body>
+<canvas id="stylize-canvas" width="512" height="512"></canvas>
+<canvas id="canvas" width="1" height="1"></canvas>
+<div class="progress"></div>
+
+<script src="polyfill.min.js"></script>
+<script src="tensor.js"></script>
+<script src="layers.js"></script>
+<script src="util.js"></script>
+<script src="network.js"></script>
+<script src="keras_import.js"></script>
+<script src="demo-util.js"></script>
+<script src="index.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // Pinned to the original browser build so its engine and network files stay compatible.
+  var ENGINE_BASE = 'https://cdn.jsdelivr.net/gh/NTT123/leela-zero@565ae3380946546504bb38c67a714b6c70300a23/src/docs/';
+  var NETWORK_HASH = 'a1151640f6b2c753a36e61f10851bb028dd6068416fbba343cadaa417c365632';
+  var inputarray = new Float32Array(19 * 19 * 18);
+  var outputarray = new Float32Array(19 * 19 + 2);
+  var filearray = new Uint8Array(19 * 19 * 18);
+  var pendingCommand = null;
+  var commandBusy = false;
+  var runtimeReady = false;
+  var networkReady = false;
+  var sendcmd = null;
+
+  function notify(type, data) {
+    try { parent.postMessage(Object.assign({ type: type }, data || {}), location.origin); }
+    catch (e) {}
+  }
+
+  function fail(message) {
+    console.error('[Leela Zero]', message);
+    notify('error', { message: String(message || 'Leela Zero failed to load.') });
+  }
+
+  function handleOutput(raw) {
+    var lines = String(raw == null ? '' : raw).split(/\\r?\\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line || !/^[=?]/.test(line) || !pendingCommand) continue;
+      var current = pendingCommand;
+      pendingCommand = null;
+      clearTimeout(current.timer);
+      current.resolve(line.replace(/^[=?]\\s*/, '').trim());
+    }
+  }
+
+  function gtp(command, timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      if (!sendcmd) return reject(new Error('Leela Zero engine is not initialized.'));
+      if (pendingCommand) return reject(new Error('Leela Zero is already processing a command.'));
+      var timer = setTimeout(function () {
+        if (pendingCommand && pendingCommand.command === command) {
+          pendingCommand = null;
+          reject(new Error('Leela Zero command timed out: ' + command));
+        }
+      }, timeoutMs || 30000);
+      pendingCommand = {
+        command: command,
+        timer: timer,
+        resolve: resolve,
+        reject: reject
+      };
+      try { sendcmd(command); }
+      catch (error) {
+        clearTimeout(timer);
+        pendingCommand = null;
+        reject(error);
+      }
+    });
+  }
+
+  function toGtp(p, size) {
+    if (p < 0) return 'pass';
+    var x = p % size;
+    var y = Math.floor(p / size);
+    var column = String.fromCharCode(65 + x + (x >= 8 ? 1 : 0));
+    return column + String(size - y);
+  }
+
+  function fromGtp(move, size) {
+    var value = String(move || '').trim().toUpperCase();
+    if (value === 'PASS' || value === 'RESIGN') return null;
+    var match = /^([A-HJ-T])(\\d{1,2})$/.exec(value);
+    if (!match) throw new Error('Leela Zero returned an unreadable move: ' + value);
+    var code = match[1].charCodeAt(0);
+    var x = code - 65 - (code > 73 ? 1 : 0);
+    var row = Number(match[2]);
+    var y = size - row;
+    if (x < 0 || x >= size || y < 0 || y >= size) throw new Error('Leela Zero returned a move outside this board: ' + value);
+    return { x: x, y: y };
+  }
+
+  async function chooseMove(request) {
+    if (!networkReady || !runtimeReady) throw new Error('Leela Zero is still loading.');
+    if (commandBusy) throw new Error('Leela Zero is already thinking.');
+    commandBusy = true;
+    try {
+      var size = Number(request.size);
+      if (![9, 13, 19].includes(size)) throw new Error('Leela Zero supports 9, 13, or 19 lines.');
+      await gtp('boardsize ' + size);
+      await gtp('clear_board');
+      await gtp('komi ' + (size === 9 ? '7' : '7.5'));
+      var moves = Array.isArray(request.moves) ? request.moves : [];
+      for (var i = 0; i < moves.length; i++) {
+        var item = moves[i];
+        var stone = Number(item.c) === 1 ? 'b' : 'w';
+        await gtp('play ' + stone + ' ' + toGtp(Number(item.p), size));
+      }
+      notify('status', { message: 'Leela Zero is thinking…' });
+      var answer = await gtp('genmove ' + (Number(request.color) === 1 ? 'b' : 'w'), 120000);
+      return fromGtp(answer, size);
+    } finally {
+      commandBusy = false;
+    }
+  }
+
+  window.addEventListener('message', function (event) {
+    if (event.source !== parent || event.origin !== location.origin) return;
+    var data = event.data || {};
+    if (data.type !== 'move') return;
+    chooseMove(data).then(function (move) {
+      notify('move', { id: data.id, move: move });
+    }).catch(function (error) {
+      notify('moveError', { id: data.id, message: error && error.message ? error.message : String(error) });
+    });
+  });
+
+  var Module = {
+    preRun: [],
+    postRun: [],
+    arguments: ['--gtp', '--playouts=80', '--threads=1', '--weights=hello', '--noponder', '--quiet', '--resignpct=0'],
+    canvas: document.getElementById('canvas'),
+    locateFile: function (path) { return ENGINE_BASE + path; },
+    print: function (text) {
+      console.log(text);
+      handleOutput(text);
+    },
+    printErr: function (text) { console.warn('[Leela Zero]', text); },
+    setStatus: function (text) { notify('status', { message: text || 'Loading Leela Zero…' }); },
+    totalDependencies: 0,
+    monitorRunDependencies: function () {},
+    onRuntimeInitialized: async function () {
+      try {
+        runtimeReady = true;
+        sendcmd = Module.cwrap('sendcmd', 'void', ['string']);
+        var inputBytes = 19 * 19 * 18 * Float32Array.BYTES_PER_ELEMENT;
+        var outputBytes = (19 * 19 + 2) * Float32Array.BYTES_PER_ELEMENT;
+        var fileBytes = 19 * 19 * 18;
+        var inbuf = Module._malloc(inputBytes);
+        var outbuf = Module._malloc(outputBytes);
+        var filebuf = Module._malloc(fileBytes);
+        inputarray = Module.HEAPF32.subarray(inbuf / 4, inbuf / 4 + 19 * 19 * 18);
+        outputarray = Module.HEAPF32.subarray(outbuf / 4, outbuf / 4 + 19 * 19 + 2);
+        filearray = Module.HEAPU8.subarray(filebuf, filebuf + 19 * 19 * 18);
+        Module.ccall('set_input_buffer', 'void', ['number'], [inbuf]);
+        Module.ccall('set_output_buffer', 'void', ['number'], [outbuf]);
+        Module.ccall('set_file_buffer', 'void', ['number'], [filebuf]);
+
+        notify('status', { message: 'Loading Leela Zero neural network…' });
+        await loadNetwork(NETWORK_HASH);
+        networkReady = true;
+        await gtp('boardsize 19');
+        await gtp('clear_board');
+        notify('ready', { engine: 'Leela Zero WebGL v0.9' });
+      } catch (error) {
+        fail(error && error.message ? error.message : error);
+      }
+    }
+  };
+  window.Module = Module;
+
+  window.addEventListener('error', function (event) {
+    if (!networkReady) fail(event.message || 'A browser error stopped Leela Zero.');
+  });
+
+  var memoryRequest = new XMLHttpRequest();
+  memoryRequest.open('GET', Module.locateFile('leelaz.html.mem'), true);
+  memoryRequest.responseType = 'arraybuffer';
+  memoryRequest.send(null);
+  var engineScript = document.createElement('script');
+  engineScript.src = ENGINE_BASE + 'leelaz.js';
+  engineScript.onerror = function () { fail('Could not load the Leela Zero WebAssembly engine.'); };
+  document.body.appendChild(engineScript);
+})();
+</script>
+</body>
+</html>
