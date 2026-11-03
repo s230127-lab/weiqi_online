@@ -9,6 +9,7 @@ on:
   pull_request:
     paths:
       - "index.html"
+      - "leela-engine.html"
       - ".github/workflows/validate-game.yml"
 
 permissions:
