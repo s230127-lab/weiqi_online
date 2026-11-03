@@ -851,7 +851,7 @@
       if (board[idx(x, y)] !== EMPTY) continue;
       const r = tryMove(board, x, y, color);
       if (!r) continue;
-      if (seenSet.has(posKey(r.board))) continue;
+      if (forbiddenPositions.has(posKey(r.board))) { bin[6 * n + p] = 1; continue; }
       if (ownEye(x, y, color)) continue;
       let s = r.captured * 10;
       const seenG = new Set();
@@ -1525,7 +1525,7 @@
      Global features (19): 0..4 which of the last 5 moves were passes | 5 komi/scale (own view)
        6,7 ko rule (positional superko = 1, 0.5) | 8 suicide legal | 9 territory scoring
        12 pass would end game | 13 komi+board-size parity wave | rest 0 */
-  function encodeKata(b, pla, moves, passFlag) {
+  function encodeKata(b, pla, moves, passFlag, forbiddenPositions = seenSet) {
     const n = N * N, bin = new Float32Array(22 * n), glob = new Float32Array(19);
     const o = opp(pla), legal = [];
     bin.fill(1, 0, n);
@@ -1582,13 +1582,31 @@
     m.ms = m.ms ? m.ms * 0.5 + (performance.now() - t0) * 0.5 : performance.now() - t0;
     const pd = (out.policy || out[m.session.outputNames[0]]).data, L = S * S + 1;
     const pol = p => (p < 0 ? pd[S * S] : pd[((p / N) | 0) * S + (p % N)]);
-    let value = 0;
-    if (out.value && out.value.data.length >= 3) {
-      const [a, b, c] = out.value.data, mx = Math.max(a, b, c);
-      const ea = Math.exp(a - mx), eb = Math.exp(b - mx), ec = Math.exp(c - mx);
-      value = (ea - eb) / (ea + eb + ec);           // win − loss for the player to move
+    let value = 0, blackWinRate = 0.5, scoreLeadBlack = null;
+    const vd = out.value && out.value.data;
+    if (vd && vd.length >= 3) {
+      const mx = Math.max(vd[0], vd[1], vd[2]);
+      const ew = Math.exp(vd[0] - mx), el = Math.exp(vd[1] - mx), en = Math.exp(vd[2] - mx);
+      const sum = ew + el + en || 1;
+      const winCurrent = ew / sum, lossCurrent = el / sum;
+      value = winCurrent - lossCurrent;
+      blackWinRate = pla === B ? winCurrent : 1 - winCurrent;
     }
-    return { pol, value, hasValue: !!(out.value && out.value.data && out.value.data.length >= 3), L };
+    const md = out.miscvalue && out.miscvalue.data;
+    if (md && md.length >= 3) scoreLeadBlack = md[2] * 20 * (pla === B ? 1 : -1);
+    let ownershipBlack = null;
+    const od = out.ownership && out.ownership.data;
+    if (od && od.length >= S * S) {
+      ownershipBlack = new Float32Array(N * N);
+      const sign = pla === B ? 1 : -1;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        ownershipBlack[y * N + x] = Math.tanh(od[y * S + x]) * sign;
+      }
+    }
+    return {
+      pol, value, blackWinRate, scoreLeadBlack, ownershipBlack,
+      hasValue: !!(vd && vd.length >= 3), L
+    };
   }
 
 
