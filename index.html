@@ -390,7 +390,7 @@
       undo:"悔棋",pass:"虛手",resign:"認輸",autoMark:"自動標記死子",score:"數子",
       blackTurn:"黑方落子",whiteTurn:"白方落子",botThinking:"電腦思考中…",markDead:"點選死子",gameOver:"對局結束",
       waitPass:"（對手虛手）", turnSuffix:"落子", waitRestart:" · {n} 秒後新局",
-      roleYou:"你", roleAI:"電腦 AI", roleLv:"電腦 Lv ", captures:"提子 ",
+      roleYou:"你", roleAI:"電腦 AI", roleLeela:"Leela Zero AI", roleLv:"電腦 Lv ", captures:"提子 ",
       yourTurn:"輪到你了", waiting:"等待對手…", markHint:"點選棋盤標記死子，再按「數子」",
       deadAnalysis:"分析中…", confirmResign:"確定認輸？", suicide:"不可下：自殺手", superko:"不可下：禁止全局同形",
       resultDraw:"和棋。", youWin:"你贏了！", compWin:"電腦獲勝", blackWin:"黑方獲勝", whiteWin:"白方獲勝",
@@ -437,7 +437,7 @@
       undo:"Undo",pass:"Pass",resign:"Resign",autoMark:"Auto-mark dead stones",score:"Score",
       blackTurn:"Black to play",whiteTurn:"White to play",botThinking:"Computer thinking…",markDead:"Mark dead stones",gameOver:"Game over",
       waitPass:" (opponent passed)",turnSuffix:" to play",waitRestart:" · New game in {n}s",
-      roleYou:"You",roleAI:"KataGo AI",roleLv:"Computer Lv ",captures:"Captured: ",
+      roleYou:"You",roleAI:"KataGo AI",roleLeela:"Leela Zero AI",roleLv:"Computer Lv ",captures:"Captured: ",
       yourTurn:"Your turn",waiting:"Waiting for opponent…",markHint:"Tap groups to mark dead stones, then select Score",
       deadAnalysis:"Analyzing…",confirmResign:"Confirm resign?",suicide:"Illegal move: suicide",superko:"Illegal move: repeated position",
       resultDraw:"Draw.",youWin:"You win!",compWin:"Computer wins",blackWin:"Black wins",whiteWin:"White wins",
@@ -1960,7 +1960,7 @@
 
   function role(c) {
     if (mode !== 'bot') return '';
-    return (c === human ? say('roleYou') : level === 5 ? say('roleAI') : say('roleLv') + level) + ' · ';
+    return (c === human ? say('roleYou') : level === 6 ? say('roleLeela') : level === 5 ? say('roleAI') : say('roleLv') + level) + ' · ';
   }
 
   function update() {
