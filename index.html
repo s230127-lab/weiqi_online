@@ -1251,7 +1251,7 @@
   }
 
   function undo() {
-    if (busy || aiAnalysisBusy || !history.length) return;
+    if (busy || aiAnalysisBusy || fullGameBusy || !history.length) return;
     clearAIAnalysis();
     clearRestart();
     stopFx();
@@ -1905,6 +1905,7 @@
     aiAnalysisMarks = [];
     aiAnalysisSelected = -1;
     showOwnership = false;
+    $('aiAnalysisProgress').textContent = '';
     renderAIAnalysis();
     draw();
   }
@@ -1984,10 +1985,10 @@
   }
 
   function classifyMoveLoss(loss) {
-    if (loss < 2) return say('analysisGood');
-    if (loss < 5) return say('analysisInaccuracy');
-    if (loss < 10) return say('analysisMistake');
-    return say('analysisBlunder');
+    if (loss < 2) return 'analysisGood';
+    if (loss < 5) return 'analysisInaccuracy';
+    if (loss < 10) return 'analysisMistake';
+    return 'analysisBlunder';
   }
 
   async function analyzeFullGame() {
@@ -2038,7 +2039,7 @@
         fullGameResults.push({
           moveNumber:i+1, color:position.playedColor, playedMove:position.playedMove,
           bestMove:best ? best.move : null, best, played, loss,
-          category:classifyMoveLoss(loss), blackWinRate:result.blackWinRate,
+          categoryKey:classifyMoveLoss(loss), blackWinRate:result.blackWinRate,
           scoreLeadBlack:result.scoreLeadBlack
         });
         completed++;
@@ -2052,7 +2053,11 @@
           : fmtText('analysisFullStopped',{count:completed});
       }
     } catch (error) {
-      if (seq === fullGameSequence) $('aiAnalysisProgress').textContent = say('analysisFailed') + (error && error.message ? error.message : String(error));
+      if (seq === fullGameSequence) {
+        netPromise = null;
+        if (!net) net = null;
+        $('aiAnalysisProgress').textContent = say('analysisFailed') + (error && error.message ? error.message : String(error));
+      }
     } finally {
       if (seq === fullGameSequence) {
         fullGameBusy = false;
@@ -2085,7 +2090,7 @@
       const played = gtpMoveLabel(item.playedMove);
       const best = item.bestMove == null ? '—' : gtpMoveLabel(item.bestMove);
       button.textContent = fmtText('analysisMove',{n:item.moveNumber}) + ' · ' + player + ' ' + played +
-        ' → ' + best + ' · ' + item.loss.toFixed(1) + 'pp · ' + item.category;
+        ' → ' + best + ' · ' + item.loss.toFixed(1) + 'pp · ' + say(item.categoryKey);
       li.appendChild(button);
       list.appendChild(li);
     });
