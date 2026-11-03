@@ -1730,6 +1730,9 @@
     };
 
     const rootOutput = await evaluate(root);
+    if (!rootOutput.hasValue) {
+      throw new Error('此 ONNX 模型沒有可用的 value 輸出，無法計算 MCTS 勝率。');
+    }
     let hasScoreLead = rootOutput.scoreLeadBlack != null;
     const canForce = forcedMove !== null && root.children.has(forcedMove);
     const forcedCount = canForce
@@ -1862,8 +1865,10 @@
       summary.textContent = say('analysisFailed') + aiAnalysisResult.error;
     } else {
       const result = aiAnalysisResult;
-      summary.textContent = say('analysisBlackWinRate') + '：' + (result.blackWinRate * 100).toFixed(1) + '%' +
-        (result.scoreLeadBlack == null ? '' : '　·　' + say('analysisScoreLead') + '：' + result.scoreLeadBlack.toFixed(1));
+      summary.textContent = result.hasValue
+        ? say('analysisBlackWinRate') + '：' + (result.blackWinRate * 100).toFixed(1) + '%' +
+          (result.scoreLeadBlack == null ? '' : '　·　' + say('analysisScoreLead') + '：' + result.scoreLeadBlack.toFixed(1))
+        : say('analysisUnavailable');
       result.moves.slice(0,8).forEach((move, index) => {
         const li = document.createElement('li');
         const button = document.createElement('button');
@@ -1875,8 +1880,8 @@
         const label = document.createElement('strong');
         label.textContent = gtpMoveLabel(move.move);
         const detail = document.createElement('span');
-        detail.textContent = move.visits + ' ' + say('analysisVisitsLabel') + ' · ' +
-          say('analysisBlackWinRate') + ' ' + (move.blackWinRate * 100).toFixed(1) + '%';
+        detail.textContent = move.visits + ' ' + say('analysisVisitsLabel') +
+          (result.hasValue ? ' · ' + say('analysisBlackWinRate') + ' ' + (move.blackWinRate * 100).toFixed(1) + '%' : '');
         head.append(label, detail);
         const pv = document.createElement('span');
         pv.className = 'analysis-pv';
@@ -2055,7 +2060,6 @@
     } catch (error) {
       if (seq === fullGameSequence) {
         netPromise = null;
-        if (!net) net = null;
         $('aiAnalysisProgress').textContent = say('analysisFailed') + (error && error.message ? error.message : String(error));
       }
     } finally {
