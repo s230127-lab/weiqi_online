@@ -101,7 +101,9 @@
   .analysis-summary { margin:10px 0 6px; font-size:.92rem; font-variant-numeric:tabular-nums; }
   .analysis-moves { margin:6px 0 0; padding-left:1.6rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:6px; }
   .analysis-moves li { padding-left:2px; }
-  .analysis-moves button { display:flex; align-items:center; justify-content:space-between; width:100%; gap:8px; min-height:36px; padding:5px 8px; font-size:.88rem; }
+  .analysis-moves button { display:flex; flex-direction:column; align-items:stretch; justify-content:center; width:100%; gap:3px; min-height:42px; padding:6px 8px; font-size:.88rem; text-align:left; }
+  .analysis-move-head { display:flex; justify-content:space-between; gap:8px; }
+  .analysis-pv { display:block; color:var(--muted); font-size:.76rem; line-height:1.35; overflow-wrap:anywhere; }
   .analysis-moves button[aria-pressed="true"] { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 14%,var(--panel)); }
   .analysis-disclaimer { margin-top:8px; }
   .analysis-tools { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:9px; }
@@ -391,6 +393,7 @@
     <label><input type="checkbox" id="showOwnershipToggle" disabled><span id="showOwnershipLabel">顯示領地熱圖</span></label>
   </div>
   <div class="analysis-summary" id="aiAnalysisSummary" aria-live="polite">尚未分析。按「分析目前局面」開始。</div>
+  <p class="analysis-tree-hint" id="analysisTreeHint">主要候選著手會附上 MCTS 搜索中訪問最多的後續變化。</p>
   <ol class="analysis-moves" id="aiAnalysisMoves"></ol>
   <p class="analysis-progress" id="aiAnalysisProgress" aria-live="polite"></p>
   <div class="analysis-chart-wrap" id="analysisChartWrap" hidden>
@@ -474,6 +477,7 @@
       analysisUnavailable:"目前局面無法分析。",analysisFailed:"分析失敗：",
       analysisBlackWinRate:"黑方勝率估計",analysisScoreLead:"黑方領先目數估計",
       analysisVisitsLabel:"訪問",analysisPolicyLabel:"先驗政策",analysisBest:"最佳著手",
+      analysisPVLabel:"主變化",analysisTreeHint:"主要候選著手會附上 MCTS 搜索中訪問最多的後續變化。",
       analysisProgress:"搜索進度",analysisNoOwnership:"此模型未提供 ownership 輸出，無法顯示領地熱圖。",
       analysisDisclaimer:"以本機 KataGo ONNX 模型進行 PUCT MCTS 搜索。勝率、目數與逐手失誤幅度都是模型估計，不是保證結果；領地熱圖只在模型提供 ownership 輸出時啟用。",
       analysisVisitsSetting:"每局面搜索量",analysisOwnershipToggle:"顯示領地熱圖",
@@ -541,6 +545,7 @@
       analysisUnavailable:"This position cannot be analyzed.",analysisFailed:"Analysis failed: ",
       analysisBlackWinRate:"Estimated Black win rate",analysisScoreLead:"Estimated Black score lead",
       analysisVisitsLabel:"Visits",analysisPolicyLabel:"Prior policy",analysisBest:"Best move",
+      analysisPVLabel:"Principal variation",analysisTreeHint:"Each leading candidate shows the most-visited continuation found by MCTS.",
       analysisProgress:"Search progress",analysisNoOwnership:"This model has no ownership output, so the territory heatmap is unavailable.",
       analysisDisclaimer:"Runs local PUCT MCTS with the KataGo ONNX model. Win rates, score leads and move-loss figures are model estimates, not guarantees. The territory heatmap is enabled only when the model provides an ownership output.",
       analysisVisitsSetting:"Visits per position",analysisOwnershipToggle:"Show territory heatmap",
@@ -589,7 +594,7 @@
       autoRestartLabel:'autoRestart',analyzePositionBtn:'analyzePosition',analyzeFullGameBtn:'analyzeFullGame',
       stopFullGameBtn:'stopAnalysis',clearAnalysisBtn:'clearAnalysis',
       aiAnalysisTitle:'aiAnalysisTitle',aiAnalysisHint:'aiAnalysisHint',aiAnalysisDisclaimer:'analysisDisclaimer',
-      analysisChartLabel:'analysisGameTitle'
+      analysisChartLabel:'analysisGameTitle',analysisTreeHint:'analysisTreeHint'
     };
     for (const [id,key] of Object.entries(labels)) if ($(id)) $(id).textContent = say(key);
     if ($('analysisVisitsLabel')) $('analysisVisitsLabel').textContent = say('analysisVisitsSetting');
@@ -1783,11 +1788,24 @@
     }
 
     const moves = root.children
-      ? [...root.children.entries()].map(([move, child]) => ({
-          move, visits:child.visits, prior:child.prior,
-          blackWinRate:child.visits ? child.blackWinSum / child.visits : rootOutput.blackWinRate,
-          scoreLeadBlack:child.visits ? child.scoreSum / child.visits : rootOutput.scoreLeadBlack
-        })).sort((a,b) => b.visits - a.visits || b.prior - a.prior)
+      ? [...root.children.entries()].map(([move, child]) => {
+          const pv = [move];
+          let current = child;
+          while (pv.length < 10 && current.visits > 0 && current.expanded && current.children) {
+            const next = [...current.children.values()]
+              .filter(candidate => candidate.visits > 0)
+              .sort((a,b) => b.visits - a.visits)[0];
+            if (!next) break;
+            current = materializeSearchChild(current, next);
+            if (!current) break;
+            pv.push(current.move);
+          }
+          return {
+            move, visits:child.visits, prior:child.prior, pv,
+            blackWinRate:child.visits ? child.blackWinSum / child.visits : rootOutput.blackWinRate,
+            scoreLeadBlack:child.visits ? child.scoreSum / child.visits : rootOutput.scoreLeadBlack
+          };
+        }).sort((a,b) => b.visits - a.visits || b.prior - a.prior)
       : [];
     const ownership = ownerCount
       ? Float32Array.from(ownerSum, value => value / ownerCount)
@@ -1851,12 +1869,18 @@
         button.type = 'button';
         button.dataset.analysisIndex = String(index);
         button.setAttribute('aria-pressed', String(aiAnalysisSelected === index));
-        const label = document.createElement('span');
+        const head = document.createElement('span');
+        head.className = 'analysis-move-head';
+        const label = document.createElement('strong');
         label.textContent = gtpMoveLabel(move.move);
         const detail = document.createElement('span');
         detail.textContent = move.visits + ' ' + say('analysisVisitsLabel') + ' · ' +
           say('analysisBlackWinRate') + ' ' + (move.blackWinRate * 100).toFixed(1) + '%';
-        button.append(label, detail);
+        head.append(label, detail);
+        const pv = document.createElement('span');
+        pv.className = 'analysis-pv';
+        pv.textContent = say('analysisPVLabel') + '：' + (move.pv || [move.move]).map(gtpMoveLabel).join('  ');
+        button.append(head, pv);
         li.appendChild(button);
         list.appendChild(li);
       });
