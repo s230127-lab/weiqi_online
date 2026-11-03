@@ -159,13 +159,25 @@
   body.pre-game > header, body.pre-game > .layout { display:none; }
   .entry-screen { width:min(100%, 760px); margin:0 auto; padding:clamp(18px,4vw,34px); }
   #welcome { min-height:calc(100vh - 24px); display:none; flex-direction:column; justify-content:center; gap:18px; }
-  body.pre-game:not(.show-rules) #welcome { display:flex; }
-  #rulesScreen { display:none; }
-  body.pre-game #rulesScreen { display:none; }
-  body.show-rules #rulesScreen { display:block !important; }
-  body.show-rules { overflow-y:auto; }
-  body.show-rules #welcome { display:none; }
-  body.show-rules #rulesScreen { display:block; }
+  body.pre-game:not(.show-rules):not(.show-guide) #welcome { display:flex; }
+  #rulesScreen, #guideScreen { display:none; }
+  body.pre-game #rulesScreen, body.pre-game #guideScreen { display:none; }
+  body.show-rules #rulesScreen, body.show-guide #guideScreen { display:block !important; }
+  body.show-rules, body.show-guide { overflow-y:auto; }
+  body.show-rules #welcome, body.show-guide #welcome, body.show-guide #rulesScreen { display:none; }
+  body.show-rules #rulesScreen, body.show-guide #guideScreen { display:block; }
+  body.show-guide > header, body.show-guide > .layout { display:none !important; }
+  .guide-card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:clamp(14px,3vw,22px); margin-top:12px; }
+  .guide-card h2 { margin:0 0 10px; font-size:1.25rem; }
+  .guide-card p { line-height:1.7; }
+  .guide-card ol, .guide-card ul { padding-left:1.4rem; line-height:1.75; }
+  .guide-card li { margin:7px 0; }
+  .guide-tool-list { display:grid; gap:12px; }
+  .guide-tool { padding:12px; border:1px solid var(--line); border-radius:10px; }
+  .guide-tool h3 { margin:0 0 5px; font-size:1.05rem; }
+  .guide-tool p { margin:5px 0; line-height:1.65; }
+  .guide-tool a, .guide-link { color:var(--accent); text-decoration:underline; text-underline-offset:3px; }
+  .guide-code { padding:12px; border-radius:8px; background:var(--bg); overflow:auto; font-size:.88rem; line-height:1.5; }
   .entry-card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:clamp(18px,4vw,30px); box-shadow:0 12px 32px -24px rgba(0,0,0,.4); }
   .entry-title { font-size:clamp(2rem,7vw,3.3rem); margin:0; letter-spacing:.1em; }
   .entry-sub { color:var(--muted); margin:0; font-size:1.05rem; line-height:1.7; }
@@ -221,6 +233,7 @@
     <p class="entry-sub" id="welcomeSubtitle">與電腦對弈，或與朋友面對面下一盤棋。</p>
     <div class="entry-actions" style="margin-top:20px">
       <button id="launchBtn" class="primary">開始遊戲</button>
+      <button id="guideBtn">圍棋教學與 AI 工具</button>
       <button id="googleSignIn">使用 Google 登入以記錄成績</button>
     </div>
     <p id="authStatus" class="account-status" aria-live="polite">登入後即可保存勝負紀錄並登上排行榜。</p>
@@ -250,10 +263,37 @@
   </div>
 </section>
 
+<section id="guideScreen" class="entry-screen" aria-labelledby="guideTitle">
+  <div class="entry-card">
+    <h1 id="guideTitle">圍棋教學與 AI 工具</h1>
+    <p id="guideIntro" class="entry-sub"></p>
+    <div class="guide-card">
+      <h2 id="guideBasicsTitle"></h2>
+      <ol id="guideBasicsList"></ol>
+    </div>
+    <div class="guide-card">
+      <h2 id="guideToolsTitle"></h2>
+      <div id="guideToolsList" class="guide-tool-list"></div>
+    </div>
+    <div class="guide-card">
+      <h2 id="guideMiniTitle"></h2>
+      <p id="guideMiniIntro"></p>
+      <ol id="guideMiniSteps"></ol>
+      <pre id="guideMiniCommand" class="guide-code"></pre>
+      <p id="guideMiniCaution"></p>
+      <p><a id="guideSabakiLink" class="guide-link" href="https://github.com/SabakiHQ/Sabaki/releases" target="_blank" rel="noopener noreferrer">Sabaki downloads</a></p>
+    </div>
+    <div class="entry-actions" style="margin-top:16px">
+      <button id="guideBack" class="primary">返回</button>
+    </div>
+  </div>
+</section>
+
 <header>
   <h1>圍棋<small>Weiqi</small></h1>
   <div class="top-tools">
     <button id="homeBtn">首頁</button>
+    <button id="gameGuideBtn">教學與 AI 工具</button>
     <span class="game-clock"><span id="gameTimerLabel">用時</span><strong id="gameTimer">00:00</strong></span>
     <button id="gameLeaderboardBtn">等級排行榜</button>
     <select id="gameLang" aria-label="Language"><option value="zh">繁中</option><option value="en">EN</option></select>
@@ -366,7 +406,7 @@
       rankTitle:"排行榜 · 前 10 名", refresh:"重新整理", noRanks:"目前還沒有排名紀錄。",
       loadRanksFailed:"暫時無法載入排行榜。請稍後再試。",
       rankColor:"雙人模式記錄我的棋色", black:"黑方", white:"白方",
-      home:"首頁", gameLeaderboard:"等級排行榜", close:"關閉", timerLabel:"用時",
+      home:"首頁", gameLeaderboard:"等級排行榜", guide:"圍棋教學與 AI 工具", close:"關閉", timerLabel:"用時",
       levelRankTitle:"各等級最快勝局", rankLevel:"電腦等級", noLevelRanks:"這個等級尚無勝局紀錄。",
       loadLevelRanksFailed:"暫時無法載入此等級排行榜。", levelTimeSaved:"已更新此等級的個人最佳時間。",
       rulesIntro:"開始前請先閱讀以下規則。閱讀完畢後，按下確認按鈕即可開始對弈。",
@@ -412,7 +452,7 @@
       rankTitle:"Leaderboard · Top 10",refresh:"Refresh",noRanks:"No ranked games yet.",
       loadRanksFailed:"The leaderboard is temporarily unavailable. Please try again.",
       rankColor:"In two-player modes, record me as",black:"Black",white:"White",
-      home:"Home", gameLeaderboard:"Level leaderboard", close:"Close", timerLabel:"Time",
+      home:"Home", gameLeaderboard:"Level leaderboard", guide:"Go Guide & AI Tools", close:"Close", timerLabel:"Time",
       levelRankTitle:"Fastest wins by level", rankLevel:"Computer level", noLevelRanks:"No winning records for this level yet.",
       loadLevelRanksFailed:"This level's leaderboard is temporarily unavailable.", levelTimeSaved:"Your personal best for this level has been updated.",
       rulesIntro:"Please read the rules below. After reading them, press the confirmation button to begin playing.",
@@ -451,8 +491,100 @@
       ]
     }
   };
+  const GUIDE_DATA = {
+    zh: {
+      title:"圍棋教學與 AI 工具",
+      intro:"從基本棋理開始，並了解 Leela Zero、KaTrain、Lizzie 與 MiniGo。以下桌面工具需要在你的電腦安裝；它們不會直接載入到這個 GitHub Pages 網站。",
+      basicsTitle:"圍棋入門",
+      basics:[
+        "棋盤與落子：棋子放在棋盤線的交叉點上。黑棋先下，之後黑白輪流各下一手；落下的棋子通常不會移動。",
+        "氣：一顆棋子上下左右相鄰的空交叉點稱為「氣」。斜角不算氣。相連同色棋子形成一個棋塊，共享棋塊周圍的氣。",
+        "提子與叫吃：棋塊失去所有氣時會被提走。若棋塊只剩一口氣，稱為「叫吃」；下一手若能封住最後一口氣，就可提走該棋塊。",
+        "禁著點與打劫：不能下在落子後自己棋塊立刻沒有氣、又沒有提子的點。全局同形規則也會阻止重複出現先前的局面。",
+        "連接與眼：連接棋塊通常能互相支援。被己方棋子圍住的空點稱為眼；穩固的兩隻真眼通常能使棋塊活棋。",
+        "布局方向：角落只需兩條邊界即可圍地，接著是邊上，最後才是中央。這是常見的布局概念，不是每一手都必須遵守的固定規則。",
+        "終局與數子：雙方連續虛手後進入終局，確認死棋後數子。本網站採中國式數子概念：計算活棋以及被圍住的空交叉點。",
+        "練習建議：初學可先選 9×9 棋盤，注意棋塊有多少氣、學會辨認叫吃，並在每一步前想一想對手下一手能做甚麼。"
+      ],
+      toolsTitle:"圍棋 AI 工具",
+      tools:[
+        {name:"Leela Zero",desc:"圍棋 AI 引擎，透過 GTP（Go Text Protocol）與棋譜介面溝通。它本身是引擎，不是完整的圖形棋盤介面；通常還需要相容的 GUI 和神經網絡權重檔。",use:"適合想使用 Leela Zero 引擎對弈或分析的人。",link:"前往官方下載頁",url:"https://github.com/leela-zero/leela-zero/releases"},
+        {name:"KaTrain",desc:"以 KataGo 為核心的桌面教學及分析介面，可與 AI 對弈、檢討棋譜，並查看失分和改進建議。它使用 KataGo 的分析引擎，不是 MiniGo 的通用 GTP 前端。",use:"適合學棋、復盤及取得 AI 回饋。",link:"前往官方專案與下載",url:"https://github.com/sanderland/katrain"},
+        {name:"Lizzie",desc:"桌面圍棋分析介面，可顯示 AI 建議、勝率變化及變化圖；官方版本支援 Leela Zero 和 KataGo。",use:"適合研究候選手、比較變化及分析棋局。",link:"前往官方 Releases",url:"https://github.com/featurecat/lizzie/releases"}
+      ],
+      miniTitle:"使用 MiniGo 完成一盤對局",
+      miniIntro:"TensorFlow 的 MiniGo 是以 AlphaGo Zero 研究為靈感的開源圍棋引擎。它不是 DeepMind 官方 AlphaGo。MiniGo 使用 GTP，因此可以配合支援 GTP 的桌面棋盤程式對弈。",
+      miniSteps:[
+        "先閱讀 MiniGo 專案的 README，準備相容的 Python／TensorFlow 環境及一個 MiniGo 模型檔。這個專案年代較久，安裝前要查看其舊版相依套件要求。",
+        "下載並安裝一個支援 GTP 引擎的桌面棋盤介面，例如 Sabaki。",
+        "在 MiniGo 專案資料夾內啟動 GTP 引擎，並把模型路徑換成你實際下載的模型檔路徑。",
+        "在棋盤介面的引擎設定中，加入 Python 執行檔、MiniGo 的 gtp.py 路徑及模型參數。連線成功後，便可選擇黑白棋、棋盤大小並完成整盤對局。"
+      ],
+      miniCommand:"python3 gtp.py --load_file=PATH_TO_MODEL --num_readouts=400 --verbose=3",
+      miniCaution:"重要限制：這個網站是靜態 GitHub Pages，瀏覽器不能直接啟動你電腦上的 Python／TensorFlow 程式，所以目前不能在本網站棋盤內直接選 MiniGo 當對手。上方步驟會讓你在本機 GTP 棋盤程式中與 MiniGo 完成對局；若要在網站內直接對弈，需要另外製作 WebAssembly 移植或本機橋接程式。",
+      sabakiLink:"下載 Sabaki（GTP 棋盤介面）"
+    },
+    en: {
+      title:"Go Guide & AI Tools",
+      intro:"Learn the basics of Go and explore Leela Zero, KaTrain, Lizzie, and MiniGo. The desktop tools below must be installed on your computer; they do not run inside this GitHub Pages website.",
+      basicsTitle:"Go fundamentals",
+      basics:[
+        "Board and moves: Stones are placed on line intersections. Black moves first, then players alternate. A stone normally stays where it is played.",
+        "Liberties: An empty intersection directly above, below, left, or right of a stone is a liberty. Diagonals do not count. Connected stones of the same color form a group and share liberties.",
+        "Capture and atari: A group with no liberties is captured and removed. A group with only one liberty is in atari; the opponent may capture it by taking its last liberty.",
+        "Suicide and ko: You may not play a move that leaves your own group with no liberties unless it captures opposing stones. The game's positional-superko rule also prevents repeating an earlier board position.",
+        "Connections and eyes: Connected groups can support one another. An empty point surrounded by your stones is an eye; two secure true eyes normally make a group alive.",
+        "Opening direction: Corners are often approached first, then the sides, then the center, because a corner has two board edges as boundaries. This is a common principle, not an absolute rule for every move.",
+        "End of game and scoring: Two consecutive passes end the game. Agree on dead groups, then count. This website uses Chinese-style area scoring: living stones plus surrounded empty intersections.",
+        "Practice tip: Start on a 9×9 board, watch how many liberties each group has, learn to recognize atari, and consider what your opponent can do after every move."
+      ],
+      toolsTitle:"Go AI tools",
+      tools:[
+        {name:"Leela Zero",desc:"A Go AI engine that communicates through GTP (Go Text Protocol). It is an engine, not a complete graphical board interface; you generally also need a compatible GUI and a neural-network weights file.",use:"For players who want to run or analyze games with the Leela Zero engine.",link:"Official downloads",url:"https://github.com/leela-zero/leela-zero/releases"},
+        {name:"KaTrain",desc:"A desktop teaching and analysis interface built around KataGo. It can play games, review records, and show point-loss and improvement feedback. It uses KataGo's analysis engine; it is not a generic GTP front end for MiniGo.",use:"For learning, game review, and AI feedback.",link:"Official project and downloads",url:"https://github.com/sanderland/katrain"},
+        {name:"Lizzie",desc:"A desktop Go analysis interface that displays AI suggestions, win-rate changes, and variations. The official project supports Leela Zero and KataGo.",use:"For exploring candidate moves, variations, and game analysis.",link:"Official Releases",url:"https://github.com/featurecat/lizzie/releases"}
+      ],
+      miniTitle:"Play a complete game against MiniGo",
+      miniIntro:"TensorFlow MiniGo is an open-source Go engine inspired by AlphaGo Zero research. It is not the official DeepMind AlphaGo. MiniGo uses GTP, so it can play through a desktop Go GUI that supports GTP engines.",
+      miniSteps:[
+        "Read the MiniGo repository README and prepare a compatible Python/TensorFlow environment plus a MiniGo model file. This is an older project, so check its legacy dependency requirements before installing it.",
+        "Download and install a desktop Go board that supports GTP engines, such as Sabaki.",
+        "Start the GTP engine from the MiniGo project folder, replacing the model path with the actual model file you downloaded.",
+        "In your board GUI's engine settings, provide the Python executable, the path to MiniGo's gtp.py, and the model arguments. Once connected, choose Black or White and a board size, then play the complete game."
+      ],
+      miniCommand:"python3 gtp.py --load_file=PATH_TO_MODEL --num_readouts=400 --verbose=3",
+      miniCaution:"Important limitation: this site is static GitHub Pages. A browser page cannot directly launch the Python/TensorFlow program installed on your computer, so MiniGo cannot currently be selected as an in-page opponent. The steps above let you play a full game locally in a GTP board app. Direct in-browser play would require a separate WebAssembly port or local bridge program.",
+      sabakiLink:"Download Sabaki (GTP board GUI)"
+    }
+  };
+
   let language = 'zh';
   const say = key => (I18N[language] || I18N.zh)[key] || key;
+  function renderGuide() {
+    const data = GUIDE_DATA[language] || GUIDE_DATA.zh;
+    $('guideTitle').textContent = data.title;
+    $('guideIntro').textContent = data.intro;
+    $('guideBasicsTitle').textContent = data.basicsTitle;
+    $('guideToolsTitle').textContent = data.toolsTitle;
+    $('guideMiniTitle').textContent = data.miniTitle;
+    $('guideMiniIntro').textContent = data.miniIntro;
+    $('guideMiniCommand').textContent = data.miniCommand;
+    $('guideMiniCaution').textContent = data.miniCaution;
+    $('guideSabakiLink').textContent = data.sabakiLink;
+    const basics = $('guideBasicsList'); basics.replaceChildren();
+    data.basics.forEach(item => { const li=document.createElement('li'); li.textContent=item; basics.appendChild(li); });
+    const tools = $('guideToolsList'); tools.replaceChildren();
+    data.tools.forEach(item => {
+      const card=document.createElement('article'); card.className='guide-tool';
+      const title=document.createElement('h3'); title.textContent=item.name;
+      const desc=document.createElement('p'); desc.textContent=item.desc;
+      const use=document.createElement('p'); use.textContent=item.use;
+      const link=document.createElement('a'); link.href=item.url; link.target='_blank'; link.rel='noopener noreferrer'; link.textContent=item.link;
+      card.append(title,desc,use,link); tools.appendChild(card);
+    });
+    const steps = $('guideMiniSteps'); steps.replaceChildren();
+    data.miniSteps.forEach(item => { const li=document.createElement('li'); li.textContent=item; steps.appendChild(li); });
+  }
   function fmtText(key, values) {
     return Object.entries(values || {}).reduce((out, [k,v]) => out.replaceAll('{' + k + '}', String(v)), say(key));
   }
@@ -464,6 +596,7 @@
     const labels = {
       launchBtn:'launch',rulesStart:'play',rulesBack:'back',googleSignIn:'signIn',headerAuth:currentUser?'signOut':'signIn',
       refreshRanks:'refresh',leaderboardTitle:'rankTitle',rulesTitle:'rulesTitle',rulesIntro:'rulesIntro',
+      guideBtn:'guide',gameGuideBtn:'guide',guideBack:'back',
       homeBtn:'home',gameLeaderboardBtn:'gameLeaderboard',closeGameLeaderboard:'close',
       gameLeaderboardTitle:'levelRankTitle',menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
       autoRestartLabel:'autoRestart'
@@ -496,6 +629,7 @@
     I18N[language].rules.forEach(item => { const li=document.createElement('li'); li.textContent=item; list.appendChild(li); });
     if ($('rulesReadButton')) $('rulesReadButton').textContent = say('rulesReadText');
     if ($('rulesStart')) $('rulesStart').textContent = say('rulesStart');
+    renderGuide();
     $('authStatus').textContent = currentUser
       ? (language==='en' ? 'Signed in as ' : '已登入：') + (currentUser.displayName || currentUser.email || currentUser.uid)
       : (firebaseReady() ? say('loginForResults') : say('authNotReady'));
@@ -2051,6 +2185,18 @@
     if (!p) return;
     if (phase === 'mark') toggleDead(p[0], p[1]); else play(p[0], p[1]);
   });
+
+  function openGuide() {
+    document.body.classList.add('show-guide');
+    document.body.classList.remove('show-rules');
+    renderGuide();
+  }
+  function closeGuide() {
+    document.body.classList.remove('show-guide');
+  }
+  $('guideBtn').onclick = openGuide;
+  $('gameGuideBtn').onclick = openGuide;
+  $('guideBack').onclick = closeGuide;
 
   $('launchBtn').onclick = () => {
     $('rulesReadButton').setAttribute('aria-pressed','false');
