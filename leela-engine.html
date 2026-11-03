@@ -60,7 +60,7 @@
       var current = pendingCommand;
       pendingCommand = null;
       clearTimeout(current.timer);
-      var response = line.replace(/^[=?]\\s*/, '').trim();
+      var response = line.replace(/^[=?]\s*/, '').trim();
       if (line.charAt(0) === '?') {
         current.reject(new Error('Leela Zero rejected GTP command "' + current.command + '": ' + response));
       } else {
