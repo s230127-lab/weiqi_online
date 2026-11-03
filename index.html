@@ -177,7 +177,6 @@
   .guide-tool h3 { margin:0 0 5px; font-size:1.05rem; }
   .guide-tool p { margin:5px 0; line-height:1.65; }
   .guide-tool a, .guide-link { color:var(--accent); text-decoration:underline; text-underline-offset:3px; }
-  .guide-code { padding:12px; border-radius:8px; background:var(--bg); overflow:auto; font-size:.88rem; line-height:1.5; }
   .entry-card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:clamp(18px,4vw,30px); box-shadow:0 12px 32px -24px rgba(0,0,0,.4); }
   .entry-title { font-size:clamp(2rem,7vw,3.3rem); margin:0; letter-spacing:.1em; }
   .entry-sub { color:var(--muted); margin:0; font-size:1.05rem; line-height:1.7; }
@@ -274,14 +273,6 @@
     <div class="guide-card">
       <h2 id="guideToolsTitle"></h2>
       <div id="guideToolsList" class="guide-tool-list"></div>
-    </div>
-    <div class="guide-card">
-      <h2 id="guideMiniTitle"></h2>
-      <p id="guideMiniIntro"></p>
-      <ol id="guideMiniSteps"></ol>
-      <pre id="guideMiniCommand" class="guide-code"></pre>
-      <p id="guideMiniCaution"></p>
-      <p><a id="guideSabakiLink" class="guide-link" href="https://github.com/SabakiHQ/Sabaki/releases" target="_blank" rel="noopener noreferrer">Sabaki downloads</a></p>
     </div>
     <div class="entry-actions" style="margin-top:16px">
       <button id="guideBack" class="primary">返回</button>
@@ -494,7 +485,7 @@
   const GUIDE_DATA = {
     zh: {
       title:"圍棋教學與 AI 工具",
-      intro:"從基本棋理開始，並了解 Leela Zero、KaTrain、Lizzie 與 MiniGo。以下桌面工具需要在你的電腦安裝；它們不會直接載入到這個 GitHub Pages 網站。",
+      intro:"從基本棋理開始，並了解 Leela Zero、KaTrain 與 Lizzie。以下桌面工具需要在你的電腦安裝；它們不會直接載入到這個 GitHub Pages 網站。",
       basicsTitle:"圍棋入門",
       basics:[
         "棋盤與落子：棋子放在棋盤線的交叉點上。黑棋先下，之後黑白輪流各下一手；落下的棋子通常不會移動。",
@@ -509,24 +500,13 @@
       toolsTitle:"圍棋 AI 工具",
       tools:[
         {name:"Leela Zero",desc:"圍棋 AI 引擎，透過 GTP（Go Text Protocol）與棋譜介面溝通。它本身是引擎，不是完整的圖形棋盤介面；通常還需要相容的 GUI 和神經網絡權重檔。",use:"下載適合你作業系統的版本並解壓縮，準備相容的 network weights 權重檔，再用 Lizzie 或 Sabaki 等 GTP 圖形介面連接引擎。",link:"前往官方下載頁",url:"https://github.com/leela-zero/leela-zero/releases"},
-        {name:"KaTrain",desc:"以 KataGo 為核心的桌面教學及分析介面，可與 AI 對弈、檢討棋譜，並查看失分和改進建議。它使用 KataGo 的分析引擎，不是 MiniGo 的通用 GTP 前端。",use:"Windows／macOS 可先查看 Releases 的安裝檔；其他 64 位元系統可參考 pipx install katrain。開啟 KaTrain 後可按 F8 進入 General & Engine Settings，使用 Download models 管理模型。",link:"前往官方專案與下載",url:"https://github.com/sanderland/katrain"},
+        {name:"KaTrain",desc:"以 KataGo 為核心的桌面教學及分析介面，可與 AI 對弈、檢討棋譜，並查看失分和改進建議。",use:"Windows／macOS 可先查看 Releases 的安裝檔；其他 64 位元系統可參考 pipx install katrain。開啟 KaTrain 後可按 F8 進入 General & Engine Settings，使用 Download models 管理模型。",link:"前往官方專案與下載",url:"https://github.com/sanderland/katrain"},
         {name:"Lizzie",desc:"桌面圍棋分析介面，可顯示 AI 建議、勝率變化及變化圖；官方版本支援 Leela Zero 和 KataGo。",use:"從 Releases 下載適合系統的版本並解壓縮，再依照專案說明設定 Leela Zero 或 KataGo。更新時請留意新版設定檔要求。",link:"前往官方 Releases",url:"https://github.com/featurecat/lizzie/releases"}
       ],
-      miniTitle:"使用 MiniGo 完成一盤對局",
-      miniIntro:"TensorFlow 的 MiniGo 是以 AlphaGo Zero 研究為靈感的開源圍棋引擎。它不是 DeepMind 官方 AlphaGo。MiniGo 使用 GTP，因此可以配合支援 GTP 的桌面棋盤程式對弈。",
-      miniSteps:[
-        "先閱讀 MiniGo 專案的 README，準備相容的 Python／TensorFlow 環境及一個 MiniGo 模型檔。這個專案年代較久，安裝前要查看其舊版相依套件要求。",
-        "下載並安裝一個支援 GTP 引擎的桌面棋盤介面，例如 Sabaki。",
-        "在 MiniGo 專案資料夾內啟動 GTP 引擎，並把模型路徑換成你實際下載的模型檔路徑。",
-        "在棋盤介面的引擎設定中，加入 Python 執行檔、MiniGo 的 gtp.py 路徑及模型參數。連線成功後，便可選擇黑白棋、棋盤大小並完成整盤對局。"
-      ],
-      miniCommand:"python3 gtp.py --load_file=PATH_TO_MODEL --num_readouts=400 --verbose=3",
-      miniCaution:"重要限制：tensorflow/minigo 儲存庫已於 2021 年 3 月封存，README 使用的是較舊的 Python／TensorFlow 1.15 與 Bazel 相依環境，現代電腦可能需要額外處理相容性。這個網站是靜態 GitHub Pages，瀏覽器不能直接啟動你電腦上的 Python／TensorFlow 程式，所以目前不能在本網站棋盤內直接選 MiniGo 當對手。上方步驟會讓你在本機 GTP 棋盤程式中與 MiniGo 完成對局；若要在網站內直接對弈，需要另外製作 WebAssembly 移植或本機橋接程式。",
-      sabakiLink:"下載 Sabaki（GTP 棋盤介面）"
     },
     en: {
       title:"Go Guide & AI Tools",
-      intro:"Learn the basics of Go and explore Leela Zero, KaTrain, Lizzie, and MiniGo. The desktop tools below must be installed on your computer; they do not run inside this GitHub Pages website.",
+      intro:"Learn the basics of Go and explore Leela Zero, KaTrain, and Lizzie. The desktop tools below must be installed on your computer; they do not run inside this GitHub Pages website.",
       basicsTitle:"Go fundamentals",
       basics:[
         "Board and moves: Stones are placed on line intersections. Black moves first, then players alternate. A stone normally stays where it is played.",
@@ -541,20 +521,9 @@
       toolsTitle:"Go AI tools",
       tools:[
         {name:"Leela Zero",desc:"A Go AI engine that communicates through GTP (Go Text Protocol). It is an engine, not a complete graphical board interface; you generally also need a compatible GUI and a neural-network weights file.",use:"Download and extract the build for your operating system, obtain a compatible neural-network weights file, then connect the engine through a GTP GUI such as Lizzie or Sabaki.",link:"Official downloads",url:"https://github.com/leela-zero/leela-zero/releases"},
-        {name:"KaTrain",desc:"A desktop teaching and analysis interface built around KataGo. It can play games, review records, and show point-loss and improvement feedback. It uses KataGo's analysis engine; it is not a generic GTP front end for MiniGo.",use:"Check Releases for the Windows/macOS installer; other 64-bit systems can refer to pipx install katrain. In KaTrain, press F8 for General & Engine Settings and use Download models to manage models.",link:"Official project and downloads",url:"https://github.com/sanderland/katrain"},
+        {name:"KaTrain",desc:"A desktop teaching and analysis interface built around KataGo. It can play games, review records, and show point-loss and improvement feedback.",use:"Check Releases for the Windows/macOS installer; other 64-bit systems can refer to pipx install katrain. In KaTrain, press F8 for General & Engine Settings and use Download models to manage models.",link:"Official project and downloads",url:"https://github.com/sanderland/katrain"},
         {name:"Lizzie",desc:"A desktop Go analysis interface that displays AI suggestions, win-rate changes, and variations. The official project supports Leela Zero and KataGo.",use:"Download the build for your operating system from Releases, extract it, then follow the project instructions to configure Leela Zero or KataGo. Check the configuration-file requirements when upgrading.",link:"Official Releases",url:"https://github.com/featurecat/lizzie/releases"}
       ],
-      miniTitle:"Play a complete game against MiniGo",
-      miniIntro:"TensorFlow MiniGo is an open-source Go engine inspired by AlphaGo Zero research. It is not the official DeepMind AlphaGo. MiniGo uses GTP, so it can play through a desktop Go GUI that supports GTP engines.",
-      miniSteps:[
-        "Read the MiniGo repository README and prepare a compatible Python/TensorFlow environment plus a MiniGo model file. This is an older project, so check its legacy dependency requirements before installing it.",
-        "Download and install a desktop Go board that supports GTP engines, such as Sabaki.",
-        "Start the GTP engine from the MiniGo project folder, replacing the model path with the actual model file you downloaded.",
-        "In your board GUI's engine settings, provide the Python executable, the path to MiniGo's gtp.py, and the model arguments. Once connected, choose Black or White and a board size, then play the complete game."
-      ],
-      miniCommand:"python3 gtp.py --load_file=PATH_TO_MODEL --num_readouts=400 --verbose=3",
-      miniCaution:"Important limitation: the tensorflow/minigo repository was archived in March 2021. Its README uses older Python/TensorFlow 1.15 and Bazel dependencies, so a compatible legacy environment may be needed. This site is static GitHub Pages; a browser page cannot directly launch the Python/TensorFlow program installed on your computer, so MiniGo cannot currently be selected as an in-page opponent. The steps above let you play a full game locally in a GTP board app. Direct in-browser play would require a separate WebAssembly port or local bridge program.",
-      sabakiLink:"Download Sabaki (GTP board GUI)"
     }
   };
 
@@ -566,11 +535,6 @@
     $('guideIntro').textContent = data.intro;
     $('guideBasicsTitle').textContent = data.basicsTitle;
     $('guideToolsTitle').textContent = data.toolsTitle;
-    $('guideMiniTitle').textContent = data.miniTitle;
-    $('guideMiniIntro').textContent = data.miniIntro;
-    $('guideMiniCommand').textContent = data.miniCommand;
-    $('guideMiniCaution').textContent = data.miniCaution;
-    $('guideSabakiLink').textContent = data.sabakiLink;
     const basics = $('guideBasicsList'); basics.replaceChildren();
     data.basics.forEach(item => { const li=document.createElement('li'); li.textContent=item; basics.appendChild(li); });
     const tools = $('guideToolsList'); tools.replaceChildren();
@@ -582,8 +546,6 @@
       const link=document.createElement('a'); link.href=item.url; link.target='_blank'; link.rel='noopener noreferrer'; link.textContent=item.link;
       card.append(title,desc,use,link); tools.appendChild(card);
     });
-    const steps = $('guideMiniSteps'); steps.replaceChildren();
-    data.miniSteps.forEach(item => { const li=document.createElement('li'); li.textContent=item; steps.appendChild(li); });
   }
   function fmtText(key, values) {
     return Object.entries(values || {}).reduce((out, [k,v]) => out.replaceAll('{' + k + '}', String(v)), say(key));
