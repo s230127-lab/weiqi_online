@@ -241,7 +241,15 @@
   <div class="entry-card">
     <h1 id="rulesTitle">圍棋規則</h1>
     <p id="rulesIntro" class="entry-sub">開始前請先閱讀基本規則。</p>
-    <ol id="rulesList" class="rule-list"></ol>
+    <ol id="rulesList" class="rule-list">
+      <li>黑先白後，雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」（自殺），不可下；能提子則可。沒有氣的棋塊會被提走。</li>
+      <li>禁止全局同形：不可使盤面重現先前出現過的任何局面（打劫亦屬此類）。</li>
+      <li>雙方連續虛手即終局。點選棋塊標記死子（或使用自動標記），再數子。採中國規則的數子法（活子加圍住的空點）。</li>
+      <li>面對面模式：把裝置平放在兩人中間，白方坐上方、黑方坐下方，各自的資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。</li>
+      <li>Lv 5 使用本專案的 KataGo ONNX 模型；推論在瀏覽器本機執行，首次載入約需下載 75 MB。</li>
+      <li>Lv 1 隨機落子；Lv 2 使用基本戰術規則；Lv 3、Lv 4 使用蒙地卡羅模擬，Lv 4 思考時間較長。</li>
+      <li>Lv 6 使用 2017 年舊版 Leela Zero WebGL 引擎與模型，透過 WebAssembly／WebGL 在瀏覽器本機運算；首次使用會載入第三方引擎與模型。</li>
+    </ol>
     <button id="rulesReadButton" type="button" aria-pressed="false" style="width:100%;text-align:left;margin-top:18px;min-height:48px">我已閱讀規則</button>
     <div class="entry-actions" style="margin-top:12px">
       <button id="rulesBack">返回</button>
@@ -1689,45 +1697,116 @@
     } else if (!firebaseReady()) setAuthMessage(say('authNotReady'));
     else setAuthMessage(say('loginForResults'));
   }
+  let firebaseInitPromise = null;
+  const firebaseSdkLoads = new Map();
+
+  function loadFirebaseScript(fileName) {
+    if (firebaseSdkLoads.has(fileName)) return firebaseSdkLoads.get(fileName);
+    const urls = [
+      'https://www.gstatic.com/firebasejs/10.14.1/' + fileName + '.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/firebase/10.14.1/' + fileName + '.min.js'
+    ];
+    const task = (async () => {
+      let lastError = null;
+      for (const url of urls) {
+        try {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            const timer = setTimeout(() => {
+              script.remove();
+              reject(new Error('Timed out loading ' + url));
+            }, 15000);
+            script.src = url;
+            script.async = true;
+            script.onload = () => { clearTimeout(timer); resolve(); };
+            script.onerror = () => {
+              clearTimeout(timer);
+              script.remove();
+              reject(new Error('Could not load ' + url));
+            };
+            document.head.appendChild(script);
+          });
+          return;
+        } catch (error) { lastError = error; }
+      }
+      throw lastError || new Error('No Firebase SDK source was available.');
+    })();
+    firebaseSdkLoads.set(fileName, task);
+    task.catch(() => firebaseSdkLoads.delete(fileName));
+    return task;
+  }
+
+  async function ensureFirebaseSdk() {
+    if (!window.firebase || !Array.isArray(window.firebase.apps)) {
+      await loadFirebaseScript('firebase-app-compat');
+    }
+    if (!window.firebase || !Array.isArray(window.firebase.apps)) {
+      throw new Error('Firebase App SDK did not create window.firebase. Check whether the browser blocks gstatic.com and cdnjs.cloudflare.com.');
+    }
+    if (typeof window.firebase.auth !== 'function') {
+      await loadFirebaseScript('firebase-auth-compat');
+    }
+    if (typeof window.firebase.firestore !== 'function') {
+      await loadFirebaseScript('firebase-firestore-compat');
+    }
+    if (typeof window.firebase.auth !== 'function' || typeof window.firebase.firestore !== 'function') {
+      throw new Error('Firebase Authentication or Firestore SDK is still unavailable after trying both CDNs.');
+    }
+  }
+
   function initFirebase() {
     if (!firebaseReady()) {
       updateAuthButtons();
       refreshLeaderboard();
-      return;
+      return Promise.resolve(false);
     }
-    if (!window.firebase) {
-      setAuthMessage(language==='en'
-        ? 'Firebase SDK did not load. Check your internet connection or whether your browser blocks gstatic.com.'
-        : 'Firebase 程式庫未能載入。請檢查網絡連線，或瀏覽器是否封鎖 gstatic.com。');
-      refreshLeaderboard();
-      return;
-    }
-    try {
-      if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
-      firebaseAuth = firebase.auth();
-      firestore = firebase.firestore();
-      firebaseAuth.onAuthStateChanged(async user => {
-        currentUser = user || null;
+    if (firebaseAuth && firestore) return Promise.resolve(true);
+    if (firebaseInitPromise) return firebaseInitPromise;
+
+    setAuthMessage(language === 'en' ? 'Connecting to Firebase…' : '正在連接 Firebase…');
+    firebaseInitPromise = (async () => {
+      try {
+        await ensureFirebaseSdk();
+        const fb = window.firebase;
+        if (!fb.apps.length) fb.initializeApp(FIREBASE_CONFIG);
+        const activeApp = fb.app();
+        if (activeApp.options.projectId !== FIREBASE_CONFIG.projectId) {
+          throw new Error('The loaded Firebase app belongs to a different project.');
+        }
+        firebaseAuth = fb.auth();
+        firestore = fb.firestore();
+        if (!firebaseAuth || !firestore) throw new Error('Firebase Auth or Firestore could not be created.');
+        firebaseAuth.onAuthStateChanged(async user => {
+          currentUser = user || null;
+          updateAuthButtons();
+          refreshLeaderboard();
+          if (currentUser && pendingResults.length) savePendingResults();
+        });
+        firebaseInitError = null;
         updateAuthButtons();
         refreshLeaderboard();
-        if (currentUser && pendingResults.length) savePendingResults();
-      });
-    } catch (error) {
-      firebaseInitError = error && error.message ? error.message : String(error);
-      console.error('Firebase initialization failed:', error);
-      setAuthMessage((language==='en' ? 'Firebase initialization error: ' : 'Firebase 初始化錯誤：') + firebaseInitError);
-    }
+        return true;
+      } catch (error) {
+        firebaseAuth = null;
+        firestore = null;
+        firebaseInitError = error && error.message ? error.message : String(error);
+        console.error('Firebase initialization failed:', error);
+        setAuthMessage((language === 'en' ? 'Firebase setup failed: ' : 'Firebase 初始化失敗：') + firebaseInitError);
+        refreshLeaderboard();
+        return false;
+      }
+    })();
+    return firebaseInitPromise.finally(() => { firebaseInitPromise = null; });
   }
+
   async function handleGoogleAuth() {
     if (!firebaseReady()) {
       setAuthMessage(say('authNotReady'));
       return;
     }
-    if (!firebaseAuth) {
-      setAuthMessage(language==='en'
-        ? 'Firebase is not initialized. Reload the page; if this continues, check whether the Firebase SDK scripts are blocked.'
-        : 'Firebase 尚未初始化。請重新載入頁面；若問題持續，請檢查 Firebase 程式庫是否被瀏覽器封鎖。');
-      return;
+    if (!firebaseAuth || !firestore) {
+      const ready = await initFirebase();
+      if (!ready || !firebaseAuth) return;
     }
     try {
       if (currentUser) {
