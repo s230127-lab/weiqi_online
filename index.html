@@ -1610,124 +1610,471 @@
   }
 
 
-  /* ================= Kaya-inspired local position analysis =================
-     Reuses this project's KataGo ONNX model and local inference path.
-     This is a quick policy/value evaluation, not Kaya's full MCTS analysis tree. */
+  /* ================= PUCT Monte Carlo Tree Search =================
+     Runs locally with this project's KataGo policy, value, score and optional ownership heads. */
+  function makeSearchNode(state, prior = 1, move = null) {
+    return {
+      board:state.board, toPlay:state.toPlay, moves:state.moves.slice(-5),
+      seen:state.seen, passes:state.passes, prior, move,
+      visits:0, blackWinSum:0, scoreSum:0,
+      children:null, expanded:false, evaluation:null
+    };
+  }
+
+  function makeSearchChild(parent, move, prior) {
+    let nextBoard, nextSeen = parent.seen, nextPasses;
+    if (move < 0) {
+      nextBoard = parent.board.slice();
+      nextPasses = parent.passes + 1;
+    } else {
+      const placed = tryMove(parent.board, move % N, (move / N) | 0, parent.toPlay);
+      if (!placed) return null;
+      nextBoard = placed.board;
+      const key = posKey(nextBoard);
+      if (parent.seen.has(key)) return null;
+      nextSeen = new Set(parent.seen);
+      nextSeen.add(key);
+      nextPasses = 0;
+    }
+    const history = parent.moves.concat([{ c:parent.toPlay, p:move }]).slice(-5);
+    return makeSearchNode({
+      board:nextBoard, toPlay:opp(parent.toPlay), moves:history,
+      seen:nextSeen, passes:nextPasses
+    }, prior, move);
+  }
+
+  function expandSearchNode(node, encoded, output) {
+    const candidates = encoded.legal.concat([-1]);
+    let maxLogit = -Infinity;
+    for (const p of candidates) maxLogit = Math.max(maxLogit, output.pol(p));
+    const weights = candidates.map(p => Math.exp(Math.max(-60, output.pol(p) - maxLogit)));
+    const total = weights.reduce((a,b) => a + b, 0) || 1;
+    node.children = new Map();
+    candidates.forEach((p, i) => {
+      const child = makeSearchChild(node, p, weights[i] / total);
+      if (child) node.children.set(p, child);
+    });
+    node.expanded = true;
+  }
+
+  function chooseSearchChild(node) {
+    let best = null, bestScore = -Infinity;
+    const rootVisits = Math.sqrt(Math.max(1, node.visits));
+    for (const child of node.children.values()) {
+      const q = child.visits
+        ? (node.toPlay === B
+          ? child.blackWinSum / child.visits
+          : 1 - child.blackWinSum / child.visits)
+        : 0;
+      const u = 1.55 * child.prior * rootVisits / (1 + child.visits);
+      if (q + u > bestScore) { bestScore = q + u; best = child; }
+    }
+    return best;
+  }
+
+  async function runKataMcts(model, start, visitCount, forcedMove = null, onProgress = null, cancelled = () => false) {
+    const root = makeSearchNode({
+      board:start.board.slice(), toPlay:start.toPlay,
+      moves:(start.moves || []).slice(-5),
+      seen:new Set(start.seen || seenSet), passes:start.passes || 0
+    });
+    const ownerSum = new Float64Array(N * N);
+    let ownerCount = 0;
+    const addOwnership = own => {
+      if (!own || own.length !== N * N) return;
+      for (let i = 0; i < own.length; i++) ownerSum[i] += own[i];
+      ownerCount++;
+    };
+    const evaluate = async node => {
+      const encoded = encodeKata(node.board, node.toPlay, node.moves, node.passes === 1, node.seen);
+      const output = await nnRun(model, encoded, node.toPlay);
+      node.evaluation = output;
+      addOwnership(output.ownershipBlack);
+      if (!node.expanded) expandSearchNode(node, encoded, output);
+      return output;
+    };
+
+    const rootOutput = await evaluate(root);
+    const canForce = forcedMove !== null && root.children.has(forcedMove);
+    const forcedCount = canForce
+      ? Math.max(1, Math.min(Math.floor(visitCount / 2), Math.floor(visitCount * 0.1)))
+      : 0;
+    let completed = 0;
+    const progressEvery = Math.max(1, Math.floor(visitCount / 8));
+
+    for (let visit = 0; visit < visitCount; visit++) {
+      if (cancelled()) break;
+      let node = root;
+      const path = [root];
+      if (visit < forcedCount) {
+        node = root.children.get(forcedMove);
+        path.push(node);
+      } else {
+        const child = chooseSearchChild(root);
+        if (!child) break;
+        node = child;
+        path.push(node);
+      }
+
+      while (node.expanded && node.children && node.children.size && node.passes < 2) {
+        const child = chooseSearchChild(node);
+        if (!child) break;
+        node = child;
+        path.push(node);
+      }
+
+      let blackWinRate, scoreLeadBlack;
+      if (node.passes >= 2) {
+        const margin = scoreFast(node.board) - komi();
+        blackWinRate = margin > 0 ? 1 : margin < 0 ? 0 : 0.5;
+        scoreLeadBlack = margin;
+      } else {
+        const output = node.evaluation || await evaluate(node);
+        if (cancelled()) break;
+        blackWinRate = output.blackWinRate;
+        scoreLeadBlack = output.scoreLeadBlack == null ? 0 : output.scoreLeadBlack;
+      }
+
+      for (const item of path) {
+        item.visits++;
+        item.blackWinSum += blackWinRate;
+        item.scoreSum += scoreLeadBlack;
+      }
+      completed++;
+
+      if (onProgress && (completed % progressEvery === 0 || completed === visitCount)) {
+        onProgress({
+          completed, total:visitCount,
+          blackWinRate:root.visits ? root.blackWinSum / root.visits : rootOutput.blackWinRate,
+          scoreLeadBlack:root.visits ? root.scoreSum / root.visits : rootOutput.scoreLeadBlack
+        });
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
+
+    const moves = root.children
+      ? [...root.children.entries()].map(([move, child]) => ({
+          move, visits:child.visits, prior:child.prior,
+          blackWinRate:child.visits ? child.blackWinSum / child.visits : rootOutput.blackWinRate,
+          scoreLeadBlack:child.visits ? child.scoreSum / child.visits : rootOutput.scoreLeadBlack
+        })).sort((a,b) => b.visits - a.visits || b.prior - a.prior)
+      : [];
+    const ownership = ownerCount
+      ? Float32Array.from(ownerSum, value => value / ownerCount)
+      : null;
+    return {
+      visits:completed,
+      blackWinRate:root.visits ? root.blackWinSum / root.visits : rootOutput.blackWinRate,
+      scoreLeadBlack:root.visits ? root.scoreSum / root.visits : rootOutput.scoreLeadBlack,
+      moves, ownership, hasValue:rootOutput.hasValue, hasOwnership:!!ownership
+    };
+  }
+
   function analysisPositionKey() {
     return N + ':' + turn + ':' + passes + ':' + posKey(board) + ':' + moveLog.length;
   }
 
+  function gtpMoveLabel(move) {
+    if (move == null || move < 0) return say('analysisPass');
+    return 'ABCDEFGHJKLMNOPQRST'[move % N] + String(N - ((move / N) | 0));
+  }
+
+  function currentAnalysisState() {
+    return {
+      board:board.slice(), toPlay:turn, moves:moveLog.slice(-5),
+      seen:new Set(seenSet), passes
+    };
+  }
+
   function renderAIAnalysis() {
-    const runButton = $('analyzePositionBtn');
+    const liveButton = $('analyzePositionBtn');
+    const fullButton = $('analyzeFullGameBtn');
+    const stopButton = $('stopFullGameBtn');
     const clearButton = $('clearAnalysisBtn');
-    if (!runButton || !clearButton) return;
-    runButton.disabled = aiAnalysisBusy || busy || phase !== 'play';
-    clearButton.disabled = aiAnalysisBusy || (!aiAnalysisResult && !aiAnalysisMarks.length);
-    runButton.textContent = aiAnalysisBusy ? say('analysisLoading') : say('analyzePosition');
-    ['mode','level','color','size','new'].forEach(id => { if ($(id)) $(id).disabled = aiAnalysisBusy; });
+    if (!liveButton || !fullButton || !stopButton || !clearButton) return;
+    liveButton.disabled = aiAnalysisBusy || fullGameBusy || busy || phase !== 'play';
+    fullButton.disabled = aiAnalysisBusy || fullGameBusy || busy || !moveLog.length;
+    stopButton.hidden = !fullGameBusy;
+    clearButton.disabled = aiAnalysisBusy || fullGameBusy || (!aiAnalysisResult && !aiAnalysisMarks.length && !fullGameResults.length);
+    $('analysisVisits').disabled = aiAnalysisBusy || fullGameBusy;
+    $('showOwnershipToggle').disabled = !aiAnalysisResult || !aiAnalysisResult.ownership || aiAnalysisBusy || fullGameBusy;
+    $('showOwnershipToggle').checked = showOwnership && !!(aiAnalysisResult && aiAnalysisResult.ownership);
+    ['mode','level','color','size','new'].forEach(id => { if ($(id)) $(id).disabled = aiAnalysisBusy || fullGameBusy; });
+    liveButton.textContent = aiAnalysisBusy ? say('analysisLoading') : say('analyzePosition');
     const summary = $('aiAnalysisSummary');
     const list = $('aiAnalysisMoves');
     list.replaceChildren();
+
     if (aiAnalysisBusy) {
       summary.textContent = say('analysisLoading');
-      return;
-    }
-    if (!aiAnalysisResult) {
+    } else if (!aiAnalysisResult) {
       summary.textContent = say('analysisEmpty');
-      return;
-    }
-    if (aiAnalysisResult.error) {
+    } else if (aiAnalysisResult.error) {
       summary.textContent = say('analysisFailed') + aiAnalysisResult.error;
-      return;
+    } else {
+      const result = aiAnalysisResult;
+      summary.textContent = say('analysisBlackWinRate') + '：' + (result.blackWinRate * 100).toFixed(1) + '%' +
+        (result.scoreLeadBlack == null ? '' : '　·　' + say('analysisScoreLead') + '：' + result.scoreLeadBlack.toFixed(1));
+      result.moves.slice(0,8).forEach((move, index) => {
+        const li = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.analysisIndex = String(index);
+        button.setAttribute('aria-pressed', String(aiAnalysisSelected === index));
+        const label = document.createElement('span');
+        label.textContent = gtpMoveLabel(move.move);
+        const detail = document.createElement('span');
+        detail.textContent = move.visits + ' ' + say('analysisVisitsLabel') + ' · ' + (move.blackWinRate * 100).toFixed(1) + '%';
+        button.append(label, detail);
+        li.appendChild(button);
+        list.appendChild(li);
+      });
+      $('aiAnalysisProgress').textContent = result.visits + ' ' + say('analysisVisitsLabel') + ' · ' +
+        (result.hasOwnership ? '' : say('analysisNoOwnership'));
     }
-    const result = aiAnalysisResult;
-    summary.textContent = result.hasValue
-      ? say('analysisBlackValue') + '：' + result.blackValue.toFixed(1) + '%'
-      : say('analysisUnavailable');
-    result.moves.forEach((move, index) => {
-      const li = document.createElement('li');
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.dataset.analysisIndex = String(index);
-      button.setAttribute('aria-pressed', String(aiAnalysisSelected === index));
-      const label = document.createElement('span');
-      label.textContent = move.label;
-      const percent = document.createElement('span');
-      percent.textContent = move.policy.toFixed(1) + '%';
-      percent.title = say('analysisPolicyLabel');
-      button.append(label, percent);
-      li.appendChild(button);
-      list.appendChild(li);
-    });
+
+    $('analysisChartWrap').hidden = !fullGameResults.length;
+    renderGameAnalysisList();
+    drawAnalysisChart();
   }
 
   function clearAIAnalysis() {
     aiAnalysisSequence++;
+    fullGameSequence++;
     aiAnalysisResult = null;
     aiAnalysisBusy = false;
+    fullGameBusy = false;
+    fullGameResults = [];
+    selectedFullGameIndex = -1;
     aiAnalysisMarks = [];
     aiAnalysisSelected = -1;
+    showOwnership = false;
     renderAIAnalysis();
     draw();
   }
 
   async function analyzeCurrentPosition() {
-    if (aiAnalysisBusy || busy || phase !== 'play') return;
+    if (aiAnalysisBusy || fullGameBusy || busy || phase !== 'play') return;
     const seq = ++aiAnalysisSequence;
     const key = analysisPositionKey();
     aiAnalysisBusy = true;
     aiAnalysisResult = null;
     aiAnalysisMarks = [];
     aiAnalysisSelected = -1;
+    showOwnership = false;
     renderAIAnalysis();
     update();
-    const boardSnapshot = board.slice();
-    const movesSnapshot = moveLog.map(m => ({ c:m.c, p:m.p }));
-    const sideToMove = turn;
-    const passFlag = passes === 1;
     try {
       const model = net || await getNet();
       if (seq !== aiAnalysisSequence) return;
       net = model;
-      const encoded = encodeKata(boardSnapshot, sideToMove, movesSnapshot, passFlag);
-      if (!encoded.legal.length) throw new Error('No legal moves are available.');
-      const output = await nnRun(model, encoded);
+      const visits = Number($('analysisVisits').value) || 24;
+      const result = await runKataMcts(model, currentAnalysisState(), visits, null, p => {
+        if (seq !== aiAnalysisSequence) return;
+        $('aiAnalysisProgress').textContent = say('analysisProgress') + '：' + p.completed + '/' + p.total +
+          ' · ' + (p.blackWinRate * 100).toFixed(1) + '%';
+      }, () => seq !== aiAnalysisSequence || key !== analysisPositionKey());
       if (seq !== aiAnalysisSequence || key !== analysisPositionKey()) return;
-      const candidates = encoded.legal
-        .map(p => ({ p, logit: output.pol(p) }))
-        .filter(m => Number.isFinite(m.logit))
-        .sort((a,b) => b.logit - a.logit);
-      if (!candidates.length) throw new Error('The model returned no legal move suggestions.');
-      const maxLogit = candidates[0].logit;
-      const weights = candidates.map(m => Math.exp(Math.max(-60, m.logit - maxLogit)));
-      const total = weights.reduce((a,b) => a + b, 0) || 1;
-      const letters = 'ABCDEFGHJKLMNOPQRST';
-      const moves = candidates.slice(0,5).map(m => {
-        const x = m.p % N, y = (m.p / N) | 0;
-        return {
-          p: m.p,
-          label: letters[x] + String(N - y),
-          policy: Math.exp(Math.max(-60, m.logit - maxLogit)) / total * 100
-        };
-      });
-      const sideValue = Math.max(-1, Math.min(1, output.value));
-      const blackValue = Math.max(0, Math.min(100,
-        sideToMove === B ? 50 + sideValue * 50 : 50 - sideValue * 50));
-      aiAnalysisResult = { key, hasValue:output.hasValue, blackValue, moves };
-      aiAnalysisMarks = moves.map(m => m.p);
+      aiAnalysisResult = { ...result, key };
+      aiAnalysisMarks = result.moves.slice(0,5).map(m => m.move).filter(p => p >= 0);
       aiAnalysisSelected = 0;
     } catch (error) {
-      if (seq === aiAnalysisSequence) {
-        netPromise = null;
-        aiAnalysisResult = { key, error:error && error.message ? error.message : String(error), moves:[], hasValue:false };
-      }
+      if (seq === aiAnalysisSequence) aiAnalysisResult = {
+        key, error:error && error.message ? error.message : String(error), moves:[], hasValue:false
+      };
     } finally {
       if (seq === aiAnalysisSequence) {
         aiAnalysisBusy = false;
         renderAIAnalysis();
         update();
+        draw();
       }
     }
+  }
+
+  function buildFullGamePositions() {
+    const positions = [];
+    let stateBoard = new Array(N * N).fill(EMPTY);
+    let toPlay = B, passesSeen = 0;
+    let historyMoves = [];
+    let positionsSeen = new Set([posKey(stateBoard)]);
+    for (let i = 0; i < moveLog.length; i++) {
+      const move = moveLog[i];
+      positions.push({
+        board:stateBoard.slice(), toPlay, passes:passesSeen,
+        moves:historyMoves.slice(-5), seen:new Set(positionsSeen),
+        playedMove:move.p, playedColor:move.c, moveIndex:i
+      });
+      if (move.c !== toPlay) throw new Error('棋譜中的棋色順序不一致。');
+      if (move.p < 0) {
+        passesSeen++;
+      } else {
+        const played = tryMove(stateBoard, move.p % N, (move.p / N) | 0, toPlay);
+        if (!played) throw new Error('棋譜包含不合法的著手，無法進行整盤分析。');
+        const key = posKey(played.board);
+        if (positionsSeen.has(key)) throw new Error('棋譜違反全局同形規則，無法進行整盤分析。');
+        stateBoard = played.board;
+        positionsSeen.add(key);
+        passesSeen = 0;
+      }
+      historyMoves.push({ c:move.c, p:move.p });
+      toPlay = opp(toPlay);
+      if (passesSeen >= 2) break;
+    }
+    if (posKey(stateBoard) !== posKey(board)) {
+      throw new Error('棋譜重播後與目前棋盤不一致，請重新開始對局後再試。');
+    }
+    return positions;
+  }
+
+  function classifyMoveLoss(loss) {
+    if (loss < 2) return say('analysisGood');
+    if (loss < 5) return say('analysisInaccuracy');
+    if (loss < 10) return say('analysisMistake');
+    return say('analysisBlunder');
+  }
+
+  async function analyzeFullGame() {
+    if (aiAnalysisBusy || fullGameBusy || busy || !moveLog.length) return;
+    let positions;
+    try { positions = buildFullGamePositions(); }
+    catch (error) {
+      $('aiAnalysisProgress').textContent = error.message || String(error);
+      return;
+    }
+    if (!positions.length) {
+      $('aiAnalysisProgress').textContent = say('analysisNoMoves');
+      return;
+    }
+    const seq = ++fullGameSequence;
+    fullGameBusy = true;
+    fullGameResults = [];
+    selectedFullGameIndex = -1;
+    aiAnalysisResult = null;
+    aiAnalysisMarks = [];
+    showOwnership = false;
+    renderAIAnalysis();
+    update();
+    const visits = Number($('analysisVisits').value) || 24;
+    let completed = 0;
+    try {
+      const model = net || await getNet();
+      if (seq !== fullGameSequence) return;
+      net = model;
+      for (let i = 0; i < positions.length; i++) {
+        if (seq !== fullGameSequence) break;
+        const position = positions[i];
+        const result = await runKataMcts(model, position, visits, position.playedMove, p => {
+          if (seq !== fullGameSequence) return;
+          $('aiAnalysisProgress').textContent = fmtText('analysisFullProgress', {
+            current:i+1,total:positions.length,visits:p.completed,totalVisits:p.total
+          });
+        }, () => seq !== fullGameSequence);
+        if (seq !== fullGameSequence) break;
+        const best = result.moves[0] || null;
+        const played = result.moves.find(m => m.move === position.playedMove) || null;
+        let loss = 0;
+        if (best && played) {
+          const bestForMover = position.playedColor === B ? best.blackWinRate : 1 - best.blackWinRate;
+          const playedForMover = position.playedColor === B ? played.blackWinRate : 1 - played.blackWinRate;
+          loss = Math.max(0, (bestForMover - playedForMover) * 100);
+        }
+        fullGameResults.push({
+          moveNumber:i+1, color:position.playedColor, playedMove:position.playedMove,
+          bestMove:best ? best.move : null, best, played, loss,
+          category:classifyMoveLoss(loss), blackWinRate:result.blackWinRate,
+          scoreLeadBlack:result.scoreLeadBlack
+        });
+        completed++;
+        selectedFullGameIndex = i;
+        renderAIAnalysis();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      if (seq === fullGameSequence) {
+        $('aiAnalysisProgress').textContent = completed === positions.length
+          ? fmtText('analysisFullDone',{count:completed})
+          : fmtText('analysisFullStopped',{count:completed});
+      }
+    } catch (error) {
+      if (seq === fullGameSequence) $('aiAnalysisProgress').textContent = say('analysisFailed') + (error && error.message ? error.message : String(error));
+    } finally {
+      if (seq === fullGameSequence) {
+        fullGameBusy = false;
+        renderAIAnalysis();
+        update();
+      }
+    }
+  }
+
+  function stopFullGameAnalysis() {
+    if (!fullGameBusy) return;
+    const completed = fullGameResults.length;
+    fullGameSequence++;
+    fullGameBusy = false;
+    $('aiAnalysisProgress').textContent = fmtText('analysisFullStopped',{count:completed});
+    renderAIAnalysis();
+    update();
+  }
+
+  function renderGameAnalysisList() {
+    const list = $('gameAnalysisMoves');
+    list.replaceChildren();
+    fullGameResults.forEach((item, index) => {
+      const li = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.gameAnalysisIndex = String(index);
+      button.setAttribute('aria-pressed', String(selectedFullGameIndex === index));
+      const player = item.color === B ? say('black') : say('white');
+      const played = gtpMoveLabel(item.playedMove);
+      const best = item.bestMove == null ? '—' : gtpMoveLabel(item.bestMove);
+      button.textContent = fmtText('analysisMove',{n:item.moveNumber}) + ' · ' + player + ' ' + played +
+        ' → ' + best + ' · ' + item.loss.toFixed(1) + 'pp · ' + item.category;
+      li.appendChild(button);
+      list.appendChild(li);
+    });
+  }
+
+  function drawAnalysisChart() {
+    const canvas = $('analysisChart');
+    if (!canvas || !fullGameResults.length) return;
+    const cssWidth = canvas.clientWidth || 600;
+    const ratio = window.devicePixelRatio || 1;
+    const height = 150;
+    canvas.width = Math.round(cssWidth * ratio);
+    canvas.height = Math.round(height * ratio);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(ratio,0,0,ratio,0,0);
+    ctx.clearRect(0,0,cssWidth,height);
+    const left=34, right=12, top=10, bottom=22;
+    const plotW=cssWidth-left-right, plotH=height-top-bottom;
+    ctx.font='11px sans-serif';
+    ctx.textAlign='right';
+    ctx.textBaseline='middle';
+    [0,25,50,75,100].forEach(v=>{
+      const y=top+(100-v)/100*plotH;
+      ctx.strokeStyle='rgba(120,120,120,.22)';
+      ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(cssWidth-right,y);ctx.stroke();
+      ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#777';
+      ctx.fillText(v+'%',left-6,y);
+    });
+    const xAt=i=>left+(fullGameResults.length<=1?plotW/2:i/(fullGameResults.length-1)*plotW);
+    const yAt=v=>top+(100-v)/100*plotH;
+    ctx.strokeStyle='#2f5d50';ctx.lineWidth=2;ctx.beginPath();
+    fullGameResults.forEach((item,i)=>{
+      const x=xAt(i),y=yAt(item.blackWinRate*100);
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    fullGameResults.forEach((item,i)=>{
+      const x=xAt(i),y=yAt(item.blackWinRate*100);
+      ctx.beginPath();ctx.arc(x,y,selectedFullGameIndex===i?4:2.5,0,Math.PI*2);
+      ctx.fillStyle=selectedFullGameIndex===i?'#b3261e':'#2f5d50';ctx.fill();
+    });
+    ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#777';
+    ctx.fillText('1',left,height-4);
+    ctx.fillText(String(fullGameResults.length),cssWidth-right,height-4);
   }
 
   async function nnTurn(tok, color, cands) {
