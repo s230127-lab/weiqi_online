@@ -3,6 +3,7 @@
 以繁體中文為預設介面的瀏覽器圍棋遊戲。可在電腦、平板及手機上遊玩，支援人機對弈、同機雙人對弈，以及面對面對弈。
 
 [English (UK)](./README.en-GB.md)
+[English (US)](./README.en-US.md)
 
 ## 開始遊戲
 
