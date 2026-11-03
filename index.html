@@ -1847,7 +1847,8 @@
     liveButton.disabled = aiAnalysisBusy || fullGameBusy || busy || phase !== 'play';
     fullButton.disabled = aiAnalysisBusy || fullGameBusy || busy || !moveLog.length;
     stopButton.hidden = !fullGameBusy;
-    clearButton.disabled = aiAnalysisBusy || fullGameBusy || (!aiAnalysisResult && !aiAnalysisMarks.length && !fullGameResults.length);
+    clearButton.disabled = fullGameBusy || (!aiAnalysisBusy && !aiAnalysisResult && !aiAnalysisMarks.length && !fullGameResults.length);
+    clearButton.textContent = aiAnalysisBusy ? say('stopAnalysis') : say('clearAnalysis');
     $('analysisVisits').disabled = aiAnalysisBusy || fullGameBusy;
     $('showOwnershipToggle').disabled = !aiAnalysisResult || !aiAnalysisResult.ownership || aiAnalysisBusy || fullGameBusy;
     $('showOwnershipToggle').checked = showOwnership && !!(aiAnalysisResult && aiAnalysisResult.ownership);
