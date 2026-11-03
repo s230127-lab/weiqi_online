@@ -3,6 +3,7 @@
 A browser-based game of Go with Traditional Chinese as the default interface language. Play on a desktop, tablet or phone against the computer, with another person on the same device, or face-to-face around a shared device.
 
 [繁體中文](./README.md)
+[English (US)](./README.en-US.md)
 
 ## Getting started
 
