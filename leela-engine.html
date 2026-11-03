@@ -192,7 +192,7 @@
     if (!networkReady) fail(event.message || 'A browser error stopped Leela Zero.');
   });
 
-  var memoryRequest = new XMLHttpRequest();
+  var memoryRequest = Module.memoryInitializerRequest = new XMLHttpRequest();
   memoryRequest.open('GET', Module.locateFile('leelaz.html.mem'), true);
   memoryRequest.responseType = 'arraybuffer';
   memoryRequest.send(null);
