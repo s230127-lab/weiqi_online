@@ -236,6 +236,27 @@
   @media (max-width:520px) { .game-rank-actions button { padding:7px 8px; font-size:.86rem; } }
 
 
+  .game-end-screen { min-height:calc(100vh - 24px); display:none; flex-direction:column; justify-content:center; gap:16px; }
+  body.show-game-end > header, body.show-game-end > .layout { display:none; }
+  body.show-game-end #gameEndScreen { display:flex; }
+  .game-end-card { width:100%; }
+  .game-end-card h1 { margin:0 0 8px; font-size:clamp(1.8rem,6vw,2.6rem); }
+  .game-end-subtitle { margin:0; color:var(--muted); line-height:1.6; }
+  .game-end-summary { margin-top:16px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; line-height:1.7; }
+  .game-end-summary p { margin:4px 0; }
+  .game-end-summary .end-margin { font-size:1.1rem; font-weight:700; }
+  .end-chart-wrap { position:relative; width:100%; height:clamp(230px,42vh,360px); margin:18px 0 8px; }
+  #endScoreChart { display:block; width:100%; height:100%; }
+  .end-chart-note,.end-restart-note { color:var(--muted); font-size:.88rem; line-height:1.5; }
+  .end-restart-note { min-height:1.2em; margin:8px 0 0; }
+  .game-end-actions { margin-top:16px; }
+  @media (max-width:480px) {
+    .game-end-screen { padding:12px 8px; justify-content:flex-start; }
+    .game-end-card { padding:18px; }
+    .end-chart-wrap { height:250px; }
+    .game-end-actions button { flex:1 1 100%; }
+  }
+
   /* First-play guide */
   .guide-backdrop[hidden] { display:none !important; }
   .guide-backdrop {
@@ -462,6 +483,24 @@
 
 </div>
 
+<section id="gameEndScreen" class="entry-screen game-end-screen" aria-labelledby="gameEndTitle">
+  <div class="entry-card game-end-card">
+    <h1 id="gameEndTitle">對局結果</h1>
+    <p id="gameEndSubtitle" class="game-end-subtitle">終局目數分析</p>
+    <div id="gameEndSummary" class="game-end-summary" aria-live="polite"></div>
+    <div id="endScoreChartWrap" class="end-chart-wrap">
+      <canvas id="endScoreChart" role="img" aria-label="黑白雙方終局得分比較"></canvas>
+    </div>
+    <p id="endChartUnavailable" class="end-chart-note" hidden></p>
+    <p id="endChartNote" class="end-chart-note"></p>
+    <p id="endRestartNote" class="end-restart-note" aria-live="polite"></p>
+    <div class="entry-actions game-end-actions">
+      <button id="endHomeBtn">回到首頁</button>
+      <button id="endNewGameBtn" class="primary">新遊戲</button>
+    </div>
+  </div>
+</section>
+
 <div id="fx" aria-hidden="true">
   <canvas id="fxc"></canvas>
   <div class="banner rot"><div class="bin"><div class="bt" id="bT2"></div><div class="bs" id="bS2"></div></div></div>
@@ -471,6 +510,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js"></script>
 <script>
 (() => {
   const EMPTY = 0, B = 1, W = 2;
@@ -523,7 +563,16 @@
       resultDraw:"和棋。", youWin:"你贏了！", compWin:"電腦獲勝", blackWin:"黑方獲勝", whiteWin:"白方獲勝",
       resigned:"對手認輸", blackResigned:"黑方勝（白方認輸）。", whiteResigned:"白方勝（黑方認輸）。",
       blackWins:"黑勝", whiteWins:"白勝", scoreHead:"黑 {b} 子 · 白 {w} 子。黑貼 {k} 子（相當 {m} 目）。",
-      scoreWin:"{side}勝 {n} 子。", rankPoints:"{p} 分 · 勝 {w} · 敗 {l} · 和 {d}",
+      scoreWin:"{side}勝 {n} 目。",
+      endDrawTitle:"本局和棋",endScoreSubtitle:"終局目數分析",
+      endResignSubtitle:"本局以認輸結束，沒有進行數子。",
+      endScoreDetails:"黑方 {black} 目 · 白方 {white} 目 + 貼目 {komi} 目 = 白方計分 {whiteTotal} 目",
+      endMargin:"{side}領先 {n} 目",endResignDetails:"{winner}獲勝，{loser}認輸。本局沒有計算終局目數。",
+      endWhiteAdjusted:"白方（含貼目）",endPoints:"目",endChartLabel:"黑白雙方終局得分比較",
+      endChartNote:"白方分數已加上貼目；圖表顯示的是終局實際計分。",
+      endChartUnavailable:"Chart.js 未能載入，因此目前無法顯示得分圖表。",
+      endHome:"回到首頁",endNewGame:"新遊戲",endAutoRestart:"{n} 秒後自動開始新局",
+      rankPoints:"{p} 分 · 勝 {w} · 敗 {l} · 和 {d}",
       saved:"已保存本局成績。", needLogin:"本局尚未保存。請使用 Google 登入以記錄成績。",
       saveFailed:"成績保存失敗；請檢查 Firebase 設定及 Firestore 規則。",
       aiAnalysisTitle:"AI 分析（Kaya 風格）",
@@ -601,7 +650,16 @@
       resultDraw:"Draw.",youWin:"You win!",compWin:"Computer wins",blackWin:"Black wins",whiteWin:"White wins",
       resigned:"Opponent resigned",blackResigned:"Black wins (White resigned).",whiteResigned:"White wins (Black resigned).",
       blackWins:"Black wins",whiteWins:"White wins",scoreHead:"Black {b} · White {w}. Handicap: {k} stones ({m} points).",
-      scoreWin:"{side} wins by {n} stones.",rankPoints:"{p} pts · W {w} · L {l} · D {d}",
+      scoreWin:"{side} wins by {n} points.",
+      endDrawTitle:"Draw",endScoreSubtitle:"Final score analysis",
+      endResignSubtitle:"This game ended by resignation; no points were counted.",
+      endScoreDetails:"Black {black} pts · White {white} pts + komi {komi} pts = White total {whiteTotal} pts",
+      endMargin:"{side} wins by {n} points",endResignDetails:"{winner} wins because {loser} resigned. No final score was counted.",
+      endWhiteAdjusted:"White (including komi)",endPoints:"points",endChartLabel:"Final area-score comparison",
+      endChartNote:"White's total includes komi. The chart shows the final counted points.",
+      endChartUnavailable:"Chart.js could not be loaded, so the score chart is unavailable.",
+      endHome:"Back to home",endNewGame:"New game",endAutoRestart:"Starting a new game in {n}s",
+      rankPoints:"{p} pts · W {w} · L {l} · D {d}",
       saved:"Game result saved.",needLogin:"This result is not saved yet. Sign in with Google to record it.",
       saveFailed:"Could not save the result. Check Firebase configuration and Firestore rules.",
       aiAnalysisTitle:"AI Analysis (Kaya-inspired)",
@@ -687,6 +745,7 @@
       refreshRanks:'refresh',leaderboardTitle:'rankTitle',rulesTitle:'rulesTitle',rulesIntro:'rulesIntro',
       homeBtn:'home',gameLeaderboardBtn:'gameLeaderboard',gameLeaderboardTitle:'rankTitle',refreshGameRanks:'refresh',closeGameLeaderboard:'close',
       menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
+      endHomeBtn:'endHome',endNewGameBtn:'endNewGame',
       autoRestartLabel:'autoRestart',analyzePositionBtn:'analyzePosition',analyzeFullGameBtn:'analyzeFullGame',
       stopFullGameBtn:'stopAnalysis',clearAnalysisBtn:'clearAnalysis',
       aiAnalysisTitle:'aiAnalysisTitle',aiAnalysisHint:'aiAnalysisHint',aiAnalysisDisclaimer:'analysisDisclaimer',
@@ -743,6 +802,7 @@
   let N, board, turn, caps, prevBoard, lastMove, passes, phase, dead = new Set(), history;
   let seenList = [], seenSet = new Set(), moveLog = [];
   let mode = 'bot', level = 3, human = B, busy = false, token = 0, resultHTML = '';
+  let endScoreChart = null;
   let gameStartedAt = 0, gameEndedAt = null;
   let gameElapsedBeforeTick = 0, gameTickStartedAt = null;
   let manualTimerPaused = false, analysisTimerPaused = false;
@@ -1333,6 +1393,9 @@
 
   function init() {
     if (manualTimerPaused && gameStartedAt && gameEndedAt == null) return;
+    document.body.classList.remove('show-game-end');
+    destroyEndChart();
+    $('endRestartNote').textContent = '';
     clearRestart();
     stopFx();
     clearAIAnalysis();
@@ -1457,6 +1520,7 @@
     showResult(w === B ? say('blackResigned') : say('whiteResigned'));
     recordGame(w);
     celebrate(w, say('resigned'));
+    showGameEnd({type:'resign',winner:w,loser});
     scheduleRestart();
     $('score').style.display = 'none';
     $('auto').style.display = 'none';
@@ -1481,18 +1545,17 @@
     const own = new Uint8Array(N * N);
     scoreFast(b, own);
     for (let p = 0; p < N * N; p++) { if (own[p] === 1) sB++; else if (own[p] === 2) sW++; }
-    const kz = komi() / 2;                 // 貼子(單位:子)
-    const diff = sB - N * N / 2 - kz;      // >0 黑勝
+    const komiPoints = komi();
+    const diff = sB - sW - komiPoints; // Area score: Black - White - komi.
     phase = 'done';
-    const head = language === 'en'
-      ? `Black ${sB} · White ${sW}. Handicap: ${fmtZi(kz)} stones (${komi()} points).<br>`
-      : `黑 ${sB} 子 · 白 ${sW} 子。黑貼 ${fmtZi(kz)} 子(相當 ${komi()} 目)。<br>`;
+    const head = fmtText('scoreHead',{b:sB,w:sW,k:fmtZi(komiPoints / 2),m:komiPoints});
     const winner = diff > 0 ? B : diff < 0 ? W : 0;
     const result = diff === 0 ? '<b>' + say('resultDraw') + '</b>'
       : '<b>' + fmtText('scoreWin',{side:winner===B?say('black'):say('white'),n:fmtZi(Math.abs(diff))}) + '</b>';
     showResult(head + result);
     recordGame(winner);
     celebrate(winner, diff === 0 ? '' : fmtText('scoreWin',{side:winner===B?say('black'):say('white'),n:fmtZi(Math.abs(diff))}));
+    showGameEnd({type:'score',black:sB,white:sW,komi:komiPoints,winner,margin:Math.abs(diff)});
     scheduleRestart();
     $('score').style.display = 'none';
     $('auto').style.display = 'none';
@@ -2370,11 +2433,18 @@
   }
   function scheduleRestart() {
     clearRestart();
-    if (!$('autoRestart').checked) return;
-    const end = performance.now() + 9000;      // 讓勝利動畫播完,最後 5 秒倒數
+    if (!$('autoRestart').checked) {
+      $('endRestartNote').textContent = '';
+      return;
+    }
+    const end = performance.now() + 9000;
+    if (document.body.classList.contains('show-game-end'))
+      $('endRestartNote').textContent = fmtText('endAutoRestart',{n:9});
     restartTimer = setInterval(() => {
       const left = Math.ceil((end - performance.now()) / 1000);
       if (left <= 0) { clearRestart(); init(); return; }
+      if (document.body.classList.contains('show-game-end'))
+        $('endRestartNote').textContent = fmtText('endAutoRestart',{n:left});
       const v = left <= 5 ? left : null;
       if (v !== restartLeft) { restartLeft = v; update(); }
     }, 250);
@@ -2843,7 +2913,9 @@
     busy = false;
     stopGameTimer();
     closeGameLeaderboard();
-    document.body.classList.remove('show-rules','face-on','show-opts');
+    destroyEndChart();
+    $('endRestartNote').textContent = '';
+    document.body.classList.remove('show-game-end','show-rules','face-on','show-opts');
     document.body.classList.add('pre-game');
   }
 
@@ -2852,6 +2924,83 @@
     const t = ['', '1/4', '1/2', '3/4', ''][f];
     if (!t) return String(w + (f === 4 ? 1 : 0));
     return language === 'en' ? (w ? w + ' ' : '') + t : (w ? w + '又' : '') + t;
+  }
+
+  function destroyEndChart() {
+    if (endScoreChart) {
+      endScoreChart.destroy();
+      endScoreChart = null;
+    }
+  }
+
+  function showGameEnd(data) {
+    destroyEndChart();
+    document.body.classList.add('show-game-end');
+    $('gameEndSummary').replaceChildren();
+    $('endChartUnavailable').hidden = true;
+    $('endChartNote').textContent = '';
+    $('endScoreChartWrap').hidden = data.type !== 'score';
+
+    $('gameEndTitle').textContent = data.type === 'score' && data.winner === 0
+      ? say('endDrawTitle')
+      : (data.winner === B ? say('blackWin') : say('whiteWin'));
+    $('gameEndSubtitle').textContent = data.type === 'score'
+      ? say('endScoreSubtitle') : say('endResignSubtitle');
+
+    const line = document.createElement('p');
+    if (data.type === 'score') {
+      line.textContent = fmtText('endScoreDetails',{
+        black:data.black,white:data.white,komi:fmtZi(data.komi),
+        whiteTotal:fmtZi(data.white + data.komi)
+      });
+      $('gameEndSummary').appendChild(line);
+      const margin = document.createElement('p');
+      margin.className = 'end-margin';
+      margin.textContent = data.winner === 0 ? say('resultDraw')
+        : fmtText('endMargin',{side:data.winner === B ? say('black') : say('white'),n:fmtZi(data.margin)});
+      $('gameEndSummary').appendChild(margin);
+      $('endChartNote').textContent = say('endChartNote');
+
+      if (typeof window.Chart === 'function') {
+        endScoreChart = new window.Chart($('endScoreChart').getContext('2d'),{
+          type:'bar',
+          data:{
+            labels:[say('black'),say('endWhiteAdjusted')],
+            datasets:[{
+              label:say('endPoints'),
+              data:[data.black,data.white + data.komi],
+              backgroundColor:['#333333','#e4e0d5'],
+              borderColor:['#171717','#a7a397'],
+              borderWidth:1,
+              borderRadius:7
+            }]
+          },
+          options:{
+            responsive:true,maintainAspectRatio:false,
+            plugins:{
+              legend:{display:false},
+              tooltip:{callbacks:{label:context=>context.parsed.y+' '+say('endPoints')}}
+            },
+            scales:{
+              x:{grid:{display:false}},
+              y:{beginAtZero:true,ticks:{precision:0},title:{display:true,text:say('endPoints')}}
+            }
+          }
+        });
+      } else {
+        $('endChartUnavailable').hidden = false;
+        $('endChartUnavailable').textContent = say('endChartUnavailable');
+      }
+    } else {
+      line.textContent = fmtText('endResignDetails',{
+        winner:data.winner === B ? say('black') : say('white'),
+        loser:data.loser === B ? say('black') : say('white')
+      });
+      $('gameEndSummary').appendChild(line);
+    }
+    $('endHomeBtn').textContent = say('endHome');
+    $('endNewGameBtn').textContent = say('endNewGame');
+    $('endRestartNote').textContent = '';
   }
 
   function showResult(html) {
@@ -3141,6 +3290,8 @@
   $('googleSignIn').onclick = handleGoogleAuth;
   $('headerAuth').onclick = handleGoogleAuth;
   $('homeBtn').onclick = returnHome;
+  $('endHomeBtn').onclick = returnHome;
+  $('endNewGameBtn').onclick = init;
   $('gameLeaderboardBtn').onclick = openGameLeaderboard;
   $('closeGameLeaderboard').onclick = closeGameLeaderboard;
   $('gameLeaderboardPanel').addEventListener('click', e => { if (e.target === $('gameLeaderboardPanel')) closeGameLeaderboard(); });
