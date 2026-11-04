@@ -107,6 +107,7 @@ The game uses **Chinese area scoring**: count living stones and the empty points
 
 - **Place a stone:** click or tap an intersection.
 - **Undo:** return to the previous position.
+- **Timer:** select **Stop timer** to pause the clock and lock the game so that no moves or game actions can be made. The timer also pauses automatically during KataGo position or full-game analysis, then resumes when analysis ends.
 - **Pass:** skip your turn.
 - **Resign:** end the game. Face-to-face mode asks for confirmation again.
 - **Count:** after two consecutive passes, mark dead groups and select **Count** to calculate the result.
