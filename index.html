@@ -223,7 +223,20 @@
   .game-clock strong { font-variant-numeric:tabular-nums; letter-spacing:.04em; }
   #gameLeaderboardPanel { display:none; position:fixed; inset:0; z-index:80; padding:18px; background:rgba(0,0,0,.55); align-items:center; justify-content:center; overflow:auto; }
   #gameLeaderboardPanel.show { display:flex; }
-  .game-rank-card { width:min(100%,760px); max-height:min(88vh,760px); overflow:auto; margin:0; }
+  .game-rank-card {
+    display:block;
+    flex:0 1 auto;
+    width:min(100%,640px);
+    max-height:min(88vh,760px);
+    overflow:auto;
+    margin:0;
+    padding:clamp(16px,3vw,26px);
+    background:var(--panel);
+    color:var(--ink);
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:0 20px 60px rgba(0,0,0,.32);
+  }
   .game-rank-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
   .game-rank-head h2 { margin:0 0 8px; font-size:1.25rem; }
   .game-rank-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
