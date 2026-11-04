@@ -2203,6 +2203,7 @@
     } finally {
       if (seq === aiAnalysisSequence) {
         aiAnalysisBusy = false;
+        resumeTimerAfterAnalysis();
         renderAIAnalysis();
         update();
         draw();
@@ -2321,7 +2322,6 @@
     } finally {
       if (seq === fullGameSequence) {
         fullGameBusy = false;
-        resumeTimerAfterAnalysis();
         renderAIAnalysis();
         update();
       }
