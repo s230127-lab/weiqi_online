@@ -339,6 +339,7 @@
     <button id="homeBtn">首頁</button>
     <button id="guideBtn">新手導覽</button>
     <span class="game-clock"><span id="gameTimerLabel">用時</span><strong id="gameTimer">00:00</strong></span>
+    <button id="timerToggle" type="button">停止計時</button>
     <button id="gameLeaderboardBtn">等級排行榜</button>
     <select id="gameLang" aria-label="Language"><option value="zh">繁中</option><option value="en">EN</option></select>
     <label id="gameRecordLabel" style="display:none;align-items:center;gap:5px;color:var(--muted);font-size:.85rem"><span id="gameRecordLabelText">記錄為</span><select id="gameRecordColor"><option value="1">黑方</option><option value="2">白方</option></select></label>
@@ -498,6 +499,7 @@
       loadRanksFailed:"暫時無法載入排行榜。請稍後再試。",
       rankColor:"雙人模式記錄我的棋色", black:"黑方", white:"白方",
       home:"首頁", gameLeaderboard:"等級排行榜", close:"關閉", timerLabel:"用時",
+      timerStop:"停止計時",timerResume:"繼續計時",timerAnalysis:"AI 分析中（計時暫停）",
       levelRankTitle:"各等級最快勝局", rankLevel:"電腦等級", noLevelRanks:"這個等級尚無勝局紀錄。",
       loadLevelRanksFailed:"暫時無法載入此等級排行榜。", levelTimeSaved:"已更新此等級的個人最佳時間。",
       rulesIntro:"開始前請先閱讀以下規則。閱讀完畢後，按下確認按鈕即可開始對弈。",
@@ -575,6 +577,7 @@
       loadRanksFailed:"The leaderboard is temporarily unavailable. Please try again.",
       rankColor:"In two-player modes, record me as",black:"Black",white:"White",
       home:"Home", gameLeaderboard:"Level leaderboard", close:"Close", timerLabel:"Time",
+      timerStop:"Stop timer",timerResume:"Resume timer",timerAnalysis:"AI analysis (timer paused)",
       levelRankTitle:"Fastest wins by level", rankLevel:"Computer level", noLevelRanks:"No winning records for this level yet.",
       loadLevelRanksFailed:"This level's leaderboard is temporarily unavailable.", levelTimeSaved:"Your personal best for this level has been updated.",
       rulesIntro:"Please read the rules below. After reading them, press the confirmation button to begin playing.",
@@ -739,9 +742,68 @@
   let seenList = [], seenSet = new Set(), moveLog = [];
   let mode = 'bot', level = 3, human = B, busy = false, token = 0, resultHTML = '';
   let gameStartedAt = 0, gameEndedAt = null;
+  let gameElapsedBeforeTick = 0, gameTickStartedAt = null;
+  let manualTimerPaused = false, analysisTimerPaused = false;
+  let deferredBotMove = null;
+
   function elapsedGameMs() {
     if (!gameStartedAt) return 0;
-    return Math.max(0, (gameEndedAt == null ? performance.now() : gameEndedAt) - gameStartedAt);
+    return Math.max(0, gameElapsedBeforeTick +
+      (gameTickStartedAt == null ? 0 : performance.now() - gameTickStartedAt));
+  }
+  function pauseClockTick() {
+    if (gameTickStartedAt == null) return;
+    gameElapsedBeforeTick += Math.max(0, performance.now() - gameTickStartedAt);
+    gameTickStartedAt = null;
+  }
+  function resumeClockTick() {
+    if (!gameStartedAt || gameEndedAt != null || manualTimerPaused || analysisTimerPaused) return;
+    if (gameTickStartedAt == null) gameTickStartedAt = performance.now();
+  }
+  function pauseTimerForAnalysis() {
+    analysisTimerPaused = true;
+    pauseClockTick();
+    updateGameTimer();
+  }
+  function resumeTimerAfterAnalysis() {
+    analysisTimerPaused = false;
+    resumeClockTick();
+    updateGameTimer();
+  }
+  function stopGameTimer() {
+    if (gameEndedAt == null) {
+      pauseClockTick();
+      gameEndedAt = performance.now();
+    }
+    updateGameTimer();
+  }
+  function toggleGameTimer() {
+    if (gameEndedAt != null || analysisTimerPaused || (busy && phase === 'mark')) return;
+    manualTimerPaused = !manualTimerPaused;
+    if (manualTimerPaused) {
+      pauseClockTick();
+    } else {
+      resumeClockTick();
+    }
+    update();
+    if (!manualTimerPaused) {
+      if (deferredBotMove && deferredBotMove.tok === token) {
+        const pending = deferredBotMove;
+        deferredBotMove = null;
+        finishBot(pending.tok, pending.move);
+      } else if (mode === 'bot' && phase === 'play' && turn === botColor() && !busy) {
+        maybeBot();
+      }
+    }
+  }
+  function updateTimerButton() {
+    const button = $('timerToggle');
+    if (!button) return;
+    button.textContent = analysisTimerPaused ? say('timerAnalysis')
+      : manualTimerPaused ? say('timerResume') : say('timerStop');
+    button.disabled = gameEndedAt != null || analysisTimerPaused || (busy && phase === 'mark');
+    button.setAttribute('aria-pressed', String(manualTimerPaused || analysisTimerPaused));
+    button.title = button.textContent;
   }
   function formatDuration(ms) {
     const total = Math.max(0, Math.floor(ms / 1000));
@@ -752,6 +814,7 @@
   function updateGameTimer() {
     const el = $('gameTimer');
     if (el) el.textContent = formatDuration(elapsedGameMs());
+    updateTimerButton();
   }
   setInterval(updateGameTimer, 500);
 
@@ -1143,20 +1206,30 @@
   }
 
   function maybeBot() {
-    if (mode !== 'bot' || phase !== 'play' || turn !== botColor() || busy) return;
+    if (manualTimerPaused || mode !== 'bot' || phase !== 'play' || turn !== botColor() || busy) return;
     busy = true;
     update();
     const tok = token;
-    setTimeout(() => { if (tok === token) botTurn(tok); }, 250);
+    setTimeout(() => {
+      if (tok !== token) return;
+      if (manualTimerPaused) { busy = false; update(); return; }
+      botTurn(tok);
+    }, 250);
   }
 
   function finishBot(tok, mv) {
     if (tok !== token) return;
     busy = false;
+    if (manualTimerPaused) {
+      deferredBotMove = { tok, move:mv };
+      update();
+      return;
+    }
     if (mv) play(mv.x, mv.y); else pass();
   }
 
   function botTurn(tok) {
+    if (manualTimerPaused) { busy = false; update(); return; }
     const color = botColor();
     if (level === 6) { leelaTurn(tok, color); return; }
     const cands = genCands(color);
@@ -1210,7 +1283,7 @@
   }
 
   function autoMark() {
-    if (phase !== 'mark' || busy || aiAnalysisBusy || fullGameBusy) return;
+    if (manualTimerPaused || phase !== 'mark' || busy || aiAnalysisBusy || fullGameBusy) return;
     busy = true;
     $('msg').textContent = say('deadAnalysis');
     const tok = token;
@@ -1257,6 +1330,7 @@
   }
 
   function init() {
+    if (manualTimerPaused && gameStartedAt && gameEndedAt == null) return;
     clearRestart();
     stopFx();
     clearAIAnalysis();
@@ -1265,6 +1339,11 @@
     readSettings();
     gameStartedAt = performance.now();
     gameEndedAt = null;
+    gameElapsedBeforeTick = 0;
+    gameTickStartedAt = gameStartedAt;
+    manualTimerPaused = false;
+    analysisTimerPaused = false;
+    deferredBotMove = null;
     updateGameTimer();
     N = +$('size').value;
     const leelaBoardUnsupported = N !== 19;
@@ -1308,6 +1387,7 @@
   }
 
   function play(x, y) {
+    if (manualTimerPaused) return;
     clearAIAnalysis();
     const r = tryMove(board, x, y, turn);
     if (!r) return flash('不可下:自殺手');
@@ -1326,7 +1406,7 @@
   }
 
   function pass() {
-    if (phase !== 'play') return;
+    if (manualTimerPaused || phase !== 'play') return;
     clearAIAnalysis();
     snapshot();
     prevBoard = board;
@@ -1346,7 +1426,7 @@
   }
 
   function undo() {
-    if (busy || aiAnalysisBusy || fullGameBusy || !history.length) return;
+    if (manualTimerPaused || busy || aiAnalysisBusy || fullGameBusy || !history.length) return;
     clearAIAnalysis();
     clearRestart();
     stopFx();
@@ -1367,7 +1447,7 @@
   }
 
   function resign(loser) {
-    if (phase === 'done') return;
+    if (manualTimerPaused || phase === 'done') return;
     clearAIAnalysis();
     token++; busy = false;
     phase = 'done';
@@ -1382,7 +1462,7 @@
   }
 
   function toggleDead(x, y) {
-    if (board[idx(x, y)] === EMPTY) return;
+    if (manualTimerPaused || board[idx(x, y)] === EMPTY) return;
     const g = group(board, x, y);
     const isDead = dead.has(idx(x, y));
     for (const [sx, sy] of g.stones) {
@@ -1392,7 +1472,7 @@
   }
 
   function countScore() {
-    if (busy || aiAnalysisBusy || fullGameBusy) return;
+    if (manualTimerPaused || busy || aiAnalysisBusy || fullGameBusy) return;
     const b = Uint8Array.from(board);
     dead.forEach(i => (b[i] = EMPTY));
     let sB = 0, sW = 0;
@@ -1996,6 +2076,7 @@
   }
 
   function clearAIAnalysis() {
+    if (analysisTimerPaused) resumeTimerAfterAnalysis();
     aiAnalysisSequence++;
     fullGameSequence++;
     aiAnalysisResult = null;
@@ -2016,6 +2097,7 @@
     const seq = ++aiAnalysisSequence;
     const key = analysisPositionKey();
     aiAnalysisBusy = true;
+    pauseTimerForAnalysis();
     aiAnalysisResult = null;
     aiAnalysisMarks = [];
     aiAnalysisSelected = -1;
@@ -2043,6 +2125,7 @@
     } finally {
       if (seq === aiAnalysisSequence) {
         aiAnalysisBusy = false;
+        resumeTimerAfterAnalysis();
         renderAIAnalysis();
         update();
         draw();
@@ -2106,6 +2189,7 @@
     }
     const seq = ++fullGameSequence;
     fullGameBusy = true;
+    pauseTimerForAnalysis();
     fullGameResults = [];
     selectedFullGameIndex = -1;
     aiAnalysisResult = null;
@@ -2161,6 +2245,7 @@
     } finally {
       if (seq === fullGameSequence) {
         fullGameBusy = false;
+        resumeTimerAfterAnalysis();
         renderAIAnalysis();
         update();
       }
@@ -2172,6 +2257,7 @@
     const completed = fullGameResults.length;
     fullGameSequence++;
     fullGameBusy = false;
+    resumeTimerAfterAnalysis();
     $('aiAnalysisProgress').textContent = fmtText('analysisFullStopped',{count:completed});
     renderAIAnalysis();
     update();
@@ -2607,7 +2693,7 @@
     }
   }
   function recordGame(winner) {
-    if (gameEndedAt == null) gameEndedAt = performance.now();
+    stopGameTimer();
     const durationMs = Math.round(elapsedGameMs());
     updateGameTimer();
     const myColor = mode === 'bot' ? human : Number(($('gameRecordColor') ? $('gameRecordColor').value : $('recordColor').value) || B);
@@ -2780,8 +2866,7 @@
     clearAIAnalysis();
     token++;
     busy = false;
-    if (gameEndedAt == null && gameStartedAt) gameEndedAt = performance.now();
-    updateGameTimer();
+    stopGameTimer();
     closeGameLeaderboard();
     document.body.classList.remove('show-rules','face-on','show-opts');
     document.body.classList.add('pre-game');
@@ -2820,11 +2905,16 @@
     $('capW').textContent = role(W) + say('captures') + caps[W];
     $('sB').classList.toggle('active', phase === 'play' && turn === B);
     $('sW').classList.toggle('active', phase === 'play' && turn === W);
-    $('pass').disabled = phase !== 'play' || aiAnalysisBusy || fullGameBusy;
-    $('undo').disabled = busy || aiAnalysisBusy || fullGameBusy;
-    $('resign').disabled = aiAnalysisBusy || fullGameBusy || phase !== 'play';
-    $('auto').disabled = aiAnalysisBusy || fullGameBusy;
-    $('score').disabled = aiAnalysisBusy || fullGameBusy;
+    const battleLocked = manualTimerPaused || aiAnalysisBusy || fullGameBusy;
+    $('pass').disabled = battleLocked || phase !== 'play';
+    $('undo').disabled = battleLocked || busy;
+    $('resign').disabled = battleLocked || phase !== 'play';
+    $('auto').disabled = battleLocked || busy;
+    $('score').disabled = battleLocked || busy;
+    ['mode','level','color','size','autoRestart','new'].forEach(id => {
+      if ($(id)) $(id).disabled = manualTimerPaused;
+    });
+    updateTimerButton();
     if (phase === 'play') {
       $('msg').textContent = busy ? say('botThinking')
         : (turn === B ? say('black') : say('white')) + say('turnSuffix') + (passes === 1 ? say('waitPass') : '');
@@ -2880,11 +2970,14 @@
       const q = a => el.querySelector('[data-act="' + a + '"]');
       q('undo').textContent = say('undo'); q('pass').textContent = say('pass');
       q('resign').textContent = say('resign'); q('auto').textContent = say('autoMark'); q('score').textContent = say('score');
-      q('undo').disabled = !history.length;
-      q('pass').disabled = !(phase === 'play' && turn === c);
+      const paused = manualTimerPaused || aiAnalysisBusy || fullGameBusy;
+      q('undo').disabled = paused || busy || !history.length;
+      q('pass').disabled = paused || !(phase === 'play' && turn === c);
       q('pass').style.display = phase === 'play' ? '' : 'none';
-      q('resign').disabled = phase === 'done';
+      q('resign').disabled = paused || phase === 'done';
+      q('auto').disabled = paused || busy;
       q('auto').style.display = q('score').style.display = phase === 'mark' ? '' : 'none';
+      q('score').disabled = paused || busy;
       const r = el.querySelector('.fp-result');
       r.classList.toggle('show', !!resultHTML);
       r.innerHTML = resultHTML;
@@ -3018,7 +3111,7 @@
   }
 
   function canHuman() {
-    if (busy || aiAnalysisBusy || fullGameBusy) return false;
+    if (manualTimerPaused || busy || aiAnalysisBusy || fullGameBusy) return false;
     if (phase === 'mark') return true;
     if (phase !== 'play') return false;
     return mode !== 'bot' || turn === human;
@@ -3077,6 +3170,7 @@
   $('closeGameLeaderboard').onclick = closeGameLeaderboard;
   $('gameLeaderboardPanel').addEventListener('click', e => { if (e.target === $('gameLeaderboardPanel')) closeGameLeaderboard(); });
   $('gameRankLevel').onchange = refreshLevelLeaderboard;
+  $('timerToggle').onclick = toggleGameTimer;
   $('guideBtn').onclick = openGuide;
   $('guideClose').onclick = closeGuide;
   $('guideSkip').onclick = closeGuide;
