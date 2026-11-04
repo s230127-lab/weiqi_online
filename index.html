@@ -1358,7 +1358,7 @@
   }
 
   function autoMark() {
-    if (manualTimerPaused || phase !== 'mark' || busy || aiAnalysisBusy || fullGameBusy) return;
+    if (manualTimerPaused || phase !== 'mark' || busy || aiAnalysisBusy) return;
     busy = true;
     $('msg').textContent = say('deadAnalysis');
     const tok = token;
@@ -1504,7 +1504,7 @@
   }
 
   function undo() {
-    if (manualTimerPaused || busy || aiAnalysisBusy || fullGameBusy || !history.length) return;
+    if (manualTimerPaused || busy || aiAnalysisBusy || !history.length) return;
     clearAIAnalysis();
     clearRestart();
     stopFx();
@@ -1551,7 +1551,7 @@
   }
 
   function countScore() {
-    if (manualTimerPaused || busy || aiAnalysisBusy || fullGameBusy) return;
+    if (manualTimerPaused || busy || aiAnalysisBusy) return;
     const b = Uint8Array.from(board);
     dead.forEach(i => (b[i] = EMPTY));
     let sB = 0, sW = 0;
@@ -2203,7 +2203,6 @@
     } finally {
       if (seq === aiAnalysisSequence) {
         aiAnalysisBusy = false;
-        resumeTimerAfterAnalysis();
         renderAIAnalysis();
         update();
         draw();
@@ -2267,7 +2266,6 @@
     }
     const seq = ++fullGameSequence;
     fullGameBusy = true;
-    pauseTimerForAnalysis();
     fullGameResults = [];
     selectedFullGameIndex = -1;
     aiAnalysisResult = null;
@@ -2335,7 +2333,6 @@
     const completed = fullGameResults.length;
     fullGameSequence++;
     fullGameBusy = false;
-    resumeTimerAfterAnalysis();
     $('aiAnalysisProgress').textContent = fmtText('analysisFullStopped',{count:completed});
     renderAIAnalysis();
     update();
@@ -3043,7 +3040,7 @@
     $('capW').textContent = role(W) + say('captures') + caps[W];
     $('sB').classList.toggle('active', phase === 'play' && turn === B);
     $('sW').classList.toggle('active', phase === 'play' && turn === W);
-    const battleLocked = manualTimerPaused || aiAnalysisBusy || fullGameBusy;
+    const battleLocked = manualTimerPaused || aiAnalysisBusy;
     $('pass').disabled = battleLocked || phase !== 'play';
     $('undo').disabled = battleLocked || busy;
     $('resign').disabled = battleLocked || phase !== 'play';
@@ -3108,7 +3105,7 @@
       const q = a => el.querySelector('[data-act="' + a + '"]');
       q('undo').textContent = say('undo'); q('pass').textContent = say('pass');
       q('resign').textContent = say('resign'); q('auto').textContent = say('autoMark'); q('score').textContent = say('score');
-      const paused = manualTimerPaused || aiAnalysisBusy || fullGameBusy;
+      const paused = manualTimerPaused || aiAnalysisBusy;
       q('undo').disabled = paused || busy || !history.length;
       q('pass').disabled = paused || !(phase === 'play' && turn === c);
       q('pass').style.display = phase === 'play' ? '' : 'none';
@@ -3249,7 +3246,7 @@
   }
 
   function canHuman() {
-    if (manualTimerPaused || busy || aiAnalysisBusy || fullGameBusy) return false;
+    if (manualTimerPaused || busy || aiAnalysisBusy) return false;
     if (phase === 'mark') return true;
     if (phase !== 'play') return false;
     return mode !== 'bot' || turn === human;
