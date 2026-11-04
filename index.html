@@ -223,15 +223,17 @@
   .game-clock strong { font-variant-numeric:tabular-nums; letter-spacing:.04em; }
   #gameLeaderboardPanel { display:none; position:fixed; inset:0; z-index:80; padding:18px; background:rgba(0,0,0,.55); align-items:center; justify-content:center; overflow:auto; }
   #gameLeaderboardPanel.show { display:flex; }
-  .game-rank-card { width:min(100%,560px); max-height:min(88vh,760px); overflow:auto; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:16px; padding:clamp(16px,4vw,26px); box-shadow:0 18px 60px rgba(0,0,0,.35); }
-  .game-rank-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-  .game-rank-head h2 { margin:0; font-size:1.35rem; }
-  .game-rank-filter { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:14px 0; color:var(--muted); }
-  .game-rank-filter select { flex:1; min-width:140px; }
+  .game-rank-card { width:min(100%,760px); max-height:min(88vh,760px); overflow:auto; margin:0; }
+  .game-rank-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .game-rank-head h2 { margin:0 0 8px; font-size:1.25rem; }
+  .game-rank-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  #gameRankColorLabel { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:.9rem; }
+  #gameRankColorLabel select { min-width:100px; }
   #gameLeaderboardList { margin:0; padding-left:2rem; }
-  #gameLeaderboardList li { padding:9px 4px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; }
+  #gameLeaderboardList li { padding:7px 4px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; }
   #gameLeaderboardList .rank-score { white-space:nowrap; color:var(--muted); font-variant-numeric:tabular-nums; }
   #gameLeaderboardList .rank-name { overflow-wrap:anywhere; }
+  @media (max-width:520px) { .game-rank-actions button { padding:7px 8px; font-size:.86rem; } }
 
 
   /* First-play guide */
@@ -350,22 +352,18 @@
 </header>
 
 <div id="gameLeaderboardPanel" aria-hidden="true">
-  <section class="game-rank-card" role="dialog" aria-modal="true" aria-labelledby="gameLeaderboardTitle">
+  <section class="game-rank-card leaderboard" role="dialog" aria-modal="true" aria-labelledby="gameLeaderboardTitle">
     <div class="game-rank-head">
-      <h2 id="gameLeaderboardTitle">各等級最快勝局</h2>
-      <button id="closeGameLeaderboard">關閉</button>
+      <h2 id="gameLeaderboardTitle">排行榜 · 前 10 名</h2>
+      <div class="game-rank-actions">
+        <button id="refreshGameRanks">重新整理</button>
+        <button id="closeGameLeaderboard">關閉</button>
+      </div>
     </div>
-    <label class="game-rank-filter" id="gameRankLevelLabel">電腦等級
-      <select id="gameRankLevel">
-        <option value="1">Lv 1</option>
-        <option value="2">Lv 2</option>
-        <option value="3" selected>Lv 3</option>
-        <option value="4">Lv 4</option>
-        <option value="5">Lv 5</option>
-        <option value="6">Lv 6</option>
-      </select>
+    <label id="gameRankColorLabel" style="margin:8px 0 12px">雙人模式記錄我的棋色
+      <select id="gameRankRecordColor"><option value="1">黑方</option><option value="2">白方</option></select>
     </label>
-    <ol id="gameLeaderboardList"><li class="leaderboard-empty">尚無完成紀錄。</li></ol>
+    <ol id="gameLeaderboardList"><li class="leaderboard-empty">排行榜尚未設定。</li></ol>
   </section>
 </div>
 
@@ -498,7 +496,7 @@
       rankTitle:"排行榜 · 前 10 名", refresh:"重新整理", noRanks:"目前還沒有排名紀錄。",
       loadRanksFailed:"暫時無法載入排行榜。請稍後再試。",
       rankColor:"雙人模式記錄我的棋色", black:"黑方", white:"白方",
-      home:"首頁", gameLeaderboard:"等級排行榜", close:"關閉", timerLabel:"用時",
+      home:"首頁", gameLeaderboard:"排行榜", close:"關閉", timerLabel:"用時",
       timerStop:"停止計時",timerResume:"繼續計時",timerAnalysis:"AI 分析中（計時暫停）",
       levelRankTitle:"各等級最快勝局", rankLevel:"電腦等級", noLevelRanks:"這個等級尚無勝局紀錄。",
       loadLevelRanksFailed:"暫時無法載入此等級排行榜。", levelTimeSaved:"已更新此等級的個人最佳時間。",
@@ -576,7 +574,7 @@
       rankTitle:"Leaderboard · Top 10",refresh:"Refresh",noRanks:"No ranked games yet.",
       loadRanksFailed:"The leaderboard is temporarily unavailable. Please try again.",
       rankColor:"In two-player modes, record me as",black:"Black",white:"White",
-      home:"Home", gameLeaderboard:"Level leaderboard", close:"Close", timerLabel:"Time",
+      home:"Home", gameLeaderboard:"Leaderboard", close:"Close", timerLabel:"Time",
       timerStop:"Stop timer",timerResume:"Resume timer",timerAnalysis:"AI analysis (timer paused)",
       levelRankTitle:"Fastest wins by level", rankLevel:"Computer level", noLevelRanks:"No winning records for this level yet.",
       loadLevelRanksFailed:"This level's leaderboard is temporarily unavailable.", levelTimeSaved:"Your personal best for this level has been updated.",
@@ -687,8 +685,8 @@
     const labels = {
       launchBtn:'launch',rulesStart:'play',rulesBack:'back',guideBtn:'guideButton',googleSignIn:'signIn',headerAuth:currentUser?'signOut':'signIn',
       refreshRanks:'refresh',leaderboardTitle:'rankTitle',rulesTitle:'rulesTitle',rulesIntro:'rulesIntro',
-      homeBtn:'home',gameLeaderboardBtn:'gameLeaderboard',closeGameLeaderboard:'close',
-      gameLeaderboardTitle:'levelRankTitle',menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
+      homeBtn:'home',gameLeaderboardBtn:'gameLeaderboard',gameLeaderboardTitle:'rankTitle',refreshGameRanks:'refresh',closeGameLeaderboard:'close',
+      menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
       autoRestartLabel:'autoRestart',analyzePositionBtn:'analyzePosition',analyzeFullGameBtn:'analyzeFullGame',
       stopFullGameBtn:'stopAnalysis',clearAnalysisBtn:'clearAnalysis',
       aiAnalysisTitle:'aiAnalysisTitle',aiAnalysisHint:'aiAnalysisHint',aiAnalysisDisclaimer:'analysisDisclaimer',
@@ -703,12 +701,16 @@
     }
     $('welcomeSubtitle').textContent = say('welcomeSubtitle');
     $('rankColorLabel').childNodes[0].textContent = say('rankColor') + ' ';
+    if ($('gameRankColorLabel')) $('gameRankColorLabel').childNodes[0].textContent = say('rankColor') + ' ';
     $('recordColor').options[0].text = say('black');
     $('recordColor').options[1].text = say('white');
+    if ($('gameRankRecordColor')) {
+      $('gameRankRecordColor').options[0].text = say('black');
+      $('gameRankRecordColor').options[1].text = say('white');
+    }
     if ($('gameRecordColor')) { $('gameRecordColor').options[0].text=say('black'); $('gameRecordColor').options[1].text=say('white'); }
     if ($('gameRecordLabelText')) $('gameRecordLabelText').textContent = language==='en'?'Record as':'記錄為';
     if ($('gameTimerLabel')) $('gameTimerLabel').textContent = say('timerLabel');
-    if ($('gameRankLevelLabel')) $('gameRankLevelLabel').childNodes[0].textContent = say('rankLevel') + ' ';
     const modeOpts = $('mode').options;
     [say('modeBot'),say('modeTwo'),say('modeFace')].forEach((v,i)=>modeOpts[i].text=v);
     const levelOpts = $('level').options;
@@ -734,7 +736,7 @@
       : (firebaseReady() ? say('loginForResults') : say('authNotReady'));
     if (typeof renderAIAnalysis === 'function') renderAIAnalysis();
     if (refresh && board) update();
-    if (refresh) { refreshLeaderboard(); if ($('gameLeaderboardPanel')?.classList.contains('show')) refreshLevelLeaderboard(); }
+    if (refresh) refreshLeaderboard();
   }
 
 
@@ -2779,82 +2781,55 @@
     }
   }
   async function refreshLeaderboard() {
-    const list = $('leaderboardList');
-    if (!list) return;
-    if (!firebaseReady() || !firestore) {
+    const lists = [$('leaderboardList'), $('gameLeaderboardList')].filter(Boolean);
+    if (!lists.length) return;
+    const showMessage = message => lists.forEach(list => {
       list.replaceChildren();
-      const li=document.createElement('li'); li.className='leaderboard-empty';
-      li.textContent = !firebaseReady() ? say('authNotReady') :
+      const li = document.createElement('li');
+      li.className = 'leaderboard-empty';
+      li.textContent = message;
+      list.appendChild(li);
+    });
+    if (!firebaseReady() || !firestore) {
+      showMessage(!firebaseReady() ? say('authNotReady') :
         (firebaseInitError
-          ? (language==='en' ? 'Firebase initialization error: ' : 'Firebase 初始化錯誤：') + firebaseInitError
-          : (language==='en' ? 'Firebase is still loading. Refresh in a moment.' : 'Firebase 正在載入，請稍後重新整理。'));
-      list.appendChild(li); return;
+          ? (language === 'en' ? 'Firebase initialization error: ' : 'Firebase 初始化錯誤：') + firebaseInitError
+          : (language === 'en' ? 'Firebase is still loading. Refresh in a moment.' : 'Firebase 正在載入，請稍後重新整理。')));
+      return;
     }
     try {
       const snapshot = await firestore.collection('leaderboard').orderBy('points','desc').limit(100).get();
-      const entries = snapshot.docs.map(doc=>doc.data());
-      entries.sort((a,b)=>(b.points||0)-(a.points||0)||(b.wins||0)-(a.wins||0)||
-        ((b.wins||0)/Math.max(1,b.games||0))-((a.wins||0)/Math.max(1,a.games||0))||
+      const entries = snapshot.docs.map(doc => doc.data());
+      entries.sort((a,b) => (b.points||0)-(a.points||0) || (b.wins||0)-(a.wins||0) ||
+        ((b.wins||0)/Math.max(1,b.games||0))-((a.wins||0)/Math.max(1,a.games||0)) ||
         String(a.displayName||'').localeCompare(String(b.displayName||'')));
-      list.replaceChildren();
-      entries.slice(0,10).forEach((entry,index)=>{
-        const li=document.createElement('li');
-        const name=document.createElement('span'); name.className='rank-name';
-        name.textContent=(index+1)+'. '+(entry.displayName || 'Go player');
-        const score=document.createElement('span'); score.className='rank-score';
-        score.textContent=fmtText('rankPoints',{p:entry.points||0,w:entry.wins||0,l:entry.losses||0,d:entry.draws||0});
-        li.append(name,score); list.appendChild(li);
+      lists.forEach(list => {
+        list.replaceChildren();
+        entries.slice(0,10).forEach((entry,index) => {
+          const li = document.createElement('li');
+          const name = document.createElement('span'); name.className = 'rank-name';
+          name.textContent = (index+1)+'. '+(entry.displayName || 'Go player');
+          const score = document.createElement('span'); score.className = 'rank-score';
+          score.textContent = fmtText('rankPoints',{p:entry.points||0,w:entry.wins||0,l:entry.losses||0,d:entry.draws||0});
+          li.append(name,score);
+          list.appendChild(li);
+        });
+        if (!entries.length) {
+          const li = document.createElement('li'); li.className = 'leaderboard-empty';
+          li.textContent = say('noRanks'); list.appendChild(li);
+        }
       });
-      if (!entries.length) {
-        const li=document.createElement('li'); li.className='leaderboard-empty'; li.textContent=say('noRanks'); list.appendChild(li);
-      }
     } catch (error) {
       console.warn('Leaderboard fetch failed:',error);
-      list.replaceChildren();
-      const li=document.createElement('li'); li.className='leaderboard-empty'; li.textContent=say('loadRanksFailed'); list.appendChild(li);
-    }
-  }
-
-  async function refreshLevelLeaderboard() {
-    const list = $('gameLeaderboardList');
-    if (!list) return;
-    const levelNo = Math.max(1, Math.min(6, Number($('gameRankLevel').value || 1)));
-    if (!firestore) {
-      list.replaceChildren();
-      const li = document.createElement('li'); li.className = 'leaderboard-empty';
-      li.textContent = say('authNotReady'); list.appendChild(li); return;
-    }
-    try {
-      const snap = await firestore.collection('levelLeaderboard').doc('lv' + levelNo)
-        .collection('players').orderBy('bestTimeMs','asc').limit(10).get();
-      const entries = snap.docs.map(doc => doc.data());
-      list.replaceChildren();
-      entries.forEach((entry,index) => {
-        const li = document.createElement('li');
-        const name = document.createElement('span'); name.className = 'rank-name';
-        name.textContent = (index + 1) + '. ' + (entry.displayName || 'Go player');
-        const score = document.createElement('span'); score.className = 'rank-score';
-        const sizeText = entry.boardSize ? ' · ' + entry.boardSize + '×' + entry.boardSize : '';
-        score.textContent = formatDuration(entry.bestTimeMs || 0) + sizeText;
-        li.append(name,score); list.appendChild(li);
-      });
-      if (!entries.length) {
-        const li = document.createElement('li'); li.className = 'leaderboard-empty';
-        li.textContent = say('noLevelRanks'); list.appendChild(li);
-      }
-    } catch (error) {
-      console.warn('Level leaderboard fetch failed:',error);
-      list.replaceChildren();
-      const li = document.createElement('li'); li.className = 'leaderboard-empty';
-      li.textContent = say('loadLevelRanksFailed'); list.appendChild(li);
+      showMessage(say('loadRanksFailed'));
     }
   }
 
   function openGameLeaderboard() {
-    $('gameRankLevel').value = String(mode === 'bot' ? level : Number($('level').value || 3));
+    $('gameRankRecordColor').value = $('recordColor').value;
     $('gameLeaderboardPanel').classList.add('show');
     $('gameLeaderboardPanel').setAttribute('aria-hidden','false');
-    refreshLevelLeaderboard();
+    refreshLeaderboard();
   }
   function closeGameLeaderboard() {
     $('gameLeaderboardPanel').classList.remove('show');
@@ -3169,7 +3144,7 @@
   $('gameLeaderboardBtn').onclick = openGameLeaderboard;
   $('closeGameLeaderboard').onclick = closeGameLeaderboard;
   $('gameLeaderboardPanel').addEventListener('click', e => { if (e.target === $('gameLeaderboardPanel')) closeGameLeaderboard(); });
-  $('gameRankLevel').onchange = refreshLevelLeaderboard;
+  $('refreshGameRanks').onclick = refreshLeaderboard;
   $('timerToggle').onclick = toggleGameTimer;
   $('guideBtn').onclick = openGuide;
   $('guideClose').onclick = closeGuide;
@@ -3197,8 +3172,18 @@
     }
   });
   $('refreshRanks').onclick = refreshLeaderboard;
-  $('recordColor').onchange = () => { if ($('gameRecordColor')) $('gameRecordColor').value = $('recordColor').value; };
-  $('gameRecordColor').onchange = () => { $('recordColor').value = $('gameRecordColor').value; };
+  $('recordColor').onchange = () => {
+    if ($('gameRecordColor')) $('gameRecordColor').value = $('recordColor').value;
+    if ($('gameRankRecordColor')) $('gameRankRecordColor').value = $('recordColor').value;
+  };
+  $('gameRecordColor').onchange = () => {
+    $('recordColor').value = $('gameRecordColor').value;
+    if ($('gameRankRecordColor')) $('gameRankRecordColor').value = $('recordColor').value;
+  };
+  $('gameRankRecordColor').onchange = () => {
+    $('recordColor').value = $('gameRankRecordColor').value;
+    if ($('gameRecordColor')) $('gameRecordColor').value = $('recordColor').value;
+  };
   $('new').onclick = init;
   $('analyzePositionBtn').onclick = analyzeCurrentPosition;
   $('analyzeFullGameBtn').onclick = analyzeFullGame;
