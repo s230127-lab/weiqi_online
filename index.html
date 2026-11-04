@@ -407,7 +407,7 @@
     <option value="1" selected>你執黑</option>
     <option value="2">你執白</option>
   </select>
-  <label class="chk"><input type="checkbox" id="autoRestart" checked><span id="autoRestartLabel">結束後自動開新局</span></label>
+  <label class="chk"><input type="checkbox" id="autoRestart"><span id="autoRestartLabel">結束後自動開新局</span></label>
   <select id="size" aria-label="棋盤大小">
     <option value="9" selected>9 路</option>
     <option value="13">13 路</option>
@@ -2979,6 +2979,7 @@
             responsive:true,maintainAspectRatio:false,
             plugins:{
               legend:{display:false},
+              title:{display:true,text:say('endChartLabel')},
               tooltip:{callbacks:{label:context=>context.parsed.y+' '+say('endPoints')}}
             },
             scales:{
