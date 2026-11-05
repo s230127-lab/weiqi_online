@@ -2,140 +2,190 @@
 
 A browser-based game of Go with Traditional Chinese as the default interface language. Play on a desktop, tablet, or phone against the computer, with another person on the same device, or face-to-face around a shared device.
 
-[繁體中文](./README.md) · [English (UK)](./README.en-GB.md)
+[繁體中文](./README.md) · [简体中文](./README.zh-CN.md) · [English (UK)](./README.en-GB.md) · [English (US)](./README.en-US.md)
 
-## Getting started
+## About the project
 
-Open the deployed GitHub Pages site, or deploy this repository yourself.
+This is a single-page browser game of Go. It does not require a self-hosted AI inference server: the built-in computer levels and the KataGo ONNX model run in the browser. Google sign-in and Firebase are used only for saving results and displaying rankings.
 
-- **Repository:** https://github.com/s230127-lab/weiqi_online
+- **Game site:** [GitHub Pages](https://s230127-lab.github.io/weiqi_online/)
+- **GitHub repository:** https://github.com/s230127-lab/weiqi_online
 - **Main game:** [index.html](./index.html)
 - **KataGo ONNX model:** [models/katago.onnx](./models/katago.onnx)
 - **Firestore security rules:** [firestore.rules](./firestore.rules)
-
-### Deploying the game
-
-Deploy the entire repository to a static web host and keep the `models/` directory and its model file in place. Open the game over HTTP or HTTPS. Do not open `index.html` directly using a `file://` URL: the browser needs a web server to load the model and other resources.
-
-## First-time guide
-
-The first time you press **Play**, the game opens a five-step guide covering game modes, board sizes, computer levels, placing stones and the game controls. Once you finish or skip it, the browser remembers your choice. You can reopen it at any time using **How to play** in the game toolbar. Clearing the site's browser data may cause the guide to appear again.
+- **Leela Zero license file:** [LEELA_ZERO_LICENSE.txt](./LEELA_ZERO_LICENSE.txt)
 
 ## Features
 
-- **Three game modes:** play against the computer, two players on one device, or face-to-face.
-- **Six computer levels:** from simple local strategies to KataGo and a legacy Leela Zero browser engine.
-- **Three board sizes:** 9×9, 13×13 and 19×19.
+- **Three game modes:** play against the computer, two players on one device, or face-to-face play.
+- **Six computer levels:** Lv 1–4 use local strategies/simulations; Lv 5 uses KataGo ONNX; Lv 6 uses a legacy Leela Zero browser engine.
+- **Three board sizes:** 9×9, 13×13, and 19×19.
 - **Color choice:** choose to play Black or White in computer mode.
-- **Game controls:** undo, pass, resign and start a new game.
-- **End-of-game scoring:** mark dead stones manually or use automatic marking, then score using Chinese rules.
-- **Face-to-face layout:** place a tablet or laptop between the players; each player's information and controls face their side.
-- **Touch and desktop support:** use a mouse or a touchscreen on a range of screen sizes.
-- **Kaya-style AI analysis:** local KataGo ONNX inference for MCTS position analysis, candidate moves, principal variations, move-by-move game analysis, estimated win-rate charts and an ownership heat map when the model supports it.
+- **Game controls:** undo, pass, resign, start a new game, and optionally restart automatically.
+- **Game timer:** displays elapsed game time and can be stopped and resumed manually.
+- **End-game scoring:** mark dead stones manually or use automatic marking, then count using Chinese area scoring.
+- **Face-to-face layout:** on a shared tablet or laptop, the White player's information faces the top and the Black player's information faces the bottom.
+- **First-time guide:** explains the modes, board, moves, and game controls; it can be reopened during play.
+- **Result screen:** shows the winner or scoring result; scored games include a chart comparing Black's and White's points.
+- **AI analysis:** position analysis, candidate moves, principal variations, and move-by-move whole-game analysis.
+
+## Getting started
+
+Open the [game website](https://s230127-lab.github.io/weiqi_online/). A recent version of Chrome, Edge, Firefox, or Safari is recommended.
+
+The first time you use Lv 5, your browser loads the approximately 75 MB KataGo ONNX model from this repository. An internet connection is required for the initial load. The browser may reuse a cached copy on later visits if its cache remains available.
 
 ## Game modes
 
 | Mode | Description |
 | --- | --- |
-| Play vs computer | Play against the computer and choose its level and your color. |
-| Two players | Two people take turns using the same board. |
-| Face-to-face | Place the device flat between the players, with Black at the bottom and White at the top. Each player's information and controls are oriented toward them. |
+| Play vs. computer | Play against the computer. Choose Lv 1–Lv 6, a board size, and whether you play Black or White. |
+| Two players | Two people take turns on the same device and board. |
+| Face-to-face | Place a tablet or laptop between the players. White sits at the top and Black at the bottom; each player's information and controls face them. |
 
-Face-to-face mode is designed for a shared tablet or laptop. Resigning requires a second confirmation to reduce accidental resignations.
+Face-to-face mode is intended for a shared device. Resigning requires a second confirmation to reduce accidental resignations.
 
 ## Computer levels
 
-| Level | Name | How it plays |
+| Level | Name | Playing method and limits |
 | --- | --- | --- |
-| Lv 1 | Beginner | Chooses a legal move at random. |
-| Lv 2 | Easy | Uses basic tactical rules, such as capturing, responding to atari and avoiding self-atari. |
+| Lv 1 | Beginner | Selects a legal move at random. |
+| Lv 2 | Easy | Uses basic tactical rules, such as captures, responding to atari, and avoiding self-atari. |
 | Lv 3 | Intermediate | Uses Monte Carlo simulations to evaluate candidate moves. |
 | Lv 4 | Advanced | Uses more simulations and usually takes longer to think than Lv 3. |
-| Lv 5 | KataGo AI | Runs inference locally using the ONNX model included in this repository. |
+| Lv 5 | KataGo AI | Uses the ONNX model in this repository for inference in the browser. |
 | Lv 6 | Leela Zero (legacy WebGL) | Uses a 2017 browser port; supports 19×19 boards only. |
 
-Levels 1–5 can be used with 9×9, 13×13 and 19×19 boards. The legacy Leela Zero level supports 19×19 only. The computer runs in your browser; thinking time varies with device performance and board size.
+Levels 1–5 support 9×9, 13×13, and 19×19 boards. Lv 6 supports 19×19 only. Thinking time varies with device performance and board size.
 
-## KataGo and Kaya-style analysis
+## KataGo and Kaya-style AI analysis
 
-The KataGo ONNX model is stored at:
+The KataGo model is stored at `models/katago.onnx` and is approximately 75 MB. The game loads it when you use Lv 5 or start KataGo analysis; the other computer levels do not need this model.
 
-```text
-models/katago.onnx
-```
+- **Model location:** the model is included in this repository's `models/` folder; you do not need to find a separate model file.
+- **Inference:** ONNX Runtime Web and WebAssembly run the model in your browser. Board positions are not sent to a remote AI inference API.
+- **First load:** the browser downloads the model data and the ONNX Runtime Web library. A browser cache may be used on later visits.
+- **Position analysis:** **Analyze current position** runs PUCT MCTS search and displays candidate moves, visit counts, an estimated Black win rate, an estimated score lead, and principal variations.
+- **Search visits:** choose 12, 24, 48, or 96 visits per position. More visits generally require more time and device resources.
+- **Whole-game move-by-move analysis:** reviews positions throughout the recorded game, compares each played move with the model's top choice, and displays estimated win-rate changes and move assessments.
+- **Ownership heat map:** available only when the model supplies ownership output. The interface does not substitute an unrelated estimate when that output is absent.
+- **Scope:** this project integrates Kaya-inspired KataGo ONNX/PUCT analysis concepts. It is not the full Kaya application and does not include all Kaya settings or its complete analysis-tree browser.
 
-The game loads this model when you select **Lv 5** in computer mode or start AI analysis. Other computer levels do not need this model.
+**Timer behavior:** analyzing the current position pauses the timer automatically; the timer resumes when that analysis finishes. Selecting **Analyze every move** (whole-game analysis) does not pause the timer.
 
-- **First load:** the browser loads around 75 MB of model data and the ONNX Runtime Web library, so an internet connection is required the first time.
-- **Later use:** the browser attempts to cache the model. If the cache remains available, another download may not be needed.
-- **Local inference:** once loaded, move generation and analysis run on your device in the browser. The game does not send the board position to a remote AI inference API.
-- **Position analysis:** **Analyze current position** runs PUCT Monte Carlo tree search and displays candidate moves, visit counts, an estimated Black win rate, an estimated score and continuations for leading candidates.
-- **Search visits:** choose the number of visits per position. More visits generally mean longer analysis and greater device workload.
-- **Full-game analysis:** review positions before each move, compare the played move with the search's top choice, and inspect estimated win-rate changes and move summaries.
-- **Charts and ownership:** the game can display an estimated Black win-rate chart. The ownership heat map is available only when the current model provides KataGo ownership output; the interface will not substitute an unrelated estimate.
-- **Scope:** this integrates Kaya-inspired KataGo ONNX and PUCT analysis concepts into this single-page game. It is not the full Kaya application and does not include all Kaya settings or its complete analysis-tree browser.
-
-Win rates, score estimates, candidate moves and move assessments are model estimates based on a limited search. They are not guaranteed outcomes or definitive playing strengths.
+Win rates, score estimates, candidate moves, and move assessments are model estimates based on a limited search. They are not guaranteed outcomes or official tournament win rates.
 
 ## Leela Zero (Lv 6)
 
 Lv 6 uses the browser port of [NTT123/leela-zero](https://github.com/NTT123/leela-zero/tree/565ae3380946546504bb38c67a714b6c70300a23/src/docs). This is a legacy 2017 WebGL/WebAssembly demonstration, not the current Leela Zero desktop engine.
 
-- On first use, the game loads the engine and neural-network data from a pinned third-party CDN version.
-- Neural-network inference runs through browser WebGL; the engine runs through WebAssembly.
+- On first use, the engine code and neural-network data are loaded from a pinned third-party CDN version.
+- Neural-network inference runs through browser WebGL; the engine uses WebAssembly.
 - A WebGL-capable browser is required, and only 19×19 boards are supported.
-- The legacy engine and network may not work on some newer browsers or devices.
-- The original source code is licensed under GPL-3.0. See the [upstream license](https://github.com/NTT123/leela-zero/blob/565ae3380946546504bb38c67a714b6c70300a23/COPYING). Refer to the upstream project for rights notices covering the browser port and model files.
+- The legacy code and network may not work on some newer browsers or devices.
+- See this repository's [Leela Zero license file](./LEELA_ZERO_LICENSE.txt) and the [upstream license information](https://github.com/NTT123/leela-zero/blob/565ae3380946546504bb38c67a714b6c70300a23/COPYING).
 
 ## Basic rules
 
-1. Black plays first, then the players alternate, placing one stone on a legal intersection per turn.
-2. Connected stones of the same color form a group. Empty adjacent intersections are called **liberties**. A group with no liberties is captured and removed.
-3. A move that leaves your own group with no liberties is suicide and is illegal, unless the move captures opposing stones.
-4. Positional superko is enforced: a move may not recreate an earlier board position.
-5. Two consecutive passes end the game.
-6. At the end, both players confirm and mark dead groups before scoring. You can mark groups individually or use **Auto-mark dead stones**; both players should still check the automatic result.
+1. **Black plays first:** players then take turns placing one stone on a legal board intersection.
+2. **Liberties and capture:** connected stones of the same color form a group. Empty adjacent intersections are its liberties. A group with no liberties is captured and removed.
+3. **Suicide:** a move that leaves your own group without liberties is illegal unless it captures opposing stones.
+4. **Positional superko:** a move may not recreate any earlier board position.
+5. **Ending the game:** two consecutive passes end the game.
+6. **Dead stones and counting:** both players mark dead groups before selecting **Count**. Groups can be marked individually or with the automatic marking feature; both players should check the automatic result.
 
 ### Scoring
 
 The game uses **Chinese area scoring**: count living stones and the empty points surrounded by each color.
 
-- 13×13 and 19×19 boards: Black gives White **7.5 points**.
-- 9×9 boards: this game uses a **7-point komi** for Black.
+- **9×9:** Black gives White 7 points of komi (equivalent to 3½ stones).
+- **13×13 and 19×19:** Black gives White 7.5 points of komi (equivalent to 3¾ stones).
 
 ## Controls
 
 - **Place a stone:** click or tap an intersection.
 - **Undo:** return to the previous position.
-- **Timer:** select **Stop timer** to pause the clock and lock the game so that no moves or game actions can be made. The timer also pauses automatically during KataGo position or full-game analysis, then resumes when analysis ends.
-- **Pass:** skip your turn.
+- **Pass:** skip the current turn.
 - **Resign:** end the game. Face-to-face mode asks for confirmation again.
-- **Count:** after two consecutive passes, mark dead groups and select **Count** to calculate the result.
-- **New game:** select **New game** to restart, or change the mode, board size, color or computer level.
+- **Stop timer:** pause the clock and lock the game; play can resume when the timer is restarted.
+- **Count:** after two consecutive passes, confirm dead stones and calculate the score.
+- **New game:** restart and, if needed, change the mode, board size, color, or computer level.
 
-## Language, sign-in and leaderboard
+## Language and first-time guide
 
-The game provides Traditional Chinese and English interfaces. Change the language on the welcome screen or in the game toolbar; the selection is saved in the current browser.
+The game interface supports Traditional Chinese and English. Change the language on the welcome screen or in the game toolbar; the selection is saved in the current browser.
 
-The leaderboard uses Google sign-in with Firebase Authentication and Cloud Firestore. The game and local computer opponents remain playable without Firebase, but sign-in, saving results and the leaderboard will not work until Firebase is configured. To enable them:
+A first-time guide explains the basics. It can be skipped and reopened at any time using **How to play**. Completion is stored in the current browser, so clearing the site's browser data may cause the guide to appear again.
 
-1. Create a Firebase project in the [Firebase Console](https://console.firebase.google.com/) and add a Web App.
+## Google sign-in and Firebase leaderboard
+
+Google sign-in is not required to play. Without Firebase, the board, rules, and local computer opponents remain available; sign-in, result saving, and leaderboard loading will not work.
+
+The game uses Firebase Authentication and Cloud Firestore:
+
+- `leaderboard/{uid}`: overall player statistics, including wins, losses, draws, games, and points.
+- `levelLeaderboard/{level}/players/{uid}`: the fastest recorded winning time for each computer level.
+- Scoring is 3 points for a win, 1 point for a draw, and 0 points for a loss.
+- The in-game leaderboard panel displays the overall top 10 by points. The separate [Ranking-of-weiqi_online repository](https://github.com/s230127-lab/Ranking-of-weiqi_online) also provides a website that displays the overall ranking only.
+- Players must sign in with Google to save results. A signed-in player can write their own records; leaderboard data is publicly readable.
+
+### Configure Firebase for your own deployment
+
+The current code includes web app settings for the `weiqi-online` Firebase project. To use your own project:
+
+1. Create a Firebase project and add a Web App in the [Firebase Console](https://console.firebase.google.com/).
 2. Enable **Google** under **Authentication → Sign-in method**.
-3. Create a **Firestore Database**.
-4. Add the Web App configuration values (`apiKey`, `authDomain`, `projectId` and `appId`) to `FIREBASE_CONFIG` in `index.html`. These are public browser configuration values, not Admin SDK secrets. Never put a service-account private key in the web page.
-5. Add the GitHub Pages domain or your custom domain under Firebase Authentication's **Authorized domains**.
+3. Create a **Cloud Firestore** database.
+4. Add your Web App configuration values to `FIREBASE_CONFIG` in `index.html`.
+5. Add your GitHub Pages domain or custom domain under Firebase Authentication's **Authorized domains**.
 6. Publish this repository's [firestore.rules](./firestore.rules) as your Firestore Rules.
 
-The leaderboard is for casual use, not cheat-proof competitive play. Games run in the browser and the server does not independently verify the full move record. A competitive service should add server-side game-record validation.
+The Firebase web app configuration is not an Admin SDK private key. Never put a service-account private key or other server secret in front-end code.
 
-## Technical notes
+**Security limitation:** the leaderboard is intended for casual game records, not cheat-proof competitive play. Games and timing run in the browser; the server does not independently verify the full move record or the player's device timer.
 
-- Single-page web application; the main game code is in `index.html`.
-- HTML Canvas is used to draw the board and stones.
-- The KataGo model is in ONNX format and runs in the browser through ONNX Runtime Web.
-- Playing against computer levels 1–6 and using local AI inference do not require your own AI inference API or API key. Google sign-in and the leaderboard require Firebase configuration.
-- Local AI inference and the Firebase leaderboard are separate features; you do not need to sign in to play against the computer.
+## Preview locally and deploy
 
-## Licenses and models
+Open the game through an HTTP or HTTPS URL. Do not open `index.html` directly with `file://`; the browser needs a web server to load the model and other resources.
 
-This README describes how to use the project. The game code, KataGo model, ONNX Runtime Web, Leela Zero browser port and associated model files may each be subject to different license terms. Check the original project and the license information supplied with each component before using, redistributing or modifying those files.
+From the repository root, run:
+
+```bash
+python -m http.server 8000
+```
+
+Then open http://localhost:8000/.
+
+When deploying to GitHub Pages or another static host, preserve the repository structure, especially `models/katago.onnx`, `leela-engine.html`, `firestore.rules`, and the license files.
+
+### GitHub Pages setup
+
+1. Open the repository's **Settings → Pages**.
+2. Under **Build and deployment**, choose **Deploy from a branch**.
+3. Select the `main` branch and the `/(root)` folder.
+4. Save the settings and wait for GitHub Pages to finish deploying.
+
+Website: https://s230127-lab.github.io/weiqi_online/
+
+## Repository structure
+
+```text
+.
+├── index.html
+├── leela-engine.html
+├── firestore.rules
+├── LEELA_ZERO_LICENSE.txt
+├── models/
+│   └── katago.onnx
+└── .github/
+    └── workflows/
+        └── validate-game.yml
+```
+
+## Automated checks
+
+The GitHub Actions workflow **Validate game JavaScript** checks the syntax of the inline JavaScript in `index.html` and `leela-engine.html`. Pushes and pull requests that change either file trigger the check.
+
+## Licenses and third-party components
+
+This repository includes components from different sources and under different license terms. The game code, KataGo model, ONNX Runtime Web, Chart.js, Firebase SDK, Leela Zero browser port, and related model files may each have separate terms. Check the original projects and the license information supplied with each component before using, redistributing, or modifying those files.
