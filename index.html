@@ -527,6 +527,7 @@
 <script>
 (() => {
   const EMPTY = 0, B = 1, W = 2;
+  let language = 'zh';
   const cv = document.getElementById('c');
   const ctx = cv.getContext('2d');
   const $ = id => document.getElementById(id);
@@ -2477,7 +2478,7 @@
   function celebrate(winner, sub) {
     stopFx();
     const botWin = mode === 'bot' && winner === botColor();
-    const title = winner === 0 ? say('draw')
+    const title = winner === 0 ? say('resultDraw')
       : mode === 'bot' ? (winner === human ? say('youWin') : say('compWin'))
       : (winner === B ? say('blackWin') : say('whiteWin'));
     $('bT1').textContent = $('bT2').textContent = title;
