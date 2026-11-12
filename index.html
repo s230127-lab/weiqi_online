@@ -203,6 +203,134 @@
     body.show-game-end #gameEndScreen { animation: none; }
   }
 
+  /* Different motion styles for in-game panels and expandable content. */
+  @keyframes welcome-open {
+    from { opacity:0; transform:translateY(18px) scale(.975); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes rules-open {
+    from { opacity:0; transform:translateX(-24px); }
+    to { opacity:1; transform:translateX(0); }
+  }
+  @keyframes game-layout-open {
+    from { opacity:0; transform:translateY(10px) scale(.992); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes header-drop-in {
+    from { opacity:0; transform:translateY(-10px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  @keyframes result-screen-open {
+    from { opacity:0; transform:translateY(26px) scale(.98); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes options-drawer-open {
+    from { opacity:0; transform:translateY(-12px); clip-path:inset(0 0 100% 0); }
+    to { opacity:1; transform:translateY(0); clip-path:inset(0 0 0 0); }
+  }
+  @keyframes face-panel-open {
+    from { opacity:0; transform:translateY(12px) scale(.98); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes overlay-fade-in {
+    from { opacity:0; }
+    to { opacity:1; }
+  }
+  @keyframes overlay-fade-out {
+    from { opacity:1; }
+    to { opacity:0; }
+  }
+  @keyframes modal-card-open {
+    from { opacity:0; transform:translateY(24px) scale(.94); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes modal-card-close {
+    from { opacity:1; transform:translateY(0) scale(1); }
+    to { opacity:0; transform:translateY(12px) scale(.97); }
+  }
+  @keyframes guide-dialog-open {
+    0% { opacity:0; transform:translateY(22px) scale(.94); }
+    70% { opacity:1; transform:translateY(-3px) scale(1.008); }
+    100% { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes guide-step-swap {
+    from { opacity:.25; transform:translateX(14px); }
+    to { opacity:1; transform:translateX(0); }
+  }
+  @keyframes result-reveal {
+    from { opacity:0; transform:translateY(10px) scale(.985); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes content-item-enter {
+    from { opacity:0; transform:translateY(7px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  @keyframes detail-content-open {
+    from { opacity:0; transform:translateY(-5px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+
+  body.pre-game:not(.show-rules) #welcome { animation:welcome-open .42s cubic-bezier(.2,.8,.2,1) both; }
+  body.show-rules #rulesScreen { animation:rules-open .34s cubic-bezier(.2,.7,.2,1) both; }
+  body:not(.pre-game):not(.show-game-end) > header { animation:header-drop-in .3s ease-out both; }
+  body:not(.pre-game):not(.show-game-end) > .layout { animation:game-layout-open .36s ease-out both; }
+  body.show-game-end #gameEndScreen { animation:result-screen-open .44s cubic-bezier(.2,.8,.2,1) both; }
+  body.face-on.show-opts .opts { animation:options-drawer-open .3s ease-out both; transform-origin:top; }
+  body.face-on .face { animation:face-panel-open .32s ease-out both; }
+  body.face-on .face.active { transition:border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
+  #gameLeaderboardPanel.show { animation:overlay-fade-in .2s ease-out both; }
+  #gameLeaderboardPanel.show .game-rank-card { animation:modal-card-open .3s cubic-bezier(.2,.85,.25,1) both; }
+  #gameLeaderboardPanel.closing { animation:overlay-fade-out .18s ease-in both; }
+  #gameLeaderboardPanel.closing .game-rank-card { animation:modal-card-close .16s ease-in both; }
+  .guide-backdrop:not([hidden]) { animation:overlay-fade-in .22s ease-out both; }
+  .guide-backdrop:not([hidden]) .guide-dialog { animation:guide-dialog-open .38s cubic-bezier(.2,.85,.25,1) both; }
+  .guide-dialog.guide-step-change #guideTitle,
+  .guide-dialog.guide-step-change #guideText { animation:guide-step-swap .24s ease-out both; }
+  .result.show { animation:result-reveal .28s ease-out both; }
+  .analysis-moves li, .game-analysis-list li, #gameLeaderboardList li, .leaderboard li {
+    animation:content-item-enter .24s ease-out both;
+  }
+  .analysis-moves li:nth-child(2), .game-analysis-list li:nth-child(2),
+  #gameLeaderboardList li:nth-child(2), .leaderboard li:nth-child(2) { animation-delay:.025s; }
+  .analysis-moves li:nth-child(3), .game-analysis-list li:nth-child(3),
+  #gameLeaderboardList li:nth-child(3), .leaderboard li:nth-child(3) { animation-delay:.05s; }
+  .analysis-moves li:nth-child(4), .game-analysis-list li:nth-child(4),
+  #gameLeaderboardList li:nth-child(4), .leaderboard li:nth-child(4) { animation-delay:.075s; }
+  .analysis-moves li:nth-child(5), .game-analysis-list li:nth-child(5),
+  #gameLeaderboardList li:nth-child(5), .leaderboard li:nth-child(5) { animation-delay:.1s; }
+  .analysis-moves li:nth-child(n+6), .game-analysis-list li:nth-child(n+6),
+  #gameLeaderboardList li:nth-child(n+6), .leaderboard li:nth-child(n+6) { animation-delay:.12s; }
+  details[open] > p { animation:detail-content-open .25s ease-out both; }
+  details[open] > p:nth-of-type(2) { animation-delay:.035s; }
+  details[open] > p:nth-of-type(n+3) { animation-delay:.07s; }
+  button:not(:disabled) {
+    transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease;
+  }
+  button:not(:disabled):active { transform:scale(.97); }
+  button:focus-visible { transition:outline-offset .15s ease; }
+
+  @media (prefers-reduced-motion: reduce) {
+    body.pre-game:not(.show-rules) #welcome,
+    body.show-rules #rulesScreen,
+    body:not(.pre-game):not(.show-game-end) > header,
+    body:not(.pre-game):not(.show-game-end) > .layout,
+    body.show-game-end #gameEndScreen,
+    body.face-on.show-opts .opts,
+    body.face-on .face,
+    #gameLeaderboardPanel.show,
+    #gameLeaderboardPanel.show .game-rank-card,
+    #gameLeaderboardPanel.closing,
+    #gameLeaderboardPanel.closing .game-rank-card,
+    .guide-backdrop:not([hidden]),
+    .guide-backdrop:not([hidden]) .guide-dialog,
+    .guide-dialog.guide-step-change #guideTitle,
+    .guide-dialog.guide-step-change #guideText,
+    .result.show,
+    .analysis-moves li, .game-analysis-list li, #gameLeaderboardList li, .leaderboard li,
+    details[open] > p { animation:none !important; }
+    button:not(:disabled), .face.active { transition:none !important; }
+  }
+
   /* Welcome, rules, Google account and leaderboard */
   body.pre-game > header, body.pre-game > .layout { display:none; }
   body.pre-game:not(.show-rules) #welcome { display:flex; }
@@ -752,6 +880,12 @@
     $('guideProgress').textContent = fmtText('guideProgress', {current:guideStep + 1,total:steps.length});
     $('guideTitle').textContent = steps[guideStep].title;
     $('guideText').textContent = steps[guideStep].text;
+    const guideDialog = $('playGuide').querySelector('.guide-dialog');
+    if (guideDialog) {
+      guideDialog.classList.remove('guide-step-change');
+      void guideDialog.offsetWidth;
+      guideDialog.classList.add('guide-step-change');
+    }
     $('guidePrev').textContent = say('guidePrevious');
     $('guidePrev').disabled = guideStep === 0;
     $('guideNext').textContent = guideStep === steps.length - 1 ? say('guideFinish') : say('guideNext');
@@ -2931,15 +3065,23 @@
     }
   }
 
+  let leaderboardCloseTimer = 0;
   function openGameLeaderboard() {
+    clearTimeout(leaderboardCloseTimer);
+    $('gameLeaderboardPanel').classList.remove('closing');
     $('gameRankRecordColor').value = $('recordColor').value;
     $('gameLeaderboardPanel').classList.add('show');
     $('gameLeaderboardPanel').setAttribute('aria-hidden','false');
     refreshLeaderboard();
   }
   function closeGameLeaderboard() {
-    $('gameLeaderboardPanel').classList.remove('show');
-    $('gameLeaderboardPanel').setAttribute('aria-hidden','true');
+    const panel = $('gameLeaderboardPanel');
+    if (!panel.classList.contains('show') || panel.classList.contains('closing')) return;
+    panel.setAttribute('aria-hidden','true');
+    panel.classList.add('closing');
+    leaderboardCloseTimer = setTimeout(() => {
+      panel.classList.remove('show','closing');
+    }, reduceMotion() ? 0 : 190);
   }
   function returnHome() {
     clearRestart();
