@@ -183,6 +183,26 @@
   .chk { flex: 1 1 100%; display: flex; align-items: center; gap: 8px; font-size: .92rem; color: var(--muted); min-height: 32px; }
   .chk input { width: 18px; height: 18px; accent-color: var(--accent); }
 
+  /* Smooth entrance transitions between the welcome, rules, game and result screens. */
+  @keyframes page-enter {
+    from { opacity: 0; transform: translateY(14px) scale(.99); filter: blur(2px); }
+    to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  }
+  body.pre-game:not(.show-rules) #welcome,
+  body.show-rules #rulesScreen,
+  body:not(.pre-game):not(.show-game-end) > header,
+  body:not(.pre-game):not(.show-game-end) > .layout,
+  body.show-game-end #gameEndScreen {
+    animation: page-enter .38s cubic-bezier(.2,.75,.25,1) both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body.pre-game:not(.show-rules) #welcome,
+    body.show-rules #rulesScreen,
+    body:not(.pre-game):not(.show-game-end) > header,
+    body:not(.pre-game):not(.show-game-end) > .layout,
+    body.show-game-end #gameEndScreen { animation: none; }
+  }
+
   /* Welcome, rules, Google account and leaderboard */
   body.pre-game > header, body.pre-game > .layout { display:none; }
   body.pre-game:not(.show-rules) #welcome { display:flex; }
@@ -1412,6 +1432,7 @@
     $('endRestartNote').textContent = '';
     clearRestart();
     stopFx();
+    clearStoneAnimations();
     clearAIAnalysis();
     token++;
     busy = false;
@@ -1473,7 +1494,9 @@
     if (seenSet.has(posKey(r.board))) return flash('不可下:禁止全局同形');
     snapshot();
     prevBoard = board;
+    const previousBoard = board;
     board = r.board;
+    animateBoardDiff(previousBoard, board);
     addSeen(posKey(board));
     caps[turn] += r.captured;
     lastMove = [x, y];
@@ -1509,6 +1532,7 @@
     clearAIAnalysis();
     clearRestart();
     stopFx();
+    const previousBoard = board.slice();
     do {
       const h = history.pop();
       board = h.board; prevBoard = h.prevBoard; turn = h.turn;
@@ -1521,6 +1545,7 @@
     $('score').style.display = 'none';
     $('auto').style.display = 'none';
     $('result').classList.remove('show'); resultHTML = '';
+    animateBoardDiff(previousBoard, board);
     update();
     maybeBot();
   }
@@ -2919,6 +2944,7 @@
   function returnHome() {
     clearRestart();
     stopFx();
+    clearStoneAnimations();
     clearAIAnalysis();
     token++;
     busy = false;
@@ -3122,6 +3148,51 @@
 
   /* ================= drawing ================= */
   let S, pad, cell;
+  let stoneAnimations = [];
+  let stoneAnimationFrame = 0;
+
+  function clearStoneAnimations() {
+    if (stoneAnimationFrame) cancelAnimationFrame(stoneAnimationFrame);
+    stoneAnimationFrame = 0;
+    stoneAnimations = [];
+  }
+
+  function animateBoardDiff(before, after, duration = 280) {
+    if (!before || !after) return;
+    if (reduceMotion()) {
+      clearStoneAnimations();
+      return;
+    }
+    const now = performance.now();
+    const changes = [];
+    const changedPositions = new Set();
+    for (let p = 0; p < N * N; p++) {
+      const oldColor = before[p] || EMPTY;
+      const newColor = after[p] || EMPTY;
+      if (oldColor === newColor) continue;
+      changedPositions.add(p);
+      if (oldColor !== EMPTY) changes.push({p, color:oldColor, kind:'remove', started:now, duration});
+      if (newColor !== EMPTY) changes.push({p, color:newColor, kind:'place', started:now, duration});
+    }
+    if (!changes.length) return;
+    stoneAnimations = stoneAnimations.filter(a => !changedPositions.has(a.p));
+    stoneAnimations.push(...changes);
+    if (stoneAnimationFrame) cancelAnimationFrame(stoneAnimationFrame);
+    draw();
+    stoneAnimationFrame = requestAnimationFrame(renderStoneAnimations);
+  }
+
+  function renderStoneAnimations() {
+    const now = performance.now();
+    stoneAnimations = stoneAnimations.filter(a => now - a.started < a.duration);
+    draw();
+    if (stoneAnimations.length) {
+      stoneAnimationFrame = requestAnimationFrame(renderStoneAnimations);
+    } else {
+      stoneAnimationFrame = 0;
+    }
+  }
+
   function resize() {
     const w = $('wrap').clientWidth || 360;
     const dpr = window.devicePixelRatio || 1;
@@ -3140,8 +3211,8 @@
     return [[2, 2], [2, 6], [6, 2], [6, 6], [4, 4]];
   }
 
-  function stone(px, py, color, alpha = 1) {
-    const r = cell * 0.47;
+  function stone(px, py, color, alpha = 1, scale = 1) {
+    const r = cell * 0.47 * scale;
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.beginPath();
@@ -3191,9 +3262,22 @@
       ctx.arc(pad + sx * cell, pad + sy * cell, Math.max(2.5, cell * 0.09), 0, 7);
       ctx.fill();
     }
+    const now = performance.now();
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-      const v = board[idx(x, y)];
-      if (v) stone(pad + x * cell, pad + y * cell, v, dead.has(idx(x, y)) ? 0.35 : 1);
+      const p = idx(x, y), v = board[p];
+      if (!v) continue;
+      const isAnimatingIn = stoneAnimations.some(a => a.p === p && a.kind === 'place');
+      if (!isAnimatingIn) stone(pad + x * cell, pad + y * cell, v, dead.has(p) ? 0.35 : 1);
+    }
+    for (const animation of stoneAnimations) {
+      const progress = Math.max(0, Math.min(1, (now - animation.started) / animation.duration));
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const x = animation.p % N, y = (animation.p / N) | 0;
+      if (animation.kind === 'place') {
+        stone(pad + x * cell, pad + y * cell, animation.color, 0.35 + 0.65 * eased, 0.18 + 0.82 * eased);
+      } else {
+        stone(pad + x * cell, pad + y * cell, animation.color, 1 - eased, 1 - 0.78 * eased);
+      }
     }
     if (showOwnership && aiAnalysisResult && aiAnalysisResult.ownership &&
         aiAnalysisResult.key === analysisPositionKey()) {
