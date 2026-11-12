@@ -365,8 +365,6 @@
   #rulesScreen .rule-list li { margin:8px 0; }
   .top-tools { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
   .top-tools select { min-width:92px; }
-  #rankColorLabel { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:.9rem; }
-  #rankColorLabel select { min-width:100px; }
   @media (max-width:520px) {
     .top-tools { gap:5px; }
     .top-tools select, .top-tools button { padding:7px 8px; font-size:.86rem; }
@@ -472,9 +470,6 @@
       <h2 id="leaderboardTitle">排行榜 · 前 10 名</h2>
       <button id="refreshRanks">重新整理</button>
     </div>
-    <label id="rankColorLabel" style="margin:8px 0 12px">雙人模式記錄我的棋色
-      <select id="recordColor"><option value="1">黑方</option><option value="2">白方</option></select>
-    </label>
     <ol id="leaderboardList"><li class="leaderboard-empty">排行榜尚未設定。</li></ol>
   </div>
 </section>
@@ -530,7 +525,6 @@
     <button id="timerToggle" type="button">停止計時</button>
     <button id="gameLeaderboardBtn">等級排行榜</button>
     <select id="gameLang" aria-label="Language"><option value="zh">繁中</option><option value="en">EN</option></select>
-    <label id="gameRecordLabel" style="display:none;align-items:center;gap:5px;color:var(--muted);font-size:.85rem"><span id="gameRecordLabelText">記錄為</span><select id="gameRecordColor"><option value="1">黑方</option><option value="2">白方</option></select></label>
     <button id="headerAuth">Google 登入</button>
     <button id="menu" style="display:none">設定</button>
     <button id="new" class="primary">新遊戲</button>
@@ -546,9 +540,6 @@
         <button id="closeGameLeaderboard">關閉</button>
       </div>
     </div>
-    <label id="gameRankColorLabel" style="margin:8px 0 12px">雙人模式記錄我的棋色
-      <select id="gameRankRecordColor"><option value="1">黑方</option><option value="2">白方</option></select>
-    </label>
     <ol id="gameLeaderboardList"><li class="leaderboard-empty">排行榜尚未設定。</li></ol>
   </section>
 </div>
@@ -701,7 +692,7 @@
       authNotReady:"排行榜登入尚未設定。請先在 Firebase 建立專案並填入網站設定。",
       rankTitle:"排行榜 · 前 10 名", refresh:"重新整理", noRanks:"目前還沒有排名紀錄。",
       loadRanksFailed:"暫時無法載入排行榜。請稍後再試。",
-      rankColor:"雙人模式記錄我的棋色", black:"黑方", white:"白方",
+      black:"黑方", white:"白方",
       home:"首頁", gameLeaderboard:"排行榜", close:"關閉", timerLabel:"用時",
       timerStop:"停止計時",timerResume:"繼續計時",timerAnalysis:"AI 分析中（計時暫停）",
       levelRankTitle:"各等級最快勝局", rankLevel:"電腦等級", noLevelRanks:"這個等級尚無勝局紀錄。",
@@ -788,7 +779,7 @@
       authNotReady:"Google sign-in and rankings are not configured yet. Set up Firebase and add this site's web-app configuration.",
       rankTitle:"Leaderboard · Top 10",refresh:"Refresh",noRanks:"No ranked games yet.",
       loadRanksFailed:"The leaderboard is temporarily unavailable. Please try again.",
-      rankColor:"In two-player modes, record me as",black:"Black",white:"White",
+      black:"Black",white:"White",
       home:"Home", gameLeaderboard:"Leaderboard", close:"Close", timerLabel:"Time",
       timerStop:"Stop timer",timerResume:"Resume timer",timerAnalysis:"AI analysis (timer paused)",
       levelRankTitle:"Fastest wins by level", rankLevel:"Computer level", noLevelRanks:"No winning records for this level yet.",
@@ -945,16 +936,6 @@
       visitLabels.forEach((key,i) => { if ($('analysisVisits').options[i]) $('analysisVisits').options[i].text = say(key); });
     }
     $('welcomeSubtitle').textContent = say('welcomeSubtitle');
-    $('rankColorLabel').childNodes[0].textContent = say('rankColor') + ' ';
-    if ($('gameRankColorLabel')) $('gameRankColorLabel').childNodes[0].textContent = say('rankColor') + ' ';
-    $('recordColor').options[0].text = say('black');
-    $('recordColor').options[1].text = say('white');
-    if ($('gameRankRecordColor')) {
-      $('gameRankRecordColor').options[0].text = say('black');
-      $('gameRankRecordColor').options[1].text = say('white');
-    }
-    if ($('gameRecordColor')) { $('gameRecordColor').options[0].text=say('black'); $('gameRecordColor').options[1].text=say('white'); }
-    if ($('gameRecordLabelText')) $('gameRecordLabelText').textContent = language==='en'?'Record as':'記錄為';
     if ($('gameTimerLabel')) $('gameTimerLabel').textContent = say('timerLabel');
     const modeOpts = $('mode').options;
     [say('modeBot'),say('modeTwo'),say('modeFace')].forEach((v,i)=>modeOpts[i].text=v);
@@ -1573,8 +1554,6 @@
     $('level').style.display = $('color').style.display = mode === 'bot' ? '' : 'none';
     document.body.classList.toggle('face-on', mode === 'face');
     $('menu').style.display = mode === 'face' ? '' : 'none';
-    $('gameRecordLabel').style.display = mode === 'bot' ? 'none' : 'inline-flex';
-    if ($('gameRecordColor')) $('gameRecordColor').value = $('recordColor').value;
   }
 
   function init() {
@@ -2956,7 +2935,7 @@
     stopGameTimer();
     const durationMs = Math.round(elapsedGameMs());
     updateGameTimer();
-    const myColor = mode === 'bot' ? human : Number(($('gameRecordColor') ? $('gameRecordColor').value : $('recordColor').value) || B);
+    const myColor = mode === 'bot' ? human : B;
     const outcome = winner === 0 ? 'draw' : winner === myColor ? 'win' : 'loss';
     pendingResults.push({
       outcome, boardSize:N, mode, color:myColor, level:mode === 'bot' ? level : null, durationMs,
@@ -3087,7 +3066,6 @@
   function openGameLeaderboard() {
     clearTimeout(leaderboardCloseTimer);
     $('gameLeaderboardPanel').classList.remove('closing');
-    $('gameRankRecordColor').value = $('recordColor').value;
     $('gameLeaderboardPanel').classList.add('show');
     $('gameLeaderboardPanel').setAttribute('aria-hidden','false');
     refreshLeaderboard();
@@ -3579,18 +3557,6 @@
     }
   });
   $('refreshRanks').onclick = refreshLeaderboard;
-  $('recordColor').onchange = () => {
-    if ($('gameRecordColor')) $('gameRecordColor').value = $('recordColor').value;
-    if ($('gameRankRecordColor')) $('gameRankRecordColor').value = $('recordColor').value;
-  };
-  $('gameRecordColor').onchange = () => {
-    $('recordColor').value = $('gameRecordColor').value;
-    if ($('gameRankRecordColor')) $('gameRankRecordColor').value = $('recordColor').value;
-  };
-  $('gameRankRecordColor').onchange = () => {
-    $('recordColor').value = $('gameRankRecordColor').value;
-    if ($('gameRecordColor')) $('gameRecordColor').value = $('recordColor').value;
-  };
   $('new').onclick = init;
   $('analyzePositionBtn').onclick = analyzeCurrentPosition;
   $('analyzeFullGameBtn').onclick = analyzeFullGame;
