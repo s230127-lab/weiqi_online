@@ -284,6 +284,8 @@
   #gameLeaderboardPanel.closing .game-rank-card { animation:modal-card-close .16s ease-in both; }
   .guide-backdrop:not([hidden]) { animation:overlay-fade-in .22s ease-out both; }
   .guide-backdrop:not([hidden]) .guide-dialog { animation:guide-dialog-open .38s cubic-bezier(.2,.85,.25,1) both; }
+  .guide-backdrop.guide-closing { animation:overlay-fade-out .22s ease-in both; pointer-events:none; }
+  .guide-backdrop.guide-closing .guide-dialog { animation:modal-card-close .2s ease-in both; }
   .guide-dialog.guide-step-change #guideTitle,
   .guide-dialog.guide-step-change #guideText { animation:guide-step-swap .24s ease-out both; }
   .result.show { animation:result-reveal .28s ease-out both; }
@@ -323,6 +325,8 @@
     #gameLeaderboardPanel.closing .game-rank-card,
     .guide-backdrop:not([hidden]),
     .guide-backdrop:not([hidden]) .guide-dialog,
+    .guide-backdrop.guide-closing,
+    .guide-backdrop.guide-closing .guide-dialog,
     .guide-dialog.guide-step-change #guideTitle,
     .guide-dialog.guide-step-change #guideText,
     .result.show,
@@ -870,6 +874,7 @@
 
   const GUIDE_STORAGE_KEY = 'weiqi-first-play-guide-v1';
   let guideStep = 0;
+  let guideCloseTimer = 0;
   function hasCompletedGuide() {
     try { return localStorage.getItem(GUIDE_STORAGE_KEY) === 'done'; } catch (e) { return false; }
   }
@@ -893,15 +898,28 @@
     $('guideClose').setAttribute('aria-label', say('guideClose'));
   }
   function openGuide() {
+    clearTimeout(guideCloseTimer);
+    const guide = $('playGuide');
+    guide.classList.remove('guide-closing');
+    guide.hidden = false;
+    guide.setAttribute('aria-hidden','false');
     guideStep = 0;
     renderGuide();
-    $('playGuide').hidden = false;
     $('guideNext').focus();
   }
   function closeGuide() {
-    $('playGuide').hidden = true;
+    const guide = $('playGuide');
+    if (guide.hidden || guide.classList.contains('guide-closing')) return;
+    clearTimeout(guideCloseTimer);
+    guide.classList.add('guide-closing');
+    guide.setAttribute('aria-hidden','true');
     try { localStorage.setItem(GUIDE_STORAGE_KEY, 'done'); } catch (e) {}
     if ($('guideBtn')) $('guideBtn').focus();
+    guideCloseTimer = setTimeout(() => {
+      guide.hidden = true;
+      guide.classList.remove('guide-closing');
+      guideCloseTimer = 0;
+    }, reduceMotion() ? 0 : 230);
   }
   function applyLanguage(next, refresh = true) {
     language = next === 'en' ? 'en' : 'zh';
