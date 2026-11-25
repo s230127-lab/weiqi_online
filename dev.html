@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>圍棋 · Weiqi — 新版 UI 開發版</title>
+<style>
+  :root{
+    --bg:#f4f1ea; --panel:#ffffff; --panel2:#faf7ef; --ink:#20242b; --muted:#6f7566;
+    --line:#e4ded1; --accent:#2f6d5a; --accent-soft:#2f6d5a1a; --gold:#b8912f;
+    --danger:#b3392f; --shadow:0 10px 30px -18px rgba(30,40,30,.35); --radius:18px;
+    color-scheme:light;
+  }
+  [data-theme="dark"]{
+    --bg:#14171a; --panel:#1d2126; --panel2:#22272d; --ink:#e8e6df; --muted:#9aa39a;
+    --line:#31383f; --accent:#5fae93; --accent-soft:#5fae9322; --gold:#d4b04a;
+    --danger:#e06a5e; --shadow:0 12px 34px -18px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.65 system-ui,-apple-system,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    min-height:100vh;
+  }
+  h1,h2{font-family:"Noto Serif TC","Songti TC",PMingLiU,serif;margin:0}
+  button,select{font:inherit;color:var(--ink)}
+  .btn{
+    background:var(--panel2); border:1px solid var(--line); border-radius:999px;
+    padding:9px 18px; cursor:pointer; min-height:42px;
+    transition:transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover:not(:disabled){border-color:var(--accent); transform:translateY(-1px); box-shadow:var(--shadow)}
+  .btn:active:not(:disabled){transform:scale(.97)}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn.primary{background:var(--accent);color:#fff;border-color:transparent}
+  .btn.primary:hover:not(:disabled){filter:brightness(1.06)}
+  .btn.small{min-height:36px;padding:6px 14px;font-size:.9rem}
+  .btn.danger:hover:not(:disabled){border-color:var(--danger);color:var(--danger)}
+  .btn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+  select{
+    background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:9px 12px;min-height:42px;cursor:pointer;
+  }
+  header{
+    position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;
+    gap:12px;padding:12px clamp(14px,4vw,28px);
+    background:color-mix(in srgb,var(--bg) 80%,transparent);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .brand-mark{
+    width:44px;height:44px;flex:none;border-radius:13px;background:var(--accent);color:#fff;
+    display:grid;place-items:center;font-size:23px;font-family:"Noto Serif TC",serif;
+    box-shadow:inset 0 -3px 0 rgba(0,0,0,.18);
+  }
+  .brand h1{font-size:1.25rem;letter-spacing:.06em;white-space:nowrap}
+  .brand .tagline{margin:0;color:var(--muted);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badge{
+    flex:none;font-size:.7rem;font-weight:700;letter-spacing:.12em;color:var(--gold);
+    border:1px solid var(--gold);border-radius:999px;padding:2px 10px;transform:translateY(-6px);
+  }
+  .header-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  header select{min-height:38px;padding:6px 10px;border-radius:999px}
+  main{max-width:1160px;margin:0 auto;padding:22px clamp(14px,4vw,28px) 64px;display:flex;flex-direction:column;gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:clamp(16px,3vw,26px)}
+  [hidden]{display:none !important}
+  /* ---- setup ---- */
+  #setupView{max-width:560px;width:100%;margin:6vh auto 0;text-align:center}
+  #setupView h2{font-size:1.7rem;letter-spacing:.08em;margin-bottom:4px}
+  #setupView .sub{color:var(--muted);margin:0 0 22px}
+  .setup-rows{display:flex;flex-direction:column;gap:12px;text-align:left;margin-bottom:20px}
+  .row{display:flex;align-items:center;gap:12px}
+  .row label{flex:none;width:88px;color:var(--muted);font-size:.9rem}
+  .row select{flex:1}
+  #komiNote{color:var(--muted);font-size:.82rem;margin:14px 0 0}
+  .setup-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  /* ---- game ---- */
+  .game-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+  @media(max-width:940px){.game-grid{grid-template-columns:1fr}}
+  .board-card{padding:14px}
+  #boardWrap{width:100%}
+  #board{
+    width:100%;display:block;border-radius:12px;touch-action:manipulation;
+    box-shadow:0 4px 0 rgba(60,40,10,.12),0 18px 40px -20px rgba(50,35,10,.5);
+  }
+  .players{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-bottom:14px}
+  .chip{
+    display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:12px;
+    border:1px solid transparent;transition:border-color .2s,background .2s;
+  }
+  .chip.right{justify-content:flex-end;text-align:right;flex-direction:row-reverse}
+  .chip.active{border-color:var(--accent);background:var(--accent-soft)}
+  .chip b{display:block;font-size:.95rem;line-height:1.2}
+  .chip span{display:block;color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums}
+  .dot{width:17px;height:17px;flex:none;border-radius:50%}
+  .dot.b{background:radial-gradient(circle at 35% 30%,#5a5a5a,#0c0c0c 70%)}
+  .dot.w{background:radial-gradient(circle at 35% 30%,#fff,#cfcdc4 80%);border:1px solid #aaa79b}
+  .chip.active .dot{animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+  #msg{text-align:center;color:var(--muted);font-size:.92rem;min-width:110px}
+  #msg.busy{color:var(--ink);font-weight:600}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .controls .btn{flex:1 1 auto}
+  .side-card h3{margin:0 0 8px;font-size:.95rem;color:var(--muted);font-weight:600;letter-spacing:.04em}
+  .side-card .meta-row{display:flex;justify-content:space-between;color:var(--muted);font-size:.85rem;margin-bottom:14px;font-variant-numeric:tabular-nums}
+  #history{list-style:none;margin:0;padding:0;max-height:250px;overflow:auto;border-top:1px solid var(--line)}
+  #history li{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--line);font-size:.86rem;font-variant-numeric:tabular-nums;animation:item-in .22s ease-out both}
+  @keyframes item-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .h-num{color:var(--muted);min-width:30px}
+  .h-dot{width:11px;height:11px;border-radius:50%;flex:none}
+  .h-dot.b{background:radial-gradient(circle at 35% 30%,#5a5a5a,#0c0c0c 70%)}
+  .h-dot.w{background:radial-gradient(circle at 35% 30%,#fff,#cfcdc4 80%);border:1px solid #aaa79b}
+  .hist-empty{color:var(--muted);font-size:.85rem;padding:10px 4px}
+  /* ---- end ---- */
+  #endView{max-width:620px;width:100%;margin:4vh auto 0}
+  #endView h2{font-size:1.6rem;letter-spacing:.06em}
+  #endDetail{color:var(--muted);margin:8px 0 20px}
+  .bar-row{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;margin:10px 0}
+  .bar-row .name{font-size:.88rem;color:var(--muted);min-width:130px}
+  .bar{height:22px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:999px;width:0;transition:width .9s cubic-bezier(.2,.8,.25,1)}
+  #barB i,#barB{background:linear-gradient(90deg,#3a3a3a,#111)}
+  #barB{background:var(--panel2)}
+  #barB i{background:linear-gradient(90deg,#444,#111)}
+  #barW i{background:linear-gradient(90deg,#e7e3d8,#c9c4b4)}
+  #barW i,#barB i{display:block}
+  .end-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+  /* ---- dialog ---- */
+  dialog{
+    border:1px solid var(--line);border-radius:var(--radius);padding:clamp(18px,4vw,28px);
+    background:var(--panel);color:var(--ink);max-width:520px;width:calc(100% - 36px);
+    box-shadow:0 24px 60px rgba(0,0,0,.35);
+  }
+  dialog::backdrop{background:rgba(10,12,10,.55);backdrop-filter:blur(3px)}
+  dialog h2{margin:0 0 6px;font-size:1.3rem}
+  dialog .sub{color:var(--muted);font-size:.9rem;margin:0 0 14px}
+  dialog ol{margin:0;padding-left:1.4rem;line-height:1.8}
+  dialog ol li{margin:7px 0}
+  dialog .dlg-actions{margin-top:18px;text-align:right}
+  footer{text-align:center;color:var(--muted);font-size:.78rem;padding:0 20px 30px;line-height:1.7}
+  @media(max-width:560px){
+    .brand h1{font-size:1.05rem}
+    .brand .tagline{display:none}
+    .badge{transform:none}
+    .row{flex-wrap:wrap}
+    .row label{width:100%}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none !important;transition:none !important}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">弈</div>
+    <div>
+      <h1>圍棋 Weiqi</h1>
+      <p class="tagline" id="tagline"></p>
+    </div>
+    <span class="badge" id="devBadge">DEV</span>
+  </div>
+  <div class="header-tools">
+    <select id="langSel" aria-label="Language"><option value="zh">繁中</option><option value="en">EN</option></select>
+    <button class="btn small" id="themeBtn" aria-label="theme">◐</button>
+    <button class="btn small" id="homeBtn"></button>
+    <button class="btn small primary" id="newBtn"></button>
+  </div>
+</header>
+
+<main>
+  <!-- setup -->
+  <section id="setupView" class="card">
+    <h2 id="setupTitle">對局設定</h2>
+    <p class="sub" id="setupSub"></p>
+    <div class="setup-rows">
+      <div class="row"><label id="modeLabel" for="mode"></label>
+        <select id="mode"></select></div>
+      <div class="row" id="levelRow"><label id="levelLabel" for="level"></label>
+        <select id="level"></select></div>
+      <div class="row" id="colorRow"><label id="colorLabel" for="color"></label>
+        <select id="color"></select></div>
+      <div class="row"><label id="sizeLabel" for="size"></label>
+        <select id="size"></select></div>
+    </div>
+    <div class="setup-actions">
+      <button class="btn" id="rulesBtn"></button>
+      <button class="btn primary" id="startBtn"></button>
+    </div>
+    <p id="komiNote"></p>
+  </section>
+
+  <!-- game -->
+  <section id="gameView" hidden>
+    <div class="game-grid">
+      <div class="card board-card">
+        <div class="players">
+          <div class="chip" id="chipB"><i class="dot b"></i><div><b id="blackName"></b><span id="capB"></span></div></div>
+          <div id="msg"></div>
+          <div class="chip right" id="chipW"><i class="dot w"></i><div><b id="whiteName"></b><span id="capW"></span></div></div>
+        </div>
+        <div id="boardWrap"><canvas id="board" aria-label="Go board"></canvas></div>
+        <div class="controls">
+          <button class="btn" id="undo"></button>
+          <button class="btn" id="pass"></button>
+          <button class="btn danger" id="resign"></button>
+          <button class="btn" id="autoMark" hidden></button>
+          <button class="btn primary" id="count" hidden></button>
+        </div>
+      </div>
+      <div class="card side-card">
+        <div class="meta-row"><span id="timerLabel"></span><strong id="timer">00:00</strong></div>
+        <h3 id="historyTitle"></h3>
+        <ol id="history"></ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- end -->
+  <section id="endView" class="card" hidden>
+    <h2 id="endTitle"></h2>
+    <p id="endDetail"></p>
+    <div id="endBars">
+      <div class="bar-row"><span class="name" id="metaB"></span><div class="bar" id="barB"><i></i></div></div>
+      <div class="bar-row"><span class="name" id="metaW"></span><div class="bar" id="barW"><i></i></div></div>
+    </div>
+    <div class="end-actions">
+      <button class="btn" id="viewBoardBtn"></button>
+      <button class="btn" id="homeBtn2"></button>
+      <button class="btn primary" id="againBtn"></button>
+    </div>
+  </section>
+</main>
+
+<dialog id="rulesDlg">
+  <h2 id="rulesTitle"></h2>
+  <p class="sub" id="rulesIntro"></p>
+  <ol id="rulesList"></ol>
+  <div class="dlg-actions"><button class="btn primary" id="rulesClose"></button></div>
+</dialog>
+
+<footer id="devNote"></footer>
+
+<script>
+(() => {
+  'use strict';
+  const EMPTY = 0, B = 1, W = 2;
+  const el = id => document.getElementById(id);
+  const cv = el('board'), g = cv.getContext('2d');
+
+  /* ============ i18n ============ */
+  const I18N = {
+    zh: {
+      tagline:'與電腦或朋友對弈 · 全新介面', devBadge:'開發版',
+      setupTitle:'對局設定', setupSub:'選擇模式與棋盤，即刻開始。',
+      mode:'模式', modeBot:'人機對弈', modeTwo:'雙人對弈',
+      level:'電腦棋力', level1:'Lv 1 · 入門（隨機）', level2:'Lv 2 · 戰術', level3:'Lv 3 · 蒙地卡羅',
+      color:'執子', youBlack:'你執黑（先行）', youWhite:'你執白',
+      size:'棋盤', size9:'9 路', size13:'13 路', size19:'19 路',
+      start:'開始對弈', rules:'規則', close:'關閉', home:'設定', newGame:'新遊戲',
+      undo:'悔棋', pass:'虛手', resign:'認輸', confirmResign:'再按一次確認認輸',
+      markHint:'點選死子標記，再按「數子」', autoMark:'自動標記死子', count:'數子',
+      black:'黑方', white:'白方', you:'你', ai:'電腦', captures:'提子 ',
+      blackTurn:'輪到黑方', whiteTurn:'輪到白方', opponentPassed:'（對手虛手）',
+      aiThinking:'電腦思考中…', gameOver:'對局結束',
+      illegalSuicide:'不可下：禁著點（自殺手）', illegalSuperko:'不可下：違反全局同形',
+      analyzing:'分析死子中…', historyTitle:'棋譜', historyEmpty:'尚無著手', passMove:'虛手',
+      timer:'用時',
+      rulesTitle:'圍棋規則', rulesIntro:'開局前請花一分鐘了解基本規則。',
+      rules:[
+        '黑先白後，輪流在交叉點落子；無氣的棋塊會被提走。下子後立即無氣又不能提子的點是禁著點。',
+        '禁止全局同形：不可重現任何曾出現的局面（打劫亦屬此類）。',
+        '雙方連續虛手即終局：標記死子後數子，採中國規則數子法（活子加圍空）。',
+        '貼目：9 路貼 7 目，13 與 19 路貼 7.5 目。'
+      ],
+      endTitle:'對局結果', endDraw:'和棋',
+      winBy:'{side}勝 {n} 目', resignWin:'{winner}獲勝（{loser}認輸）',
+      areaLine:'黑方 {b} 目 · 白方 {w} 目（含貼目 {k} 目）',
+      areaBlack:'黑方實地', areaWhite:'白方實地＋貼目',
+      viewBoard:'查看棋盤', playAgain:'再來一局', backHome:'返回設定',
+      komiNote:'中國規則 · 9 路貼 7 目，13 / 19 路貼 7.5 目',
+      devNote:'dev.html 為新版介面開發原型；正式版 index.html 保持不變。回報意見後可於每週更新時併入正式版。',
+      theme:'切換深淺色'
+    },
+    en: {
+      tagline:'Play vs computer or a friend · renewed UI', devBadge:'DEV',
+      setupTitle:'New game', setupSub:'Pick a mode and a board, and start right away.',
+      mode:'Mode', modeBot:'Play vs computer', modeTwo:'Two players',
+      level:'Computer level', level1:'Lv 1 · Beginner (random)', level2:'Lv 2 · Tactical', level3:'Lv 3 · Monte Carlo',
+      color:'Your colour', youBlack:'You play Black (first)', youWhite:'You play White',
+      size:'Board', size9:'9×9', size13:'13×13', size19:'19×19',
+      start:'Start playing', rules:'Rules', close:'Close', home:'Settings', newGame:'New game',
+      undo:'Undo', pass:'Pass', resign:'Resign', confirmResign:'Press again to confirm',
+      markHint:'Tap dead groups to mark them, then press Count', autoMark:'Auto-mark dead stones', count:'Count',
+      black:'Black', white:'White', you:'You', ai:'Computer', captures:'Captures: ',
+      blackTurn:'Black to play', whiteTurn:'White to play', opponentPassed:' (opponent passed)',
+      aiThinking:'Computer thinking…', gameOver:'Game over',
+      illegalSuicide:'Illegal: suicide point', illegalSuperko:'Illegal: repeated position',
+      analyzing:'Analyzing dead stones…', historyTitle:'Move list', historyEmpty:'No moves yet', passMove:'Pass',
+      timer:'Time',
+      rulesTitle:'Rules of Go', rulesIntro:'A one-minute summary before you play.',
+      rules:[
+        'Black plays first, then players alternate on the intersections. Groups with no liberties are captured. A point that is instantly self-capture is forbidden.',
+        'Positional superko: a move may not recreate any earlier board position, including ko.',
+        'Two consecutive passes end the game. Mark dead groups, then count by Chinese area scoring (stones plus surrounded points).',
+        'Komi: 7 points on 9×9, 7.5 on 13×13 and 19×19.'
+      ],
+      endTitle:'Game result', endDraw:'Draw',
+      winBy:'{side} wins by {n} points', resignWin:'{winner} wins ({loser} resigned)',
+      areaLine:'Black {b} · White {w} (incl. komi {k})',
+      areaBlack:'Black area', areaWhite:'White area + komi',
+      viewBoard:'View board', playAgain:'Play again', backHome:'Back to settings',
+      komiNote:'Chinese rules · komi 7 on 9×9, 7.5 on 13×13 / 19×19',
+      devNote:'dev.html is the renewed-UI prototype; production index.html is unchanged. Feedback will be folded into the weekly update.',
+      theme:'Toggle theme'
+    }
+  };
+  let language = 'zh';
+  function say(key){
+    const d = I18N[language] || I18N.zh;
+    const v = d[key];
+    return v == null ? String(key) : v;
+  }
+  function fmt(key, vals){
+    let s = say(key);
+    const o = vals || {};
+    for (const k in o) s = s.split('{' + k + '}').join(String(o[k]));
+    return s;
+  }
+
+  /* ============ core rules ============ */
+  let N = 9, board = [], turn = B, caps = {1:0, 2:0}, prevBoard = null, lastMove = null;
+  let passes = 0, phase = 'play', dead = new Set(), history = [];
+  let seenList = [], seenSet = new Set(), moveLog = [];
+  let mode = 'bot', level = 2, human = B, busy = false, token = 0;
+  let gameStartedAt = 0, gameEndedAt = null, endData = null;
+
+  const opp = c => (c === B ? W : B);
+  const idx = (x, y) => y * N + x;
+  const komi = () => (N === 9 ? 7 : 7.5);
+  function nbrs(x, y){
+    const r = [];
+    if (x > 0) r.push([x - 1, y]);
+    if (x < N - 1) r.push([x + 1, y]);
+    if (y > 0) r.push([x, y - 1]);
+    if (y < N - 1) r.push([x, y + 1]);
+    return r;
+  }
+  function group(b, x, y){
+    const color = b[idx(x, y)];
+    const seen = new Set([idx(x, y)]);
+    const stack = [[x, y]];
+    const libs = new Set();
+    const stones = [];
+    while (stack.length){
+      const [cx, cy] = stack.pop();
+      stones.push([cx, cy]);
+      for (const [nx, ny] of nbrs(cx, cy)){
+        const v = b[idx(nx, ny)];
+        if (v === EMPTY) libs.add(idx(nx, ny));
+        else if (v === color && !seen.has(idx(nx, ny))){ seen.add(idx(nx, ny)); stack.push([nx, ny]); }
+      }
+    }
+    return { stones, libs: libs.size };
+  }
+  function tryMove(b, x, y, color){
+    if (b[idx(x, y)] !== EMPTY) return null;
+    const nb = b.slice();
+    nb[idx(x, y)] = color;
+    let captured = 0;
+    for (const [nx, ny] of nbrs(x, y)){
+      if (nb[idx(nx, ny)] === opp(color)){
+        const gr = group(nb, nx, ny);
+        if (gr.libs === 0){
+          for (const [sx, sy] of gr.stones) nb[idx(sx, sy)] = EMPTY;
+          captured += gr.stones.length;
+        }
+      }
+    }
+    if (group(nb, x, y).libs === 0) return null;
+    return { board: nb, captured };
+  }
+  const posKey = b => b.join('');
+  const addSeen = k => { seenList.push(k); seenSet.add(k); };
+
+  /* ============ fast engine for playouts ============ */
+  let NB = [], DG = [], stamp, stampV = 0, stk, grp, grpLen = 0, koPt = -1;
+  function fastInit(n){
+    NB = []; DG = [];
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++){
+      const nb = [], dg = [];
+      if (x > 0) nb.push(y * n + x - 1);
+      if (x < n - 1) nb.push(y * n + x + 1);
+      if (y > 0) nb.push((y - 1) * n + x);
+      if (y < n - 1) nb.push((y + 1) * n + x);
+      for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]){
+        const ax = x + dx, ay = y + dy;
+        if (ax >= 0 && ay >= 0 && ax < n && ay < n) dg.push(ay * n + ax);
+      }
+      NB[y * n + x] = nb; DG[y * n + x] = dg;
+    }
+    stamp = new Int32Array(n * n); stampV = 0;
+    stk = new Int32Array(n * n + 4);
+    grp = new Int32Array(n * n + 4);
+  }
+  function floodGroup(b, p){
+    const color = b[p];
+    stampV++;
+    let sp = 0, libs = 0;
+    grpLen = 0;
+    stk[sp++] = p; stamp[p] = stampV;
+    while (sp){
+      const q = stk[--sp];
+      grp[grpLen++] = q;
+      const nb = NB[q];
+      for (let i = 0; i < nb.length; i++){
+        const r = nb[i];
+        if (stamp[r] === stampV) continue;
+        const v = b[r];
+        if (v === 0){ stamp[r] = stampV; libs++; }
+        else if (v === color){ stamp[r] = stampV; stk[sp++] = r; }
+      }
+    }
+    return libs;
+  }
+  function fastMove(b, p, c){
+    if (b[p] !== 0 || p === koPt) return -1;
+    const o = 3 - c;
+    b[p] = c;
+    let cap = 0, capPos = -1;
+    const nb = NB[p];
+    for (let i = 0; i < nb.length; i++){
+      const r = nb[i];
+      if (b[r] === o && floodGroup(b, r) === 0){
+        if (grpLen === 1) capPos = r;
+        cap += grpLen;
+        for (let k = 0; k < grpLen; k++) b[grp[k]] = 0;
+      }
+    }
+    const libs = floodGroup(b, p);
+    if (libs === 0){ b[p] = 0; return -1; }
+    koPt = (cap === 1 && grpLen === 1 && libs === 1) ? capPos : -1;
+    return cap;
+  }
+  function fastEye(b, p, c){
+    const nb = NB[p];
+    for (let i = 0; i < nb.length; i++) if (b[nb[i]] !== c) return false;
+    const dg = DG[p];
+    let bad = 0;
+    for (let i = 0; i < dg.length; i++) if (b[dg[i]] === 3 - c) bad++;
+    return nb.length < 4 ? bad === 0 : bad <= 1;
+  }
+  function playout(b, toPlay, maxM){
+    const M = b.length;
+    let passesIn = 0, c = toPlay;
+    koPt = -1;
+    for (let m = 0; m < maxM && passesIn < 2; m++){
+      let moved = false;
+      for (let t = 0; t < 24 && !moved; t++){
+        const p = (Math.random() * M) | 0;
+        if (b[p] === 0 && !fastEye(b, p, c) && fastMove(b, p, c) >= 0) moved = true;
+      }
+      if (!moved){
+        const s = (Math.random() * M) | 0;
+        for (let k = 0; k < M; k++){
+          const p = (s + k) % M;
+          if (b[p] === 0 && !fastEye(b, p, c) && fastMove(b, p, c) >= 0){ moved = true; break; }
+        }
+      }
+      if (moved) passesIn = 0; else { passesIn++; koPt = -1; }
+      c = 3 - c;
+    }
+  }
+  function scoreFast(b, own){
+    let s = 0;
+    const M = b.length;
+    stampV++;
+    for (let p = 0; p < M; p++){
+      const v = b[p];
+      if (v === 1){ s++; if (own) own[p] = 1; }
+      else if (v === 2){ s--; if (own) own[p] = 2; }
+      else if (stamp[p] !== stampV){
+        let sp = 0, size = 0, tB = false, tW = false;
+        stk[sp++] = p; stamp[p] = stampV;
+        const region = [];
+        while (sp){
+          const q = stk[--sp];
+          size++; region.push(q);
+          const nb = NB[q];
+          for (let i = 0; i < nb.length; i++){
+            const r = nb[i], nv = b[r];
+            if (nv === 0){ if (stamp[r] !== stampV){ stamp[r] = stampV; stk[sp++] = r; } }
+            else if (nv === 1) tB = true; else tW = true;
+          }
+        }
+        const o = tB && !tW ? 1 : tW && !tB ? 2 : 0;
+        if (o === 1) s += size; else if (o === 2) s -= size;
+        if (own) for (const q of region) own[q] = o;
+      }
+    }
+    return s;
+  }
+
+  /* ============ bot ============ */
+  function ownEye(x, y, c){
+    const ns = nbrs(x, y);
+    for (const [nx, ny] of ns) if (board[idx(nx, ny)] !== c) return false;
+    let bad = 0;
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]){
+      const ax = x + dx, ay = y + dy;
+      if (ax < 0 || ay < 0 || ax >= N || ay >= N) continue;
+      if (board[idx(ax, ay)] === opp(c)) bad++;
+    }
+    return ns.length < 4 ? bad === 0 : bad <= 1;
+  }
+  function genCands(color){
+    const list = [];
+    if (!board.some(v => v)){
+      const m = N === 9 ? 2 : 3;
+      const pts = [[m, m], [N - 1 - m, m], [m, N - 1 - m], [N - 1 - m, N - 1 - m]];
+      const [x, y] = pts[(Math.random() * 4) | 0];
+      const r = tryMove(board, x, y, color);
+      return [{ x, y, s: 5, board: r.board }];
+    }
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
+      if (board[idx(x, y)] !== EMPTY) continue;
+      const r = tryMove(board, x, y, color);
+      if (!r) continue;
+      if (seenSet.has(posKey(r.board))) continue;
+      if (ownEye(x, y, color)) continue;
+      let s = r.captured * 10;
+      const seenG = new Set();
+      for (const [nx, ny] of nbrs(x, y)){
+        const v = board[idx(nx, ny)];
+        if (v === EMPTY) continue;
+        const gr = group(board, nx, ny);
+        const k = Math.min.apply(null, gr.stones.map(([sx, sy]) => idx(sx, sy)));
+        if (seenG.has(k)) continue;
+        seenG.add(k);
+        if (v === opp(color)){
+          if (gr.libs === 2) s += 2 + Math.min(gr.stones.length, 5) * 0.6;
+          else if (gr.libs === 3) s += 0.3;
+        } else if (gr.libs === 1){
+          const after = group(r.board, x, y).libs;
+          if (after >= 2) s += 5 + gr.stones.length; else s -= 2;
+        }
+      }
+      const ga = group(r.board, x, y);
+      if (ga.libs === 1 && r.captured === 0) s -= 6 + ga.stones.length;
+      const d = Math.min(x, y, N - 1 - x, N - 1 - y);
+      s += [-4, -1.2, 1.5, 1.5][Math.min(d, 3)] + (d >= 4 ? 0.3 : 0);
+      if (lastMove && Math.abs(lastMove[0] - x) <= 2 && Math.abs(lastMove[1] - y) <= 2) s += 1.5;
+      list.push({ x, y, s, board: r.board });
+    }
+    return list;
+  }
+  function botAhead(color){
+    const d = scoreFast(Uint8Array.from(board), null) - komi();
+    return color === B ? d > 0 : d < 0;
+  }
+  function runMC(color, cands, budget, tok, cb){
+    const K = cands.length;
+    const n = new Float64Array(K), w = new Float64Array(K);
+    const base = cands.map(c => Uint8Array.from(c.board));
+    const work = new Uint8Array(N * N);
+    const maxM = N * N + 80, kom = komi();
+    let total = 0;
+    const deadline = performance.now() + budget;
+    (function step(){
+      if (tok !== token) return;
+      const t0 = performance.now();
+      while (performance.now() - t0 < 30){
+        let bi = 0, bv = -1;
+        for (let i = 0; i < K; i++){
+          const v = n[i] === 0 ? 1e9 : w[i] / n[i] + 0.45 * Math.sqrt(Math.log(total + 1) / n[i]);
+          if (v > bv){ bv = v; bi = i; }
+        }
+        work.set(base[bi]);
+        playout(work, 3 - color, maxM);
+        const d = scoreFast(work, null) - kom;
+        const win = color === B ? d > 0 : d < 0;
+        n[bi]++; if (win) w[bi]++; total++;
+      }
+      if (performance.now() < deadline) setTimeout(step, 0); else cb(n, w);
+    })();
+  }
+  function maybeBot(){
+    if (mode !== 'bot' || phase !== 'play' || turn === human || busy) return;
+    busy = true;
+    render();
+    const tok = token;
+    setTimeout(() => { if (tok === token) botTurn(tok); }, 250);
+  }
+  function botTurn(tok){
+    const color = opp(human);
+    const cands = genCands(color);
+    if (!cands.length || (passes === 1 && botAhead(color))) return finishBot(tok, null);
+    cands.sort((a, b) => b.s - a.s);
+    if (level === 1) return finishBot(tok, cands[(Math.random() * cands.length) | 0]);
+    if (cands[0].s < -3 && board.filter(v => v).length > N * N * 0.25) return finishBot(tok, null);
+    if (level === 2){
+      let best = null, bs = -1e9;
+      for (const c of cands){
+        const v = c.s + Math.random() * 5;
+        if (v > bs){ bs = v; best = c; }
+      }
+      return finishBot(tok, best);
+    }
+    const top = cands.slice(0, 14);
+    runMC(color, top, 900, tok, (n, w) => {
+      let maxN = 0;
+      for (const v of n) maxN = Math.max(maxN, v);
+      let best = top[0], bs = -1e9;
+      top.forEach((c, i) => {
+        if (n[i] < maxN * 0.3) return;
+        const v = w[i] / Math.max(n[i], 1) + 0.008 * c.s;
+        if (v > bs){ bs = v; best = c; }
+      });
+      finishBot(tok, best);
+    });
+  }
+  function finishBot(tok, mv){
+    if (tok !== token) return;
+    busy = false;
+    if (mv) play(mv.x, mv.y); else pass();
+  }
+
+  /* ============ game flow ============ */
+  function snapshot(){
+    history.push({
+      board: board.slice(), prevBoard: prevBoard && prevBoard.slice(), turn,
+      caps: { 1: caps[1], 2: caps[2] }, lastMove, passes, seenLen: seenList.length, movesLen: moveLog.length
+    });
+  }
+  function play(x, y){
+    const r = tryMove(board, x, y, turn);
+    if (!r) return flash(say('illegalSuicide'));
+    const key = posKey(r.board);
+    if (seenSet.has(key)) return flash(say('illegalSuperko'));
+    snapshot();
+    prevBoard = board;
+    const before = board;
+    board = r.board;
+    addSeen(key);
+    caps[turn] += r.captured;
+    lastMove = [x, y];
+    passes = 0;
+    moveLog.push({ c: turn, p: y * N + x });
+    turn = opp(turn);
+    startAnim(before, board);
+    render();
+    maybeBot();
+  }
+  function pass(){
+    if (phase !== 'play') return;
+    snapshot();
+    prevBoard = board;
+    passes++;
+    lastMove = null;
+    moveLog.push({ c: turn, p: -1 });
+    if (passes >= 2){
+      phase = 'mark';
+      dead = new Set();
+    } else {
+      turn = opp(turn);
+    }
+    render();
+    maybeBot();
+  }
+  function undo(){
+    if (busy || !history.length) return;
+    token++; busy = false;
+    placeAnims = []; removeAnims = [];
+    do {
+      const h = history.pop();
+      board = h.board; prevBoard = h.prevBoard; turn = h.turn;
+      caps = { 1: h.caps[1], 2: h.caps[2] }; lastMove = h.lastMove; passes = h.passes;
+      while (seenList.length > h.seenLen) seenSet.delete(seenList.pop());
+      moveLog.length = h.movesLen;
+    } while (mode === 'bot' && turn !== human && history.length);
+    phase = 'play';
+    dead = new Set();
+    hideEnd();
+    render();
+    maybeBot();
+  }
+  function resign(loser){
+    if (phase === 'done' || busy) return;
+    token++; busy = false;
+    phase = 'done';
+    gameEndedAt = performance.now();
+    endData = { type: 'resign', winner: opp(loser), loser: loser };
+    showEnd();
+    render();
+  }
+  function toggleDead(x, y){
+    if (phase !== 'mark' || busy || board[idx(x, y)] === EMPTY) return;
+    const gr = group(board, x, y);
+    const isDead = dead.has(idx(x, y));
+    for (const [sx, sy] of gr.stones){
+      if (isDead) dead.delete(idx(sx, sy)); else dead.add(idx(sx, sy));
+    }
+    render();
+  }
+  function autoMark(){
+    if (phase !== 'mark' || busy) return;
+    busy = true;
+    render();
+    const tok = token;
+    setTimeout(() => {
+      if (tok !== token) return;
+      const M = N * N;
+      const cntW = new Float64Array(M);
+      const own = new Uint8Array(M), work = new Uint8Array(M), base = Uint8Array.from(board);
+      const t0 = performance.now();
+      let K = 0;
+      while (K < 300 && performance.now() - t0 < 1200){
+        work.set(base);
+        playout(work, B, M + 80);
+        scoreFast(work, own);
+        for (let p = 0; p < M; p++) if (own[p] === 2) cntW[p]++;
+        K++;
+      }
+      dead = new Set();
+      const seenG = new Set();
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
+        const p = idx(x, y), c = board[p];
+        if (!c || seenG.has(p)) continue;
+        const gr = group(board, x, y);
+        let against = 0;
+        for (const [sx, sy] of gr.stones){ seenG.add(idx(sx, sy)); against += cntW[idx(sx, sy)]; }
+        if (against / (K * gr.stones.length) > 0.65)
+          for (const [sx, sy] of gr.stones) dead.add(idx(sx, sy));
+      }
+      busy = false;
+      render();
+    }, 30);
+  }
+  function countScore(){
+    if (phase !== 'mark' || busy) return;
+    const b = Uint8Array.from(board);
+    dead.forEach(i => { b[i] = EMPTY; });
+    const own = new Uint8Array(N * N);
+    scoreFast(b, own);
+    let sB = 0, sW = 0;
+    for (let p = 0; p < N * N; p++){ if (own[p] === 1) sB++; else if (own[p] === 2) sW++; }
+    const k = komi();
+    const diff = sB - sW - k;
+    phase = 'done';
+    gameEndedAt = performance.now();
+    endData = { type: 'score', sB: sB, sW: sW, komi: k, winner: diff > 0 ? B : diff < 0 ? W : 0, margin: Math.abs(diff) };
+    showEnd();
+    render();
+  }
+  function init(){
+    token++; busy = false;
+    mode = el('mode').value;
+    level = +el('level').value;
+    human = +el('color').value;
+    N = +el('size').value;
+    fastInit(N);
+    board = new Array(N * N).fill(EMPTY);
+    prevBoard = null;
+    seenList = []; seenSet = new Set(); moveLog = [];
+    addSeen(posKey(board));
+    turn = B;
+    caps = { 1: 0, 2: 0 };
+    lastMove = null;
+    passes = 0;
+    phase = 'play';
+    dead = new Set();
+    history = [];
+    endData = null;
+    placeAnims = []; removeAnims = [];
+    hover = null;
+    gameStartedAt = performance.now();
+    gameEndedAt = null;
+    hideEnd();
+    showGame();
+    resizeBoard();
+    render();
+    maybeBot();
+  }
+
+  /* ============ views ============ */
+  function showSetup(){
+    el('setupView').hidden = false;
+    el('gameView').hidden = true;
+    hideEnd();
+  }
+  function showGame(){
+    el('setupView').hidden = true;
+    el('gameView').hidden = false;
+    hideEnd();
+  }
+  function hideEnd(){ el('endView').hidden = true; }
+  function showEnd(){
+    const d = endData;
+    if (!d) return;
+    el('setupView').hidden = true;
+    el('gameView').hidden = true;
+    el('endView').hidden = false;
+    const sideName = w => say(w === B ? 'black' : 'white');
+    if (d.type === 'score'){
+      el('endTitle').textContent = d.winner === 0 ? say('endDraw')
+        : fmt('winBy', { side: sideName(d.winner), n: d.margin });
+      el('endDetail').textContent = fmt('areaLine', { b: d.sB, w: d.sW, k: d.komi });
+      el('endBars').hidden = false;
+      const total = d.sB + d.sW + d.komi;
+      el('metaB').textContent = say('areaBlack') + ' · ' + d.sB;
+      el('metaW').textContent = say('areaWhite') + ' · ' + (d.sW + d.komi);
+      const bars = el('endBars').querySelectorAll('.bar i');
+      bars[0].style.width = (d.sB / total * 100).toFixed(1) + '%';
+      bars[1].style.width = ((d.sW + d.komi) / total * 100).toFixed(1) + '%';
+    } else {
+      el('endTitle').textContent = fmt('resignWin', { winner: sideName(d.winner), loser: sideName(d.loser) });
+      el('endDetail').textContent = say('gameOver');
+      el('endBars').hidden = true;
+    }
+  }
+
+  /* ============ timer ============ */
+  function elapsedMs(){
+    if (!gameStartedAt) return 0;
+    const end = gameEndedAt == null ? performance.now() : gameEndedAt;
+    return Math.max(0, end - gameStartedAt);
+  }
+  function fmtTime(ms){
+    const t = Math.floor(ms / 1000);
+    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+    const mm = String(m).padStart(2, '0'), ss = String(s).padStart(2, '0');
+    return h ? h + ':' + mm + ':' + ss : mm + ':' + ss;
+  }
+  setInterval(() => { const t = el('timer'); if (t) t.textContent = fmtTime(elapsedMs()); }, 500);
+
+  /* ============ status / render ============ */
+  let flashTimer = 0;
+  function flash(t){
+    el('msg').textContent = t;
+    el('msg').classList.remove('busy');
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(render, 1400);
+  }
+  function gtp(p){
+    return 'ABCDEFGHJKLMNOPQRST'[p % N] + String(N - ((p / N) | 0));
+  }
+  function canPlay(){
+    return !busy && phase === 'play' && (mode !== 'bot' || turn === human);
+  }
+  function render(){
+    // chips
+    el('capB').textContent = say('captures') + caps[B];
+    el('capW').textContent = say('captures') + caps[W];
+    el('chipB').classList.toggle('active', phase === 'play' && turn === B);
+    el('chipW').classList.toggle('active', phase === 'play' && turn === W);
+    // message
+    const msg = el('msg');
+    msg.classList.toggle('busy', busy);
+    if (busy) msg.textContent = say('aiThinking');
+    else if (phase === 'play')
+      msg.textContent = (mode === 'bot' ? (turn === human ? say('you') + ' · ' : say('ai') + ' · ') : '') +
+        say(turn === B ? 'blackTurn' : 'whiteTurn') + (passes === 1 ? say('opponentPassed') : '');
+    else if (phase === 'mark') msg.textContent = say('markHint');
+    else msg.textContent = say('gameOver');
+    // controls
+    el('undo').disabled = busy || !history.length;
+    el('pass').disabled = busy || phase !== 'play' || !canPlay();
+    el('resign').disabled = busy || phase === 'done';
+    el('autoMark').hidden = phase !== 'mark';
+    el('count').hidden = phase !== 'mark';
+    el('autoMark').disabled = busy;
+    el('count').disabled = busy;
+    draw();
+    renderHistory();
+  }
+  function renderHistory(){
+    const list = el('history');
+    list.replaceChildren();
+    if (!moveLog.length){
+      const li = document.createElement('li');
+      li.className = 'hist-empty';
+      li.style.borderBottom = 'none';
+      li.textContent = say('historyEmpty');
+      list.appendChild(li);
+      return;
+    }
+    const start = Math.max(0, moveLog.length - 60);
+    for (let i = start; i < moveLog.length; i++){
+      const m = moveLog[i];
+      const li = document.createElement('li');
+      const num = document.createElement('span');
+      num.className = 'h-num'; num.textContent = (i + 1) + '.';
+      const dot = document.createElement('i');
+      dot.className = 'h-dot ' + (m.c === B ? 'b' : 'w');
+      const txt = document.createElement('span');
+      txt.textContent = m.p < 0 ? say('passMove') : gtp(m.p);
+      li.append(num, dot, txt);
+      list.appendChild(li);
+    }
+    list.scrollTop = list.scrollHeight;
+  }
+
+  /* ============ drawing ============ */
+  let S = 0, pad = 0, cell = 0;
+  let placeAnims = [], removeAnims = [], animRaf = 0;
+  let hover = null;
+  function stars(){
+    if (N === 19) return [3, 9, 15].flatMap(a => [3, 9, 15].map(b => [a, b]));
+    if (N === 13) return [[3, 3], [3, 9], [9, 3], [9, 9], [6, 6]];
+    return [[2, 2], [2, 6], [6, 2], [6, 6], [4, 4]];
+  }
+  function resizeBoard(){
+    const w = el('boardWrap').clientWidth || 360;
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(w * dpr);
+    cv.style.height = w + 'px';
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    S = w;
+    pad = w / (N + 1) * 0.94;
+    cell = (w - pad * 2) / (N - 1);
+    draw();
+  }
+  function stone(px, py, color, alpha, scale){
+    const r = cell * 0.47 * (scale || 1);
+    g.save();
+    g.globalAlpha = alpha == null ? 1 : alpha;
+    g.beginPath();
+    g.arc(px + r * 0.08, py + r * 0.12, r, 0, 7);
+    g.fillStyle = 'rgba(0,0,0,.25)';
+    g.fill();
+    const grad = g.createRadialGradient(px - r * 0.35, py - r * 0.4, r * 0.1, px, py, r);
+    if (color === B){ grad.addColorStop(0, '#5b5b58'); grad.addColorStop(1, '#0d0d0c'); }
+    else { grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, '#cbc8bd'); }
+    g.beginPath();
+    g.arc(px, py, r, 0, 7);
+    g.fillStyle = grad;
+    g.fill();
+    g.restore();
+  }
+  function coordColor(){
+    const v = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
+    return v || '#888';
+  }
+  function draw(){
+    if (!S) return;
+    g.clearRect(0, 0, S, S);
+    const wood = g.createLinearGradient(0, 0, S, S);
+    wood.addColorStop(0, '#ecd9b4');
+    wood.addColorStop(1, '#dcc491');
+    g.fillStyle = wood;
+    g.fillRect(0, 0, S, S);
+    g.strokeStyle = 'rgba(70,52,26,.85)';
+    g.lineWidth = 1;
+    g.beginPath();
+    for (let i = 0; i < N; i++){
+      const p = pad + i * cell;
+      g.moveTo(pad, p + .5); g.lineTo(S - pad, p + .5);
+      g.moveTo(p + .5, pad); g.lineTo(p + .5, S - pad);
+    }
+    g.stroke();
+    g.strokeRect(pad + .5, pad + .5, S - pad * 2, S - pad * 2);
+    g.fillStyle = '#463418';
+    for (const [sx, sy] of stars()){
+      g.beginPath();
+      g.arc(pad + sx * cell, pad + sy * cell, Math.max(2.4, cell * 0.09), 0, 7);
+      g.fill();
+    }
+    g.fillStyle = coordColor();
+    g.font = Math.max(9, Math.min(12, cell * 0.32)) + 'px system-ui,sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (let i = 0; i < N; i++){
+      g.fillText('ABCDEFGHJKLMNOPQRST'[i], pad + i * cell, S - pad * 0.34);
+      g.fillText(String(N - i), pad * 0.36, pad + i * cell);
+    }
+    const now = performance.now();
+    const placing = new Map(placeAnims.map(a => [a.p, a]));
+    const removing = removeAnims;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
+      const p = idx(x, y), v = board[p];
+      if (!v) continue;
+      const a = placing.get(p);
+      const deadF = dead.has(p) ? 0.3 : 1;
+      if (a){
+        const t = Math.min(1, (now - a.t0) / 240);
+        const e = 1 - Math.pow(1 - t, 3);
+        stone(pad + x * cell, pad + y * cell, v, (0.35 + 0.65 * e) * deadF, 0.25 + 0.75 * e);
+      } else {
+        stone(pad + x * cell, pad + y * cell, v, deadF, 1);
+      }
+    }
+    for (const a of removing){
+      const t = Math.min(1, (now - a.t0) / 200);
+      stone(pad + (a.p % N) * cell, pad + ((a.p / N) | 0) * cell, a.color, 0.9 * (1 - t), 1 - 0.5 * t);
+    }
+    if (lastMove && phase === 'play'){
+      const [lx, ly] = lastMove;
+      g.beginPath();
+      g.arc(pad + lx * cell, pad + ly * cell, cell * 0.17, 0, 7);
+      g.strokeStyle = board[idx(lx, ly)] === B ? '#fff' : '#111';
+      g.lineWidth = 2;
+      g.stroke();
+    }
+    if (hover && canPlay() && board[idx(hover[0], hover[1])] === EMPTY)
+      stone(pad + hover[0] * cell, pad + hover[1] * cell, turn, 0.4, 1);
+  }
+  function startAnim(before, after){
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce){ draw(); return; }
+    const now = performance.now();
+    placeAnims = placeAnims.filter(a => now - a.t0 < 240);
+    removeAnims = removeAnims.filter(a => now - a.t0 < 200);
+    for (let p = 0; p < N * N; p++){
+      if (before[p] !== after[p]){
+        if (after[p]) placeAnims.push({ p: p, color: after[p], t0: now });
+        else removeAnims.push({ p: p, color: before[p], t0: now });
+      }
+    }
+    if (!animRaf && (placeAnims.length || removeAnims.length))
+      animRaf = requestAnimationFrame(tickAnim);
+    else draw();
+  }
+  function tickAnim(){
+    const now = performance.now();
+    placeAnims = placeAnims.filter(a => now - a.t0 < 240);
+    removeAnims = removeAnims.filter(a => now - a.t0 < 200);
+    draw();
+    if (placeAnims.length || removeAnims.length)
+      animRaf = requestAnimationFrame(tickAnim);
+    else { animRaf = 0; draw(); }
+  }
+
+  /* ============ input ============ */
+  function pointFromEvent(e){
+    const rect = cv.getBoundingClientRect();
+    const sx = S / rect.width;
+    const px = (e.clientX - rect.left) * sx;
+    const py = (e.clientY - rect.top) * sx;
+    const x = Math.round((px - pad) / cell);
+    const y = Math.round((py - pad) / cell);
+    if (x < 0 || y < 0 || x >= N || y >= N) return null;
+    return [x, y];
+  }
+  cv.addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch') return;
+    const p = pointFromEvent(e);
+    if (!hover || !p || hover[0] !== p[0] || hover[1] !== p[1]){ hover = p; draw(); }
+  });
+  cv.addEventListener('pointerleave', () => { hover = null; draw(); });
+  cv.addEventListener('click', e => {
+    if (phase === 'done') return;
+    const p = pointFromEvent(e);
+    if (!p) return;
+    if (phase === 'mark'){ toggleDead(p[0], p[1]); return; }
+    if (canPlay()) play(p[0], p[1]);
+  });
+
+  /* ============ language / theme ============ */
+  function setOpts(sel, keys, vals){
+    const v = sel.value;
+    sel.replaceChildren();
+    keys.forEach((k, i) => {
+      const o = document.createElement('option');
+      o.value = vals[i]; o.textContent = say(k);
+      sel.appendChild(o);
+    });
+    if (vals.indexOf(v) >= 0) sel.value = v;
+  }
+  function rebuildSelects(){
+    setOpts(el('mode'), ['modeBot', 'modeTwo'], ['bot', 'two']);
+    setOpts(el('level'), ['level1', 'level2', 'level3'], ['1', '2', '3']);
+    setOpts(el('color'), ['youBlack', 'youWhite'], ['1', '2']);
+    setOpts(el('size'), ['size9', 'size13', 'size19'], ['9', '13', '19']);
+  }
+  function updateSetupRows(){
+    const two = el('mode').value === 'two';
+    el('levelRow').hidden = two;
+    el('colorRow').hidden = two;
+  }
+  function applyLanguage(lang, persist){
+    language = lang === 'en' ? 'en' : 'zh';
+    if (persist !== false){
+      try { localStorage.setItem('weiqi-dev-lang', language); } catch (e) {}
+    }
+    document.documentElement.lang = language === 'en' ? 'en' : 'zh-Hant';
+    el('langSel').value = language;
+    el('tagline').textContent = say('tagline');
+    el('devBadge').textContent = say('devBadge');
+    el('homeBtn').textContent = say('home');
+    el('newBtn').textContent = say('newGame');
+    el('setupTitle').textContent = say('setupTitle');
+    el('setupSub').textContent = say('setupSub');
+    el('modeLabel').textContent = say('mode');
+    el('levelLabel').textContent = say('level');
+    el('colorLabel').textContent = say('color');
+    el('sizeLabel').textContent = say('size');
+    el('startBtn').textContent = say('start');
+    el('rulesBtn').textContent = say('rules');
+    el('komiNote').textContent = say('komiNote');
+    el('rulesTitle').textContent = say('rulesTitle');
+    el('rulesIntro').textContent = say('rulesIntro');
+    el('rulesClose').textContent = say('close');
+    el('undo').textContent = say('undo');
+    el('pass').textContent = say('pass');
+    el('resign').textContent = say('resign');
+    el('autoMark').textContent = say('autoMark');
+    el('count').textContent = say('count');
+    el('historyTitle').textContent = say('historyTitle');
+    el('timerLabel').textContent = say('timer');
+    el('blackName').textContent = say('black');
+    el('whiteName').textContent = say('white');
+    el('viewBoardBtn').textContent = say('viewBoard');
+    el('homeBtn2').textContent = say('backHome');
+    el('againBtn').textContent = say('playAgain');
+    el('devNote').textContent = say('devNote');
+    el('themeBtn').setAttribute('aria-label', say('theme'));
+    const list = el('rulesList');
+    list.replaceChildren();
+    I18N[language].rules.forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = item;
+      list.appendChild(li);
+    });
+    rebuildSelects();
+    updateSetupRows();
+    if (!el('endView').hidden && endData) showEnd();
+    render();
+  }
+  function initTheme(){
+    let t = null;
+    try { t = localStorage.getItem('weiqi-dev-theme'); } catch (e) {}
+    if (t !== 'light' && t !== 'dark')
+      t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.dataset.theme = t;
+  }
+
+  /* ============ events ============ */
+  el('mode').onchange = updateSetupRows;
+  el('startBtn').onclick = init;
+  el('newBtn').onclick = init;
+  el('homeBtn').onclick = showSetup;
+  el('homeBtn2').onclick = showSetup;
+  el('againBtn').onclick = init;
+  el('viewBoardBtn').onclick = () => { el('endView').hidden = true; el('gameView').hidden = false; render(); };
+  el('undo').onclick = undo;
+  el('pass').onclick = () => { if (canPlay()) pass(); };
+  el('count').onclick = countScore;
+  el('autoMark').onclick = autoMark;
+  el('rulesBtn').onclick = () => el('rulesDlg').showModal();
+  el('rulesClose').onclick = () => el('rulesDlg').close();
+  el('langSel').onchange = e => applyLanguage(e.target.value);
+  let resignArm = 0;
+  el('resign').onclick = () => {
+    const btn = el('resign');
+    if (resignArm){ clearTimeout(resignArm); resignArm = 0; btn.textContent = say('resign'); resign(mode === 'bot' ? human : turn); return; }
+    btn.textContent = say('confirmResign');
+    resignArm = setTimeout(() => { resignArm = 0; btn.textContent = say('resign'); }, 3000);
+  };
+  el('themeBtn').onclick = () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('weiqi-dev-theme', next); } catch (e) {}
+    draw();
+  };
+  window.addEventListener('resize', resizeBoard);
+
+  /* ============ boot ============ */
+  try { language = localStorage.getItem('weiqi-dev-lang') === 'en' ? 'en' : 'zh'; } catch (e) { language = 'zh'; }
+  initTheme();
+  applyLanguage(language, false);
+  showSetup();
+})();
+</script>
+</body>
+</html>
