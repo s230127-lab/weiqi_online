@@ -1,0 +1,74 @@
+diff --git a/dev.html b/dev.html
+index f461c52..1cefe60 100644
+--- a/dev.html
++++ b/dev.html
+@@ -447,15 +447,18 @@
+ <style id="devRenewUI">
+   /* ==================================================================
+      dev.html renewed UI layer  —  same engine & features as index.html.
+-     v2 "liquid glass" buttons, techniques per freefrontend.com/css-liquid-glass/:
++     "liquid glass" buttons, techniques per freefrontend.com/css-liquid-glass/:
+        - frosted volume: backdrop-filter blur + saturate
+        - dual opposing specular highlights via inset box-shadows
+        - ambient light refraction sheen via ::before radial gradients
+        - readable labels: isolation:isolate + z-index:-1 sheen layer
+        - graceful degradation (@supports) + prefers-reduced-motion guards
++     v3: user feedback — the 999px pill radius made the Kaya-style AI
++     analysis candidate tiles look like ugly egg bubbles. Glass is now
++     confined to rectangles with rounded corners (12px). Non-glass
++     decorations (DEV badge, scrollbar thumb) keep their pill shape.
+      This block is appended last and only overrides visuals: no game
+-     logic, i18n or analysis behaviour is changed. Metrics (radius,
+-     padding, min-height) intentionally stay identical to v1.
++     logic, i18n or analysis behaviour is changed.
+      ================================================================== */
+   :root {
+     --bg: #f4f1ea;
+@@ -490,15 +493,17 @@
+     backdrop-filter: blur(12px) saturate(160%);
+     box-shadow: var(--glass-shadow), var(--glass-spec);
+   }
++  /* glass shape rule: rectangles with rounded corners only (no pills) */
+   select, button {
+-    border-radius: 999px;
++    border-radius: 12px;
+     padding: 9px 16px;
+     min-height: 42px;
+     transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+   }
+-  select { border-radius: 12px; color: var(--ink); }
++  select { color: var(--ink); }
+   /* ambient-light sheen: above the fill, below the label (z-index:-1
+-     inside the isolated button stacking context) — curved-crystal feel */
++     inside the isolated button stacking context) — follows the same
++     rounded-rectangle radius via border-radius:inherit */
+   button::before {
+     content: "";
+     position: absolute;
+@@ -570,7 +575,7 @@
+     button:hover:not(:disabled) { transform: none; }
+     button:active:not(:disabled) { transform: none; }
+   }
+-  /* ---- surfaces (unchanged from v1) ---- */
++  /* ---- surfaces (unchanged since v1) ---- */
+   .entry-card {
+     background: var(--panel);
+     border-radius: 18px;
+@@ -593,7 +598,7 @@
+     box-shadow: 0 18px 50px -24px rgba(30,40,30,.5);
+   }
+   #c { border-radius: 12px; box-shadow: 0 14px 34px -20px rgba(30,40,30,.45); }
+-  /* DEV badge — welcome screen, next to the language select */
++  /* DEV badge — welcome screen, next to the language select (not glass) */
+   #welcome .entry-tools::before {
+     content: "DEV UI";
+     flex: none;
+@@ -607,7 +612,7 @@
+     align-self: center;
+     pointer-events: none;
+   }
+-  /* DEV badge — in-game header title */
++  /* DEV badge — in-game header title (not glass) */
+   header h1::after {
+     content: "DEV";
+     font: 700 10px/1 system-ui, sans-serif;
