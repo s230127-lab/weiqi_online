@@ -1,0 +1,146 @@
+diff --git a/dev.html b/dev.html
+index 81530b8..f461c52 100644
+--- a/dev.html
++++ b/dev.html
+@@ -446,11 +446,16 @@
+ </style>
+ <style id="devRenewUI">
+   /* ==================================================================
+-     dev.html renewed UI layer  —  same engine & features as index.html,
+-     reskinned with the dev-renewal design language (warm light theme,
+-     rounded cards, pill buttons, gold DEV accents).
++     dev.html renewed UI layer  —  same engine & features as index.html.
++     v2 "liquid glass" buttons, techniques per freefrontend.com/css-liquid-glass/:
++       - frosted volume: backdrop-filter blur + saturate
++       - dual opposing specular highlights via inset box-shadows
++       - ambient light refraction sheen via ::before radial gradients
++       - readable labels: isolation:isolate + z-index:-1 sheen layer
++       - graceful degradation (@supports) + prefers-reduced-motion guards
+      This block is appended last and only overrides visuals: no game
+-     logic, i18n or analysis behaviour is changed.
++     logic, i18n or analysis behaviour is changed. Metrics (radius,
++     padding, min-height) intentionally stay identical to v1.
+      ================================================================== */
+   :root {
+     --bg: #f4f1ea;
+@@ -459,6 +464,9 @@
+     --panel: #ffffff;
+     --line: #e4ded1;
+     --accent: #2f6d5a;
++    --glass-line: rgba(255,255,255,.72);
++    --glass-shadow: 0 10px 26px -14px rgba(31,42,38,.45);
++    --glass-spec: inset 0 1px 0 rgba(255,255,255,.85), inset 0 -1px 0 rgba(255,255,255,.28), inset 1px 0 0 rgba(255,255,255,.38), inset -1px 0 0 rgba(255,255,255,.38);
+     color-scheme: light;
+   }
+   body {
+@@ -466,26 +474,103 @@
+     font-size: 15px;
+     line-height: 1.65;
+   }
++  /* ---- liquid glass: buttons & selects. Context selectors are mirrored
++         so the glass wins the cascade over theme rules like
++         ".top-tools button" (same specificity, this block is last). ---- */
++  select, button,
++  .controls button, .analysis-actions button, .analysis-moves button,
++  .fp-btns button, .top-tools button, .top-tools select,
++  .entry-actions button, .game-rank-actions button, .game-end-actions button,
++  .guide-actions > button, .guide-action-group button, .game-analysis-list button {
++    position: relative;
++    isolation: isolate;
++    border: 1px solid var(--glass-line);
++    background: linear-gradient(180deg, rgba(255,255,255,.6), rgba(255,255,255,.3));
++    -webkit-backdrop-filter: blur(12px) saturate(160%);
++    backdrop-filter: blur(12px) saturate(160%);
++    box-shadow: var(--glass-shadow), var(--glass-spec);
++  }
+   select, button {
+     border-radius: 999px;
+     padding: 9px 16px;
+     min-height: 42px;
+     transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+   }
+-  select { border-radius: 12px; }
++  select { border-radius: 12px; color: var(--ink); }
++  /* ambient-light sheen: above the fill, below the label (z-index:-1
++     inside the isolated button stacking context) — curved-crystal feel */
++  button::before {
++    content: "";
++    position: absolute;
++    inset: 0;
++    z-index: -1;
++    border-radius: inherit;
++    background:
++      radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,.8) 0%, rgba(255,255,255,0) 55%),
++      radial-gradient(100% 70% at 80% 115%, rgba(255,255,255,.4) 0%, rgba(255,255,255,0) 55%);
++    pointer-events: none;
++  }
+   button:hover:not(:disabled) {
+-    border-color: var(--accent);
++    border-color: rgba(255,255,255,.95);
++    background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,.4));
+     transform: translateY(-1px);
+-    box-shadow: 0 6px 16px -10px rgba(47,109,90,.55);
++    box-shadow: 0 16px 32px -14px rgba(31,42,38,.5), var(--glass-spec);
++  }
++  button:active:not(:disabled) {
++    transform: translateY(0) scale(.985);
++    box-shadow: 0 6px 16px -10px rgba(31,42,38,.45), inset 0 2px 8px rgba(31,42,38,.14), inset 0 1px 0 rgba(255,255,255,.6);
+   }
+-  button:active:not(:disabled) { transform: translateY(0); }
++  button:focus-visible, select:focus-visible {
++    outline: 2px solid rgba(47,109,90,.65);
++    outline-offset: 2px;
++  }
++  button:disabled, select:disabled {
++    -webkit-backdrop-filter: none;
++    backdrop-filter: none;
++    background: rgba(255,255,255,.4);
++  }
++  /* accent-tinted liquid glass for primary actions */
+   button.primary {
+-    background: var(--accent);
++    background: linear-gradient(180deg, rgba(58,126,104,.94), rgba(38,88,73,.88));
+     color: #fff;
+-    border-color: transparent;
++    border-color: rgba(255,255,255,.42);
++    -webkit-backdrop-filter: blur(12px) saturate(150%);
++    backdrop-filter: blur(12px) saturate(150%);
++    box-shadow: 0 12px 28px -12px rgba(47,109,90,.6), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -1px 0 rgba(255,255,255,.16), inset 1px 0 0 rgba(255,255,255,.28), inset -1px 0 0 rgba(255,255,255,.28);
+     font-weight: 600;
++    text-shadow: 0 1px 1px rgba(16,34,28,.3);
++  }
++  button.primary::before {
++    background:
++      radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 55%),
++      radial-gradient(100% 70% at 80% 115%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%);
++  }
++  button.primary:hover:not(:disabled) {
++    background: linear-gradient(180deg, rgba(64,138,114,.96), rgba(43,99,82,.92));
++    box-shadow: 0 18px 36px -14px rgba(47,109,90,.65), inset 0 1px 0 rgba(255,255,255,.6), inset 0 -1px 0 rgba(255,255,255,.18), inset 1px 0 0 rgba(255,255,255,.32), inset -1px 0 0 rgba(255,255,255,.32);
++  }
++  button.primary:active:not(:disabled) {
++    box-shadow: 0 6px 16px -10px rgba(47,109,90,.6), inset 0 2px 8px rgba(12,30,24,.3), inset 0 1px 0 rgba(255,255,255,.4);
++  }
++  /* pressed AI-analysis toggles keep an accent glass so state stays obvious */
++  .analysis-moves button[aria-pressed="true"],
++  .game-analysis-list button[aria-pressed="true"] {
++    border-color: rgba(255,255,255,.55);
++    background: linear-gradient(180deg, rgba(58,126,104,.85), rgba(38,88,73,.8));
++    color: #fff;
++    box-shadow: 0 10px 24px -12px rgba(47,109,90,.6), inset 0 1px 0 rgba(255,255,255,.45), inset 0 -1px 0 rgba(255,255,255,.15);
++  }
++  /* graceful degradation where backdrop-filter is unavailable */
++  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
++    select, button { background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.82)); }
++    button.primary { background: linear-gradient(180deg, #3a7e68, #265849); }
++  }
++  @media (prefers-reduced-motion: reduce) {
++    select, button { transition: none; }
++    button:hover:not(:disabled) { transform: none; }
++    button:active:not(:disabled) { transform: none; }
+   }
+-  button.primary:hover:not(:disabled) { background: #285e4d; }
++  /* ---- surfaces (unchanged from v1) ---- */
+   .entry-card {
+     background: var(--panel);
+     border-radius: 18px;
