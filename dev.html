@@ -270,7 +270,7 @@
       black:'黑方', white:'白方', you:'你', ai:'電腦', captures:'提子 ',
       blackTurn:'輪到黑方', whiteTurn:'輪到白方', opponentPassed:'（對手虛手）',
       aiThinking:'電腦思考中…', gameOver:'對局結束',
-      illegalSuicide:'不可下：禁著點（自殺手）', illegalSuperko:'不可下：違反全局同形',
+      illegalSuicide:'不可下：禁著點（自殺手）', illegalOccupied:'該點已有棋子', illegalSuperko:'不可下：違反全局同形',
       analyzing:'分析死子中…', historyTitle:'棋譜', historyEmpty:'尚無著手', passMove:'虛手',
       timer:'用時',
       rulesTitle:'圍棋規則', rulesIntro:'開局前請花一分鐘了解基本規則。',
@@ -303,7 +303,7 @@
       black:'Black', white:'White', you:'You', ai:'Computer', captures:'Captures: ',
       blackTurn:'Black to play', whiteTurn:'White to play', opponentPassed:' (opponent passed)',
       aiThinking:'Computer thinking…', gameOver:'Game over',
-      illegalSuicide:'Illegal: suicide point', illegalSuperko:'Illegal: repeated position',
+      illegalSuicide:'Illegal: suicide point', illegalOccupied:'That point is already occupied', illegalSuperko:'Illegal: repeated position',
       analyzing:'Analyzing dead stones…', historyTitle:'Move list', historyEmpty:'No moves yet', passMove:'Pass',
       timer:'Time',
       rulesTitle:'Rules of Go', rulesIntro:'A one-minute summary before you play.',
@@ -642,6 +642,7 @@
     });
   }
   function play(x, y){
+    if (board[idx(x, y)] !== EMPTY) return flash(say('illegalOccupied'));
     const r = tryMove(board, x, y, turn);
     if (!r) return flash(say('illegalSuicide'));
     const key = posKey(r.board);
