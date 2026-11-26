@@ -172,6 +172,7 @@ Website: https://s230127-lab.github.io/weiqi_online/
 ```text
 .
 ├── index.html
+├── dev.html
 ├── leela-engine.html
 ├── firestore.rules
 ├── LEELA_ZERO_LICENSE.txt
@@ -179,12 +180,19 @@ Website: https://s230127-lab.github.io/weiqi_online/
 │   └── katago.onnx
 └── .github/
     └── workflows/
-        └── validate-game.yml
+        ├── validate-game.yml
+        └── weekly-apply.yml
 ```
+
+## Dev interface (dev.html)
+
+[dev.html](./dev.html) is a prototype of the renewed interface, used to develop and try out UI changes without affecting the production [index.html](./index.html). It currently offers play against the computer (three levels), two-player mode, 9×9/13×13/19×19 boards, end-game dead-stone marking and counting, a move list, an elapsed-time display, and SGF export of the game record. The dark/light theme and the Traditional Chinese/English interface choice are saved in the browser. The prototype is still in development: KataGo/Leela Zero analysis, the Firebase leaderboard, and the first-time guide are not included yet, and the interface may change with weekly updates. Feedback is welcome through Issues.
 
 ## Automated checks
 
 The GitHub Actions workflow **Validate game JavaScript** checks the syntax of the inline JavaScript in `index.html` and `leela-engine.html`. Pushes and pull requests that change either file trigger the check.
+
+A second workflow, **Apply pending weekly patches**, automatically applies, verifies, and pushes to `main` any patches staged in `pending-patches/`; it runs on a schedule every Monday morning and can also be triggered manually from the Actions tab.
 
 ## Licenses and third-party components
 

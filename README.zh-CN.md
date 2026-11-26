@@ -172,6 +172,7 @@ python -m http.server 8000
 ```text
 .
 ├── index.html
+├── dev.html
 ├── leela-engine.html
 ├── firestore.rules
 ├── LEELA_ZERO_LICENSE.txt
@@ -179,12 +180,19 @@ python -m http.server 8000
 │   └── katago.onnx
 └── .github/
     └── workflows/
-        └── validate-game.yml
+        ├── validate-game.yml
+        └── weekly-apply.yml
 ```
+
+## 开发版界面（dev.html）
+
+[dev.html](./dev.html) 是新版界面的开发原型，用于在不影响正式版 [index.html](./index.html) 的情况下开发和试用界面改版。原型目前提供人机对弈（三种棋力）、双人对弈、9／13／19 路棋盘、终局死子标记与数子、棋谱列表、用时显示，并可导出 SGF 棋谱；深浅色主题及繁中／英文界面选择会保存在浏览器中。原型仍在开发中，尚未包含 KataGo／Leela Zero 分析、Firebase 排行榜及新手引导；界面与功能可能随每周更新调整，欢迎通过 Issues 反馈意见。
 
 ## 自动检查
 
 GitHub Actions 中的 **Validate game JavaScript** 工作流程会检查 `index.html` 和 `leela-engine.html` 中内嵌 JavaScript 的语法。对这两个文件的 push 或 pull request 会触发检查。
+
+另一个 **Apply pending weekly patches** 工作流程会在 `pending-patches/` 中有待应用补丁时自动应用、验证内嵌 JavaScript 语法并推送到 `main`；该工作流程于每周一早上按计划执行，也可以在 Actions 页面手动触发。
 
 ## 许可与第三方组件
 
