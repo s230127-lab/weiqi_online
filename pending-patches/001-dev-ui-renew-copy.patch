@@ -1,0 +1,117 @@
+diff --git a/index.html b/dev.html
+similarity index 98%
+copy from index.html
+copy to dev.html
+index 84d89ae..81530b8 100644
+--- a/index.html
++++ b/dev.html
+@@ -3,7 +3,7 @@
+ <head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+-<title>圍棋</title>
++<title>圍棋 · Dev UI</title>
+ <style>
+   :root {
+     --bg: #eceae4;
+@@ -444,6 +444,100 @@
+     .guide-action-group button { flex:1; }
+   }
+ </style>
++<style id="devRenewUI">
++  /* ==================================================================
++     dev.html renewed UI layer  —  same engine & features as index.html,
++     reskinned with the dev-renewal design language (warm light theme,
++     rounded cards, pill buttons, gold DEV accents).
++     This block is appended last and only overrides visuals: no game
++     logic, i18n or analysis behaviour is changed.
++     ================================================================== */
++  :root {
++    --bg: #f4f1ea;
++    --ink: #20242b;
++    --muted: #6f7566;
++    --panel: #ffffff;
++    --line: #e4ded1;
++    --accent: #2f6d5a;
++    color-scheme: light;
++  }
++  body {
++    font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
++    font-size: 15px;
++    line-height: 1.65;
++  }
++  select, button {
++    border-radius: 999px;
++    padding: 9px 16px;
++    min-height: 42px;
++    transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
++  }
++  select { border-radius: 12px; }
++  button:hover:not(:disabled) {
++    border-color: var(--accent);
++    transform: translateY(-1px);
++    box-shadow: 0 6px 16px -10px rgba(47,109,90,.55);
++  }
++  button:active:not(:disabled) { transform: translateY(0); }
++  button.primary {
++    background: var(--accent);
++    color: #fff;
++    border-color: transparent;
++    font-weight: 600;
++  }
++  button.primary:hover:not(:disabled) { background: #285e4d; }
++  .entry-card {
++    background: var(--panel);
++    border-radius: 18px;
++    box-shadow: 0 10px 30px -18px rgba(30,40,30,.35);
++  }
++  .entry-title { font-family: "Noto Serif TC", "Songti TC", serif; }
++  .face, .result, .ai-analysis, .game-clock {
++    background: var(--panel);
++    border-radius: 14px;
++    box-shadow: 0 6px 18px -14px rgba(30,40,30,.4);
++  }
++  .game-rank-card {
++    background: var(--panel);
++    border-radius: 18px;
++    box-shadow: 0 10px 30px -18px rgba(30,40,30,.35);
++  }
++  .guide-dialog {
++    background: var(--panel);
++    border-radius: 18px;
++    box-shadow: 0 18px 50px -24px rgba(30,40,30,.5);
++  }
++  #c { border-radius: 12px; box-shadow: 0 14px 34px -20px rgba(30,40,30,.45); }
++  /* DEV badge — welcome screen, next to the language select */
++  #welcome .entry-tools::before {
++    content: "DEV UI";
++    flex: none;
++    font: 700 11px/1 system-ui, sans-serif;
++    letter-spacing: .14em;
++    color: #b8912f;
++    background: rgba(255,255,255,.85);
++    border: 1px solid #b8912f;
++    border-radius: 999px;
++    padding: 6px 12px;
++    align-self: center;
++    pointer-events: none;
++  }
++  /* DEV badge — in-game header title */
++  header h1::after {
++    content: "DEV";
++    font: 700 10px/1 system-ui, sans-serif;
++    letter-spacing: .14em;
++    color: #b8912f;
++    border: 1px solid #b8912f;
++    border-radius: 999px;
++    padding: 3px 8px;
++    margin-left: 8px;
++    vertical-align: 2px;
++  }
++  ::-webkit-scrollbar { width: 10px; height: 10px; }
++  ::-webkit-scrollbar-thumb { background: #cfc8b8; border-radius: 999px; border: 2px solid var(--bg); }
++  ::-webkit-scrollbar-track { background: transparent; }
++</style>
+ </head>
+ <body class="pre-game">
+ <section id="welcome" class="entry-screen" aria-labelledby="welcomeTitle">
