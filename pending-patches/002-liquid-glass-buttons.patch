@@ -1,0 +1,11 @@
+diff --git a/dev.html b/dev.html
+--- a/dev.html
++++ b/dev.html
+@@ -13,7 +13,7 @@
+   <style id="devRenewUI">
+   /* ==================================================================
+-     dev.html renewed UI layer  —  same engine & features as index.html,
++     dev.html renewed UI layer  —  same engine & features as index.html.
+      reskinned with the dev-renewal design language (warm light theme,
+      rounded cards, pill buttons, gold DEV accents).
+      This block is appended last and only overrides visuals: no game
