@@ -1,0 +1,3729 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>圍棋 · Dev UI</title>
+<style>
+  :root {
+    --bg: #eceae4;
+    --ink: #22251f;
+    --muted: #6b6e64;
+    --panel: #f6f4ee;
+    --line: #cfcbbf;
+    --accent: #2f5d50;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171a17;
+      --ink: #e9e6dc;
+      --muted: #9a9d92;
+      --panel: #202420;
+      --line: #394038;
+      --accent: #7fb5a3;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Serif TC", "Songti TC", "PMingLiU", "Noto Serif CJK TC", "Songti SC", Georgia, serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 10px calc(16px + env(safe-area-inset-bottom));
+    gap: 10px;
+  }
+  header {
+    width: 100%;
+    
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  h1 { font-size: 1.5rem; margin: 0; font-weight: 700; letter-spacing: .08em; }
+  h1 small { font-size: .8rem; font-weight: 400; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
+  select, button {
+    font: inherit;
+    font-size: .95rem;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+    min-height: 40px;
+  }
+  button { cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  @media (prefers-color-scheme: dark) { button.primary { color: #10150f; } }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .opts { width: 100%;  display: flex; gap: 8px; flex-wrap: wrap; }
+  .opts select { flex: 1 1 120px; }
+  .status {
+    width: 100%;
+    
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 10px;
+  }
+  .side { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; border: 1px solid transparent; }
+  .side.active { border-color: var(--accent); background: var(--panel); }
+  .side.right { justify-content: flex-end; text-align: right; }
+  .dot { width: 18px; height: 18px; border-radius: 50%; flex: none; }
+  .dot.b { background: radial-gradient(circle at 35% 30%, #5a5a5a, #0c0c0c 70%); }
+  .dot.w { background: radial-gradient(circle at 35% 30%, #fff, #cfcdc4 80%); border: 1px solid #aaa79b; }
+  .side b { display: block; font-size: .95rem; }
+  .side span { font-size: .78rem; color: var(--muted); }
+  .msg { text-align: center; font-size: .9rem; color: var(--muted); min-width: 92px; }
+  #wrap { width: 100%;  }
+  canvas { width: 100%; height: auto; display: block; border-radius: 6px; touch-action: manipulation; box-shadow: 0 2px 0 rgba(0,0,0,.18), 0 12px 24px -12px rgba(0,0,0,.35); }
+  .controls { width: 100%;  display: flex; gap: 8px; flex-wrap: wrap; }
+  .controls button { flex: 1 1 auto; }
+  .result {
+    width: 100%; 
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; font-size: .95rem; line-height: 1.55; display: none;
+  }
+  .result.show { display: block; }
+  .ai-analysis { width:100%; padding:12px 14px; background:var(--panel); border:1px solid var(--line); border-radius:8px; }
+  .ai-analysis-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .ai-analysis-head strong { display:block; font-size:1rem; }
+  .ai-analysis-head p, .analysis-disclaimer { margin:4px 0 0; color:var(--muted); font-size:.82rem; line-height:1.5; }
+  .analysis-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .analysis-actions button { min-height:36px; padding:6px 9px; font-size:.86rem; }
+  .analysis-summary { margin:10px 0 6px; font-size:.92rem; font-variant-numeric:tabular-nums; }
+  .analysis-tree-hint { margin:3px 0 6px; color:var(--muted); font-size:.78rem; line-height:1.4; }
+  .analysis-moves { margin:6px 0 0; padding-left:1.6rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:6px; }
+  .analysis-moves li { padding-left:2px; }
+  .analysis-moves button { display:flex; flex-direction:column; align-items:stretch; justify-content:center; width:100%; gap:3px; min-height:42px; padding:6px 8px; font-size:.88rem; text-align:left; }
+  .analysis-move-head { display:flex; justify-content:space-between; gap:8px; }
+  .analysis-pv { display:block; color:var(--muted); font-size:.76rem; line-height:1.35; overflow-wrap:anywhere; }
+  .analysis-moves button[aria-pressed="true"] { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 14%,var(--panel)); }
+  .analysis-disclaimer { margin-top:8px; }
+  .analysis-tools { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:9px; }
+  .analysis-tools label { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:.84rem; }
+  .analysis-tools select { min-height:34px; padding:4px 8px; font-size:.86rem; }
+  .analysis-tools input { accent-color:var(--accent); width:17px; height:17px; }
+  .analysis-progress { color:var(--muted); font-size:.84rem; margin:8px 0 0; min-height:1.2em; }
+  .analysis-chart-wrap { margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
+  #analysisChart { display:block; width:100%; height:150px; touch-action:pan-y; }
+  .analysis-chart-label { color:var(--muted); font-size:.8rem; }
+  .game-analysis-list { margin:8px 0 0; padding-left:2rem; max-height:260px; overflow:auto; }
+  .game-analysis-list li { margin:3px 0; }
+  .game-analysis-list button { width:100%; text-align:left; min-height:34px; padding:5px 8px; font-size:.84rem; }
+  .game-analysis-list button[aria-pressed="true"] { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 14%,var(--panel)); }
+  details { width: 100%;  font-size: .88rem; color: var(--muted); line-height: 1.6; }
+  summary { cursor: pointer; padding: 6px 0; }
+  details p { margin: 4px 0; }
+
+  header { max-width: 700px; }
+  canvas { -webkit-tap-highlight-color: transparent; user-select: none; }
+  .layout { width: 100%; max-width: 700px; display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+  @media (min-width: 900px) {
+    header { max-width: 1120px; }
+    h1 { font-size: 1.8rem; }
+    .layout {
+      max-width: 1120px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      grid-template-rows: auto auto auto auto auto 1fr;
+      grid-template-areas: "wrap opts" "wrap status" "wrap controls" "wrap result" "wrap analysis" "wrap details";
+      column-gap: 24px; row-gap: 12px; align-items: start;
+    }
+    #wrap { grid-area: wrap; width: 100%; max-width: calc(100vh - 110px); min-width: 360px; justify-self: start; }
+    .opts { grid-area: opts; }
+    .opts select { flex: 1 1 140px; }
+    .status { grid-area: status; grid-template-columns: 1fr 1fr; }
+    .status .msg { grid-column: 1 / -1; order: -1; font-size: 1rem; padding: 4px 0; }
+    .controls { grid-area: controls; }
+    .result { grid-area: result; }
+    .ai-analysis { grid-area: analysis; }
+    details { grid-area: details; }
+    select, button { font-size: 1rem; }
+  }
+
+  .face { display: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  body.face-on .face { display: flex; }
+  .face.top { transform: rotate(180deg); }
+  .face.active { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .fp-info { display: flex; align-items: center; gap: 8px; min-width: 96px; }
+  .fp-info b { display: block; font-size: 1rem; }
+  .fp-cap { display: block; font-size: .78rem; color: var(--muted); }
+  .fp-msg { flex: 1 1 140px; text-align: center; font-size: 1rem; color: var(--muted); }
+  .face.active .fp-msg { color: var(--ink); font-weight: 700; }
+  .fp-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .fp-btns button { min-height: 44px; padding: 8px 12px; }
+  .fp-result { flex-basis: 100%; text-align: center; display: none; line-height: 1.5; }
+  .fp-result.show { display: block; }
+  body.face-on:not(.show-opts) .opts,
+  body.face-on .status, body.face-on .controls, body.face-on .result, body.face-on .ai-analysis, body.face-on details { display: none; }
+  body.face-on .layout { display: flex; flex-direction: column; width: 100%; max-width: max(440px, calc(100vh - 250px)); margin: 0 auto; }
+  body.face-on #wrap { max-width: none; min-width: 0; }
+
+  #fx { position: fixed; inset: 0; z-index: 50; pointer-events: none; display: none; }
+  #fx.show { display: block; }
+  #fxc { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #fx .banner { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: auto; cursor: pointer; width: max-content; max-width: 90vw; }
+  #fx .banner.rot { display: none; }
+  body.face-on #fx .banner.main { top: 62%; }
+  body.face-on #fx .banner.rot { display: block; top: 38%; transform: translate(-50%, -50%) rotate(180deg); }
+  .bin { background: var(--panel); border: 2px solid var(--accent); border-radius: 16px; padding: 18px 34px; text-align: center; box-shadow: 0 18px 50px -12px rgba(0,0,0,.45); animation: pop .6s cubic-bezier(.2,1.4,.4,1) both; }
+  .bt { font-size: clamp(1.8rem, 7vw, 3rem); font-weight: 700; letter-spacing: .1em; }
+  .bs { margin-top: 6px; color: var(--muted); font-size: 1rem; }
+  @keyframes pop { 0% { transform: scale(.3); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .bin { animation: none; } }
+
+  .chk { flex: 1 1 100%; display: flex; align-items: center; gap: 8px; font-size: .92rem; color: var(--muted); min-height: 32px; }
+  .chk input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+  /* Smooth entrance transitions between the welcome, rules, game and result screens. */
+  @keyframes page-enter {
+    from { opacity: 0; transform: translateY(14px) scale(.99); filter: blur(2px); }
+    to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  }
+  body.pre-game:not(.show-rules) #welcome,
+  body.show-rules #rulesScreen,
+  body:not(.pre-game):not(.show-game-end) > header,
+  body:not(.pre-game):not(.show-game-end) > .layout,
+  body.show-game-end #gameEndScreen {
+    animation: page-enter .38s cubic-bezier(.2,.75,.25,1) both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body.pre-game:not(.show-rules) #welcome,
+    body.show-rules #rulesScreen,
+    body:not(.pre-game):not(.show-game-end) > header,
+    body:not(.pre-game):not(.show-game-end) > .layout,
+    body.show-game-end #gameEndScreen { animation: none; }
+  }
+
+  /* Different motion styles for in-game panels and expandable content. */
+  @keyframes welcome-open {
+    from { opacity:0; transform:translateY(18px) scale(.975); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes rules-open {
+    from { opacity:0; transform:translateX(-24px); }
+    to { opacity:1; transform:translateX(0); }
+  }
+  @keyframes game-layout-open {
+    from { opacity:0; transform:translateY(10px) scale(.992); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes header-drop-in {
+    from { opacity:0; transform:translateY(-10px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  @keyframes result-screen-open {
+    from { opacity:0; transform:translateY(26px) scale(.98); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes options-drawer-open {
+    from { opacity:0; transform:translateY(-12px); clip-path:inset(0 0 100% 0); }
+    to { opacity:1; transform:translateY(0); clip-path:inset(0 0 0 0); }
+  }
+  @keyframes face-panel-open {
+    from { opacity:0; transform:translateY(12px) scale(.98); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes overlay-fade-in {
+    from { opacity:0; }
+    to { opacity:1; }
+  }
+  @keyframes overlay-fade-out {
+    from { opacity:1; }
+    to { opacity:0; }
+  }
+  @keyframes modal-card-open {
+    from { opacity:0; transform:translateY(24px) scale(.94); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes modal-card-close {
+    from { opacity:1; transform:translateY(0) scale(1); }
+    to { opacity:0; transform:translateY(12px) scale(.97); }
+  }
+  @keyframes guide-dialog-open {
+    0% { opacity:0; transform:translateY(22px) scale(.94); }
+    70% { opacity:1; transform:translateY(-3px) scale(1.008); }
+    100% { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes guide-step-swap {
+    from { opacity:.25; transform:translateX(14px); }
+    to { opacity:1; transform:translateX(0); }
+  }
+  @keyframes result-reveal {
+    from { opacity:0; transform:translateY(10px) scale(.985); }
+    to { opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes content-item-enter {
+    from { opacity:0; transform:translateY(7px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  @keyframes detail-content-open {
+    from { opacity:0; transform:translateY(-5px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+
+  body.pre-game:not(.show-rules) #welcome { animation:welcome-open .42s cubic-bezier(.2,.8,.2,1) both; }
+  body.show-rules #rulesScreen { animation:rules-open .34s cubic-bezier(.2,.7,.2,1) both; }
+  body:not(.pre-game):not(.show-game-end) > header { animation:header-drop-in .3s ease-out both; }
+  body:not(.pre-game):not(.show-game-end) > .layout { animation:game-layout-open .36s ease-out both; }
+  body.show-game-end #gameEndScreen { animation:result-screen-open .44s cubic-bezier(.2,.8,.2,1) both; }
+  body.face-on.show-opts .opts { animation:options-drawer-open .3s ease-out both; transform-origin:top; }
+  body.face-on .face { animation:face-panel-open .32s ease-out both; }
+  body.face-on .face.active { transition:border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
+  #gameLeaderboardPanel.show { animation:overlay-fade-in .2s ease-out both; }
+  #gameLeaderboardPanel.show .game-rank-card { animation:modal-card-open .3s cubic-bezier(.2,.85,.25,1) both; }
+  #gameLeaderboardPanel.closing { animation:overlay-fade-out .18s ease-in both; }
+  #gameLeaderboardPanel.closing .game-rank-card { animation:modal-card-close .16s ease-in both; }
+  .guide-backdrop:not([hidden]) { animation:overlay-fade-in .22s ease-out both; }
+  .guide-backdrop:not([hidden]) .guide-dialog { animation:guide-dialog-open .38s cubic-bezier(.2,.85,.25,1) both; }
+  .guide-backdrop.guide-closing { animation:overlay-fade-out .22s ease-in both; pointer-events:none; }
+  .guide-backdrop.guide-closing .guide-dialog { animation:modal-card-close .2s ease-in both; }
+  .guide-dialog.guide-step-change #guideTitle,
+  .guide-dialog.guide-step-change #guideText { animation:guide-step-swap .24s ease-out both; }
+  .result.show { animation:result-reveal .28s ease-out both; }
+  .analysis-moves li, .game-analysis-list li, #gameLeaderboardList li, .leaderboard li {
+    animation:content-item-enter .24s ease-out both;
+  }
+  .analysis-moves li:nth-child(2), .game-analysis-list li:nth-child(2),
+  #gameLeaderboardList li:nth-child(2), .leaderboard li:nth-child(2) { animation-delay:.025s; }
+  .analysis-moves li:nth-child(3), .game-analysis-list li:nth-child(3),
+  #gameLeaderboardList li:nth-child(3), .leaderboard li:nth-child(3) { animation-delay:.05s; }
+  .analysis-moves li:nth-child(4), .game-analysis-list li:nth-child(4),
+  #gameLeaderboardList li:nth-child(4), .leaderboard li:nth-child(4) { animation-delay:.075s; }
+  .analysis-moves li:nth-child(5), .game-analysis-list li:nth-child(5),
+  #gameLeaderboardList li:nth-child(5), .leaderboard li:nth-child(5) { animation-delay:.1s; }
+  .analysis-moves li:nth-child(n+6), .game-analysis-list li:nth-child(n+6),
+  #gameLeaderboardList li:nth-child(n+6), .leaderboard li:nth-child(n+6) { animation-delay:.12s; }
+  details[open] > p { animation:detail-content-open .25s ease-out both; }
+  details[open] > p:nth-of-type(2) { animation-delay:.035s; }
+  details[open] > p:nth-of-type(n+3) { animation-delay:.07s; }
+  button:not(:disabled) {
+    transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease;
+  }
+  button:not(:disabled):active { transform:scale(.97); }
+  button:focus-visible { transition:outline-offset .15s ease; }
+
+  @media (prefers-reduced-motion: reduce) {
+    body.pre-game:not(.show-rules) #welcome,
+    body.show-rules #rulesScreen,
+    body:not(.pre-game):not(.show-game-end) > header,
+    body:not(.pre-game):not(.show-game-end) > .layout,
+    body.show-game-end #gameEndScreen,
+    body.face-on.show-opts .opts,
+    body.face-on .face,
+    #gameLeaderboardPanel.show,
+    #gameLeaderboardPanel.show .game-rank-card,
+    #gameLeaderboardPanel.closing,
+    #gameLeaderboardPanel.closing .game-rank-card,
+    .guide-backdrop:not([hidden]),
+    .guide-backdrop:not([hidden]) .guide-dialog,
+    .guide-backdrop.guide-closing,
+    .guide-backdrop.guide-closing .guide-dialog,
+    .guide-dialog.guide-step-change #guideTitle,
+    .guide-dialog.guide-step-change #guideText,
+    .result.show,
+    .analysis-moves li, .game-analysis-list li, #gameLeaderboardList li, .leaderboard li,
+    details[open] > p { animation:none !important; }
+    button:not(:disabled), .face.active { transition:none !important; }
+  }
+
+  /* Welcome, rules, Google account and leaderboard */
+  body.pre-game > header, body.pre-game > .layout { display:none; }
+  body.pre-game:not(.show-rules) #welcome { display:flex; }
+  #rulesScreen { display:none; }
+  body.pre-game #rulesScreen { display:none; }
+  body.show-rules #rulesScreen { display:block !important; }
+  body.show-rules { overflow-y:auto; }
+  body.show-rules #welcome { display:none; }
+  body.show-rules #rulesScreen { display:block; }
+  .entry-screen { width:min(100%, 760px); margin:0 auto; padding:clamp(18px,4vw,34px); }
+  #welcome { min-height:calc(100vh - 24px); display:none; flex-direction:column; justify-content:center; gap:18px; }
+  .entry-card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:clamp(18px,4vw,30px); box-shadow:0 12px 32px -24px rgba(0,0,0,.4); }
+  .entry-title { font-size:clamp(2rem,7vw,3.3rem); margin:0; letter-spacing:.1em; }
+  .entry-sub { color:var(--muted); margin:0; font-size:1.05rem; line-height:1.7; }
+  .entry-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .entry-actions button { min-width:150px; }
+  .entry-tools { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .entry-tools select { min-width:130px; }
+  .account-status { color:var(--muted); font-size:.9rem; line-height:1.5; }
+  .leaderboard { margin-top:10px; }
+  .leaderboard h2 { margin:0 0 8px; font-size:1.25rem; }
+  .leaderboard ol { margin:0; padding-left:2rem; }
+  .leaderboard li { padding:7px 4px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; }
+  .leaderboard .rank-name { overflow-wrap:anywhere; }
+  .leaderboard .rank-score { white-space:nowrap; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .leaderboard-empty { color:var(--muted); font-size:.92rem; padding:8px 0; }
+  #rulesScreen .rule-list { line-height:1.75; padding-left:1.4rem; }
+  #rulesScreen .rule-list li { margin:8px 0; }
+  .top-tools { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+  .top-tools select { min-width:92px; }
+  @media (max-width:520px) {
+    .top-tools { gap:5px; }
+    .top-tools select, .top-tools button { padding:7px 8px; font-size:.86rem; }
+  }
+  .game-clock { display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border:1px solid var(--line); border-radius:6px; background:var(--panel); font-size:.9rem; white-space:nowrap; }
+  .game-clock strong { font-variant-numeric:tabular-nums; letter-spacing:.04em; }
+  #gameLeaderboardPanel { display:none; position:fixed; inset:0; z-index:80; padding:18px; background:rgba(0,0,0,.55); align-items:center; justify-content:center; overflow:auto; }
+  #gameLeaderboardPanel.show { display:flex; }
+  .game-rank-card {
+    display:block;
+    flex:0 1 auto;
+    width:min(100%,640px);
+    max-height:min(88vh,760px);
+    overflow:auto;
+    margin:0;
+    padding:clamp(16px,3vw,26px);
+    background:var(--panel);
+    color:var(--ink);
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:0 20px 60px rgba(0,0,0,.32);
+  }
+  .game-rank-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .game-rank-head h2 { margin:0 0 8px; font-size:1.25rem; }
+  .game-rank-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  #gameLeaderboardList { margin:0; padding-left:2rem; }
+  #gameLeaderboardList li { padding:7px 4px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; }
+  #gameLeaderboardList .rank-score { white-space:nowrap; color:var(--muted); font-variant-numeric:tabular-nums; }
+  #gameLeaderboardList .rank-name { overflow-wrap:anywhere; }
+  @media (max-width:520px) { .game-rank-actions button { padding:7px 8px; font-size:.86rem; } }
+
+
+  .game-end-screen { min-height:calc(100vh - 24px); display:none; flex-direction:column; justify-content:center; gap:16px; }
+  body.show-game-end > header, body.show-game-end > .layout { display:none; }
+  body.show-game-end #gameEndScreen { display:flex; }
+  .game-end-card { width:100%; }
+  .game-end-card h1 { margin:0 0 8px; font-size:clamp(1.8rem,6vw,2.6rem); }
+  .game-end-subtitle { margin:0; color:var(--muted); line-height:1.6; }
+  .game-end-summary { margin-top:16px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; line-height:1.7; }
+  .game-end-summary p { margin:4px 0; }
+  .game-end-summary .end-margin { font-size:1.1rem; font-weight:700; }
+  .end-chart-wrap { position:relative; width:100%; height:clamp(230px,42vh,360px); margin:18px 0 8px; }
+  #endScoreChart { display:block; width:100%; height:100%; }
+  .end-chart-note,.end-restart-note { color:var(--muted); font-size:.88rem; line-height:1.5; }
+  .end-restart-note { min-height:1.2em; margin:8px 0 0; }
+  .game-end-actions { margin-top:16px; }
+  @media (max-width:480px) {
+    .game-end-screen { padding:12px 8px; justify-content:flex-start; }
+    .game-end-card { padding:18px; }
+    .end-chart-wrap { height:250px; }
+    .game-end-actions button { flex:1 1 100%; }
+  }
+
+  /* First-play guide */
+  .guide-backdrop[hidden] { display:none !important; }
+  .guide-backdrop {
+    position:fixed; inset:0; z-index:10000; display:grid; place-items:center;
+    padding:18px; background:rgba(12,16,13,.68); backdrop-filter:blur(3px);
+  }
+  .guide-dialog {
+    width:min(100%,560px); background:var(--panel); color:var(--ink);
+    border:1px solid var(--line); border-radius:16px; padding:clamp(18px,4vw,28px);
+    box-shadow:0 20px 60px rgba(0,0,0,.3);
+  }
+  .guide-meta,.guide-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .guide-meta { color:var(--muted); font-size:.9rem; }
+  .guide-dialog h2 { margin:18px 0 10px; font-size:1.35rem; }
+  .guide-dialog p { margin:0; line-height:1.8; min-height:7em; }
+  .guide-actions { margin-top:24px; flex-wrap:wrap; }
+  .guide-action-group { display:flex; gap:8px; margin-left:auto; }
+  .guide-close { min-width:40px; min-height:40px; padding:4px 10px; font-size:1.2rem; }
+  @media (max-width:480px) {
+    .guide-dialog p { min-height:0; }
+    .guide-actions { align-items:stretch; }
+    .guide-actions > button { flex:1 1 100%; }
+    .guide-action-group { width:100%; margin-left:0; }
+    .guide-action-group button { flex:1; }
+  }
+</style>
+<style id="devRenewUI">
+  /* ==================================================================
+     dev.html renewed UI layer  —  same engine & features as index.html,
+     reskinned with the dev-renewal design language (warm light theme,
+     rounded cards, pill buttons, gold DEV accents).
+     This block is appended last and only overrides visuals: no game
+     logic, i18n or analysis behaviour is changed.
+     ================================================================== */
+  :root {
+    --bg: #f4f1ea;
+    --ink: #20242b;
+    --muted: #6f7566;
+    --panel: #ffffff;
+    --line: #e4ded1;
+    --accent: #2f6d5a;
+    color-scheme: light;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+  }
+  select, button {
+    border-radius: 999px;
+    padding: 9px 16px;
+    min-height: 42px;
+    transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+  }
+  select { border-radius: 12px; }
+  button:hover:not(:disabled) {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px -10px rgba(47,109,90,.55);
+  }
+  button:active:not(:disabled) { transform: translateY(0); }
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+    font-weight: 600;
+  }
+  button.primary:hover:not(:disabled) { background: #285e4d; }
+  .entry-card {
+    background: var(--panel);
+    border-radius: 18px;
+    box-shadow: 0 10px 30px -18px rgba(30,40,30,.35);
+  }
+  .entry-title { font-family: "Noto Serif TC", "Songti TC", serif; }
+  .face, .result, .ai-analysis, .game-clock {
+    background: var(--panel);
+    border-radius: 14px;
+    box-shadow: 0 6px 18px -14px rgba(30,40,30,.4);
+  }
+  .game-rank-card {
+    background: var(--panel);
+    border-radius: 18px;
+    box-shadow: 0 10px 30px -18px rgba(30,40,30,.35);
+  }
+  .guide-dialog {
+    background: var(--panel);
+    border-radius: 18px;
+    box-shadow: 0 18px 50px -24px rgba(30,40,30,.5);
+  }
+  #c { border-radius: 12px; box-shadow: 0 14px 34px -20px rgba(30,40,30,.45); }
+  /* DEV badge — welcome screen, next to the language select */
+  #welcome .entry-tools::before {
+    content: "DEV UI";
+    flex: none;
+    font: 700 11px/1 system-ui, sans-serif;
+    letter-spacing: .14em;
+    color: #b8912f;
+    background: rgba(255,255,255,.85);
+    border: 1px solid #b8912f;
+    border-radius: 999px;
+    padding: 6px 12px;
+    align-self: center;
+    pointer-events: none;
+  }
+  /* DEV badge — in-game header title */
+  header h1::after {
+    content: "DEV";
+    font: 700 10px/1 system-ui, sans-serif;
+    letter-spacing: .14em;
+    color: #b8912f;
+    border: 1px solid #b8912f;
+    border-radius: 999px;
+    padding: 3px 8px;
+    margin-left: 8px;
+    vertical-align: 2px;
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #cfc8b8; border-radius: 999px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body class="pre-game">
+<section id="welcome" class="entry-screen" aria-labelledby="welcomeTitle">
+  <div class="entry-tools" style="justify-content:flex-end">
+    <select id="langSelect" aria-label="Language">
+      <option value="zh">繁體中文</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+  <div class="entry-card">
+    <h1 class="entry-title" id="welcomeTitle">圍棋</h1>
+    <p class="entry-sub" id="welcomeSubtitle">與電腦對弈，或與朋友面對面下一盤棋。</p>
+    <div class="entry-actions" style="margin-top:20px">
+      <button id="launchBtn" class="primary">開始遊戲</button>
+      <button id="googleSignIn">使用 Google 登入以記錄成績</button>
+    </div>
+    <p id="authStatus" class="account-status" aria-live="polite">登入後即可保存勝負紀錄並登上排行榜。</p>
+  </div>
+  <div class="entry-card leaderboard">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+      <h2 id="leaderboardTitle">排行榜 · 前 10 名</h2>
+      <button id="refreshRanks">重新整理</button>
+    </div>
+    <ol id="leaderboardList"><li class="leaderboard-empty">排行榜尚未設定。</li></ol>
+  </div>
+</section>
+
+<section id="rulesScreen" class="entry-screen" aria-labelledby="rulesTitle">
+  <div class="entry-card">
+    <h1 id="rulesTitle">圍棋規則</h1>
+    <p id="rulesIntro" class="entry-sub">開始前請先閱讀基本規則。</p>
+    <ol id="rulesList" class="rule-list">
+      <li>黑先白後，雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」（自殺），不可下；能提子則可。沒有氣的棋塊會被提走。</li>
+      <li>禁止全局同形：不可使盤面重現先前出現過的任何局面（打劫亦屬此類）。</li>
+      <li>雙方連續虛手即終局。點選棋塊標記死子（或使用自動標記），再數子。採中國規則的數子法（活子加圍住的空點）。</li>
+      <li>面對面模式：把裝置平放在兩人中間，白方坐上方、黑方坐下方，各自的資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。</li>
+      <li>Lv 5 使用本專案的 KataGo ONNX 模型；推論在瀏覽器本機執行，首次載入約需下載 75 MB。</li>
+      <li>Lv 1 隨機落子；Lv 2 使用基本戰術規則；Lv 3、Lv 4 使用蒙地卡羅模擬，Lv 4 思考時間較長。</li>
+      <li>Lv 6 使用 2017 年舊版 Leela Zero WebGL 引擎與模型，透過 WebAssembly／WebGL 在瀏覽器本機運算；首次使用會載入第三方引擎與模型。</li>
+    </ol>
+    <button id="rulesReadButton" type="button" aria-pressed="false" style="width:100%;text-align:left;margin-top:18px;min-height:48px">我已閱讀規則</button>
+    <div class="entry-actions" style="margin-top:12px">
+      <button id="rulesBack">返回</button>
+      <button id="rulesStart" class="primary" disabled>閱讀後開始對弈</button>
+    </div>
+  </div>
+</section>
+
+<div id="playGuide" class="guide-backdrop" hidden>
+  <section class="guide-dialog" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+    <div class="guide-meta">
+      <span id="guideProgress" aria-live="polite"></span>
+      <button id="guideClose" class="guide-close" type="button" aria-label="關閉導覽">×</button>
+    </div>
+    <h2 id="guideTitle">新手導覽</h2>
+    <p id="guideText" aria-live="polite" aria-atomic="true"></p>
+    <div class="guide-actions">
+      <button id="guideSkip" type="button">略過導覽</button>
+      <div class="guide-action-group">
+        <button id="guidePrev" type="button">上一步</button>
+        <button id="guideNext" class="primary" type="button">下一步</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+
+
+
+<header>
+  <h1>圍棋<small>Weiqi</small></h1>
+  <div class="top-tools">
+    <button id="homeBtn">首頁</button>
+    <button id="guideBtn">新手導覽</button>
+    <span class="game-clock"><span id="gameTimerLabel">用時</span><strong id="gameTimer">00:00</strong></span>
+    <button id="timerToggle" type="button">停止計時</button>
+    <button id="gameLeaderboardBtn">等級排行榜</button>
+    <select id="gameLang" aria-label="Language"><option value="zh">繁中</option><option value="en">EN</option></select>
+    <button id="headerAuth">Google 登入</button>
+    <button id="menu" style="display:none">設定</button>
+    <button id="new" class="primary">新遊戲</button>
+  </div>
+</header>
+
+<div id="gameLeaderboardPanel" aria-hidden="true">
+  <section class="game-rank-card leaderboard" role="dialog" aria-modal="true" aria-labelledby="gameLeaderboardTitle">
+    <div class="game-rank-head">
+      <h2 id="gameLeaderboardTitle">排行榜 · 前 10 名</h2>
+      <div class="game-rank-actions">
+        <button id="refreshGameRanks">重新整理</button>
+        <button id="closeGameLeaderboard">關閉</button>
+      </div>
+    </div>
+    <ol id="gameLeaderboardList"><li class="leaderboard-empty">排行榜尚未設定。</li></ol>
+  </section>
+</div>
+
+<div class="layout">
+<div class="opts">
+  <select id="mode" aria-label="模式">
+    <option value="bot" selected>人機對弈</option>
+    <option value="two">雙人對弈</option>
+    <option value="face">面對面對弈(同一裝置)</option>
+  </select>
+  <select id="level" aria-label="電腦等級">
+    <option value="1">Lv 1 · 入門</option>
+    <option value="2">Lv 2 · 初級</option>
+    <option value="3" selected>Lv 3 · 中級</option>
+    <option value="4">Lv 4 · 高級</option>
+    <option value="5" id="lvNet">Lv 5 · AI 模型(KataGo，首次使用時下載)</option>
+    <option value="6" id="lvLeela">Lv 6 · Leela Zero（舊版 WebGL，首次使用時載入）</option>
+  </select>
+  <select id="color" aria-label="你的棋色">
+    <option value="1" selected>你執黑</option>
+    <option value="2">你執白</option>
+  </select>
+  <label class="chk"><input type="checkbox" id="autoRestart"><span id="autoRestartLabel">結束後自動開新局</span></label>
+  <select id="size" aria-label="棋盤大小">
+    <option value="9" selected>9 路</option>
+    <option value="13">13 路</option>
+    <option value="19">19 路</option>
+  </select>
+</div>
+
+<div class="status">
+  <div class="side active" id="sB"><i class="dot b"></i><div><b>黑方</b><span id="capB"></span></div></div>
+  <div class="msg" id="msg">黑方落子</div>
+  <div class="side right" id="sW"><div><b>白方</b><span id="capW"></span></div><i class="dot w"></i></div>
+</div>
+
+<div class="face top" id="faceTop" data-c="2"></div>
+<div id="wrap"><canvas id="c" aria-label="圍棋棋盤"></canvas></div>
+<div class="face" id="faceBottom" data-c="1"></div>
+
+<div class="controls">
+  <button id="undo">悔棋</button>
+  <button id="pass">虛手</button>
+  <button id="resign">認輸</button>
+  <button id="auto" style="display:none">自動標記死子</button>
+  <button id="score" class="primary" style="display:none">數子</button>
+</div>
+
+<div class="result" id="result"></div>
+
+<section class="ai-analysis" id="aiAnalysisPanel" aria-labelledby="aiAnalysisTitle">
+  <div class="ai-analysis-head">
+    <div>
+      <strong id="aiAnalysisTitle">AI 分析（Kaya 風格）</strong>
+      <p id="aiAnalysisHint">使用本機 KataGo ONNX 模型，提供局面估值與推薦著手。</p>
+    </div>
+    <div class="analysis-actions">
+      <button id="analyzePositionBtn" class="primary" type="button">分析目前局面</button>
+      <button id="analyzeFullGameBtn" type="button">整盤逐手分析</button>
+      <button id="stopFullGameBtn" type="button" hidden>停止</button>
+      <button id="clearAnalysisBtn" type="button">清除分析</button>
+    </div>
+  </div>
+  <div class="analysis-tools">
+    <label><span id="analysisVisitsLabel">每局面搜索量</span>
+      <select id="analysisVisits" aria-label="每局面搜索量">
+        <option value="12">12 次（快速）</option>
+        <option value="24" selected>24 次（平衡）</option>
+        <option value="48">48 次（較深入）</option>
+        <option value="96">96 次（深入）</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="showOwnershipToggle" disabled><span id="showOwnershipLabel">顯示領地熱圖</span></label>
+  </div>
+  <div class="analysis-summary" id="aiAnalysisSummary" aria-live="polite">尚未分析。按「分析目前局面」開始。</div>
+  <p class="analysis-tree-hint" id="analysisTreeHint">主要候選著手會附上 MCTS 搜索中訪問最多的後續變化。</p>
+  <ol class="analysis-moves" id="aiAnalysisMoves"></ol>
+  <p class="analysis-progress" id="aiAnalysisProgress" aria-live="polite"></p>
+  <div class="analysis-chart-wrap" id="analysisChartWrap" hidden>
+    <div class="analysis-chart-label" id="analysisChartLabel">整盤黑方勝率估計走勢</div>
+    <canvas id="analysisChart" width="900" height="180"></canvas>
+    <ol class="game-analysis-list" id="gameAnalysisMoves"></ol>
+  </div>
+  <p class="analysis-disclaimer" id="aiAnalysisDisclaimer">使用 KataGo ONNX 模型進行 PUCT MCTS 搜索；訪問數、分支勝率與目數為模型估計。整盤逐手分析及領地熱圖依模型輸出提供。</p>
+</section>
+
+<details>
+  <summary>規則與電腦等級</summary>
+  <p>黑先白後,雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」(自殺),不可下;能提子則可。沒有氣的棋塊會被提走。</p>
+  <p>禁止全局同形:不可使盤面重現先前出現過的任何局面(打劫亦屬此類)。</p>
+  <p>雙方連續虛手即終局。點選棋塊標記死子(或使用自動標記),再數子。採中國規則的數子法(活子加圍住的空點)。</p>
+  <p>面對面模式:把裝置平放在兩人中間,白方坐上方、黑方坐下方,各自的資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。</p>
+  <p>Lv 5 使用儲存在本專案 models/katago.onnx 的 KataGo 模型。只有選擇 Lv 5 時,網頁才會從本專案載入模型;瀏覽器會嘗試快取,下次可重用。模型推論完全在你的裝置上執行,不會呼叫遠端 AI 推論 API。首次載入仍需傳輸約 75 MB 模型資料。</p>
+  <p>Lv 1 隨機落子。Lv 2 使用戰術規則(提子、叫吃、避免自打吃)。Lv 3 與 Lv 4 加入蒙地卡羅模擬,Lv 4 思考最久。電腦完全在瀏覽器內運算,在 9 路棋盤上最強。</p>
+</details>
+
+</div>
+
+<section id="gameEndScreen" class="entry-screen game-end-screen" aria-labelledby="gameEndTitle">
+  <div class="entry-card game-end-card">
+    <h1 id="gameEndTitle">對局結果</h1>
+    <p id="gameEndSubtitle" class="game-end-subtitle">終局目數分析</p>
+    <div id="gameEndSummary" class="game-end-summary" aria-live="polite"></div>
+    <div id="endScoreChartWrap" class="end-chart-wrap">
+      <canvas id="endScoreChart" role="img" aria-label="黑白雙方終局得分比較"></canvas>
+    </div>
+    <p id="endChartUnavailable" class="end-chart-note" hidden></p>
+    <p id="endChartNote" class="end-chart-note"></p>
+    <p id="endRestartNote" class="end-restart-note" aria-live="polite"></p>
+    <div class="entry-actions game-end-actions">
+      <button id="endHomeBtn">回到首頁</button>
+      <button id="endNewGameBtn" class="primary">新遊戲</button>
+    </div>
+  </div>
+</section>
+
+<div id="fx" aria-hidden="true">
+  <canvas id="fxc"></canvas>
+  <div class="banner rot"><div class="bin"><div class="bt" id="bT2"></div><div class="bs" id="bS2"></div></div></div>
+  <div class="banner main"><div class="bin"><div class="bt" id="bT1"></div><div class="bs" id="bS1"></div></div></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js"></script>
+<script>
+(() => {
+  const EMPTY = 0, B = 1, W = 2;
+  let language = 'zh';
+  const cv = document.getElementById('c');
+  const ctx = cv.getContext('2d');
+  const $ = id => document.getElementById(id);
+
+  const I18N = {
+    zh: {
+      launch:"開始遊戲", play:"開始對弈", back:"返回", rulesTitle:"圍棋規則",
+      welcomeSubtitle:"與電腦對弈，或與朋友在同一部裝置上對弈。支援手機、平板與電腦。",
+      guideButton:"新手導覽",guideTitle:"圍棋新手導覽",guideProgress:"第 {current} 步，共 {total} 步",
+      guidePrevious:"上一步",guideNext:"下一步",guideFinish:"完成",guideSkip:"略過導覽",guideClose:"關閉導覽",
+      guideSteps:[
+        {title:"選擇玩法與棋盤",text:"在棋盤上方選擇人機對弈、雙人對弈或面對面對弈。你也可以選擇 9 路、13 路或 19 路棋盤；較小的棋盤通常更適合初學者。"},
+        {title:"設定電腦與棋色",text:"人機模式可選擇電腦等級，以及自己執黑或執白。Lv 1–4 在瀏覽器內運算；Lv 5 首次使用會下載約 75 MB 的 KataGo 模型；Lv 6 是舊版 Leela Zero，僅支援 19 路棋盤。"},
+        {title:"在交叉點落子",text:"黑方先行，之後輪流下在棋盤的交叉點。點擊或觸控交叉點即可落子。相連的棋子形成棋塊，棋塊旁的空交叉點稱為「氣」；沒有氣的對方棋塊會被提走。"},
+        {title:"使用對局按鈕",text:"「悔棋」返回上一個局面；「虛手」跳過一回合；「認輸」結束對局。雙方連續虛手後進入終局，請標記死子，再按「數子」計分。遊戲採用中國規則的數子法。"},
+        {title:"與朋友同機對弈",text:"雙人模式讓兩位玩家輪流使用同一棋盤。面對面模式可把平板或筆電平放在兩人中間，白方坐上方、黑方坐下方，雙方的資訊與按鈕會朝向各自一側。右上方可切換語言，也可隨時按「新手導覽」重看說明。"}
+      ],
+      signIn:"使用 Google 登入以記錄成績", signOut:"登出", loginForResults:"登入後即可保存勝負紀錄並登上排行榜。",
+      authNotReady:"排行榜登入尚未設定。請先在 Firebase 建立專案並填入網站設定。",
+      rankTitle:"排行榜 · 前 10 名", refresh:"重新整理", noRanks:"目前還沒有排名紀錄。",
+      loadRanksFailed:"暫時無法載入排行榜。請稍後再試。",
+      black:"黑方", white:"白方",
+      home:"首頁", gameLeaderboard:"排行榜", close:"關閉", timerLabel:"用時",
+      timerStop:"停止計時",timerResume:"繼續計時",timerAnalysis:"AI 分析中（計時暫停）",
+      levelRankTitle:"各等級最快勝局", rankLevel:"電腦等級", noLevelRanks:"這個等級尚無勝局紀錄。",
+      loadLevelRanksFailed:"暫時無法載入此等級排行榜。", levelTimeSaved:"已更新此等級的個人最佳時間。",
+      rulesIntro:"開始前請先閱讀以下規則。閱讀完畢後，按下確認按鈕即可開始對弈。",
+      rulesReadText:"我已閱讀規則", rulesStart:"開始對弈",
+      rules:[
+        "黑先白後，雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」（自殺），不可下；能提子則可。沒有氣的棋塊會被提走。",
+        "禁止全局同形：不可使盤面重現先前出現過的任何局面（打劫亦屬此類）。",
+        "雙方連續虛手即終局。點選棋塊標記死子（或使用自動標記），再數子。採中國規則的數子法（活子加圍住的空點）。",
+        "面對面模式：把裝置平放在兩人中間，白方坐上方、黑方坐下方，各自的資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。",
+        "Lv 5 使用儲存在本專案 models/katago.onnx 的 KataGo 模型。只有選擇 Lv 5 時，網頁才會從本專案載入模型；瀏覽器會嘗試快取，下次可重用。模型推論完全在你的裝置上執行，不會呼叫遠端 AI 推論 API。首次載入仍需傳輸約 75 MB 模型資料。",
+        "Lv 1 隨機落子。Lv 2 使用戰術規則（提子、叫吃、避免自打吃）。Lv 3 與 Lv 4 加入蒙地卡羅模擬，Lv 4 思考最久。電腦完全在瀏覽器內運算，在 9 路棋盤上最強。",
+        "Lv 6 使用 Leela Zero 舊版 WebGL 引擎與神經網路，在瀏覽器內透過 WebAssembly 和 WebGL 執行；第一次使用會從固定版本的第三方 CDN 載入引擎及模型。這是 2017 年的瀏覽器移植版，並非最新 Leela Zero。" 
+      ],
+      menu:"設定", newGame:"新遊戲", modeBot:"人機對弈", modeTwo:"雙人對弈", modeFace:"面對面對弈（同一裝置）",
+      level1:"Lv 1 · 入門",level2:"Lv 2 · 初級",level3:"Lv 3 · 中級",level4:"Lv 4 · 高級",level5:"Lv 5 · AI 模型（KataGo，首次使用時下載）",level6:"Lv 6 · Leela Zero（舊版 WebGL；僅支援 19 路）",
+      youBlack:"你執黑",youWhite:"你執白",autoRestart:"結束後自動開新局",size9:"9 路",size13:"13 路",size19:"19 路",
+      undo:"悔棋",pass:"虛手",resign:"認輸",autoMark:"自動標記死子",score:"數子",
+      blackTurn:"黑方落子",whiteTurn:"白方落子",botThinking:"電腦思考中…",markDead:"點選死子",gameOver:"對局結束",
+      waitPass:"（對手虛手）", turnSuffix:"落子", waitRestart:" · {n} 秒後新局",
+      roleYou:"你", roleAI:"電腦 AI", roleLeela:"Leela Zero AI", roleLv:"電腦 Lv ", captures:"提子 ",
+      yourTurn:"輪到你了", waiting:"等待對手…", markHint:"點選棋盤標記死子，再按「數子」",
+      deadAnalysis:"分析中…", confirmResign:"確定認輸？", suicide:"不可下：自殺手", superko:"不可下：禁止全局同形",
+      resultDraw:"和棋。", youWin:"你贏了！", compWin:"電腦獲勝", blackWin:"黑方獲勝", whiteWin:"白方獲勝",
+      resigned:"對手認輸", blackResigned:"黑方勝（白方認輸）。", whiteResigned:"白方勝（黑方認輸）。",
+      blackWins:"黑勝", whiteWins:"白勝", scoreHead:"黑 {b} 子 · 白 {w} 子。黑貼 {k} 子（相當 {m} 目）。",
+      scoreWin:"{side}勝 {n} 目。",
+      endDrawTitle:"本局和棋",endScoreSubtitle:"終局目數分析",
+      endResignSubtitle:"本局以認輸結束，沒有進行數子。",
+      endScoreDetails:"黑方 {black} 目 · 白方 {white} 目 + 貼目 {komi} 目 = 白方計分 {whiteTotal} 目",
+      endMargin:"{side}領先 {n} 目",endResignDetails:"{winner}獲勝，{loser}認輸。本局沒有計算終局目數。",
+      endWhiteAdjusted:"白方（含貼目）",endPoints:"目",endChartLabel:"黑白雙方終局得分比較",
+      endChartNote:"白方分數已加上貼目；圖表顯示的是終局實際計分。",
+      endChartUnavailable:"Chart.js 未能載入，因此目前無法顯示得分圖表。",
+      endHome:"回到首頁",endNewGame:"新遊戲",endAutoRestart:"{n} 秒後自動開始新局",
+      rankPoints:"{p} 分 · 勝 {w} · 敗 {l} · 和 {d}",
+      saved:"已保存本局成績。", needLogin:"本局尚未保存。請使用 Google 登入以記錄成績。",
+      saveFailed:"成績保存失敗；請檢查 Firebase 設定及 Firestore 規則。",
+      aiAnalysisTitle:"AI 分析（Kaya 風格）",
+      aiAnalysisHint:"使用本機 KataGo ONNX 模型進行 PUCT MCTS 搜索，提供推薦著手、勝率與目數估計。",
+      analyzePosition:"分析目前局面",analyzeFullGame:"整盤逐手分析",stopAnalysis:"停止",clearAnalysis:"清除分析",
+      analysisLoading:"正在載入模型並搜索…",analysisEmpty:"尚未分析。按「分析目前局面」開始。",
+      analysisUnavailable:"目前局面無法分析。",analysisFailed:"分析失敗：",
+      analysisBlackWinRate:"黑方勝率估計",analysisScoreLead:"黑方領先目數估計",
+      analysisVisitsLabel:"訪問",analysisBest:"最佳著手",
+      analysisPVLabel:"主變化",analysisTreeHint:"主要候選著手會附上 MCTS 搜索中訪問最多的後續變化。",
+      analysisProgress:"搜索進度",analysisNoOwnership:"此模型未提供 ownership 輸出，無法顯示領地熱圖。",
+      analysisDisclaimer:"以本機 KataGo ONNX 模型進行 PUCT MCTS 搜索。勝率、目數與逐手失誤幅度都是模型估計，不是保證結果；領地熱圖只在模型提供 ownership 輸出時啟用。",
+      analysisVisitsSetting:"每局面搜索量",analysisOwnershipToggle:"顯示領地熱圖",
+      analysisVisitFast:"12 次（快速）",analysisVisitBalanced:"24 次（平衡）",
+      analysisVisitDeep:"48 次（較深入）",analysisVisitMax:"96 次（深入）",
+      analysisNoMoves:"目前沒有可分析的棋步。",analysisFullStart:"整盤分析準備中…",
+      analysisFullProgress:"第 {current}/{total} 個局面，搜索 {visits}/{totalVisits} 次",
+      analysisFullDone:"整盤分析完成，共 {count} 個局面。",
+      analysisFullStopped:"已停止整盤分析，完成 {count} 個局面。",
+      analysisGameTitle:"整盤黑方勝率估計走勢",analysisMove:"第 {n} 手",
+      analysisPass:"虛手",analysisGood:"良好",analysisInaccuracy:"輕微失誤",analysisMistake:"失誤",analysisBlunder:"重大失誤",
+      analysisMoveReview:"最佳 {best} · 實際 {played} · 預估損失 {loss} 個百分點",
+      analysisPolicyLabel:"模型先驗政策",
+      detailTitle:"規則與電腦等級",
+      details:[
+        "黑先白後，雙方輪流各下一著。下子後該子立即無氣、又不能提取對方棋子的點是「禁著點」（自殺），不可下；沒有氣的棋塊會被提走。",
+        "禁止全局同形：不可使盤面重現先前出現過的任何局面（打劫亦屬此類）。",
+        "雙方連續虛手即終局。點選棋塊標記死子（或使用自動標記），再數子。採中國規則數子法（活子加圍住的空點）。",
+        "面對面模式：把裝置平放在兩人中間，白方坐上方、黑方坐下方，各自資訊與按鈕會朝向自己。認輸需要連按兩次以防誤觸。",
+        "Lv 5 使用儲存在本專案 models/katago.onnx 的 KataGo 模型。模型推論完全在你的裝置上執行，不會呼叫遠端 AI 推論 API。首次載入約需下載 75 MB。",
+        "Lv 1 隨機落子。Lv 2 使用基本戰術規則。Lv 3 與 Lv 4 加入蒙地卡羅模擬；Lv 4 思考較久。電腦在瀏覽器內運算。Lv 6 使用 2017 年舊版 Leela Zero WebGL 引擎與模型，透過 WebAssembly／WebGL 在瀏覽器本機運算；首次使用會載入第三方引擎與模型。"
+      ]
+    },
+    en: {
+      launch:"Start game",play:"Play",back:"Back",rulesTitle:"Rules of Go",
+      welcomeSubtitle:"Play against the computer or a friend on the same device. Works on phones, tablets and computers.",
+      guideButton:"How to play",guideTitle:"A quick guide to Go",guideProgress:"Step {current} of {total}",
+      guidePrevious:"Previous",guideNext:"Next",guideFinish:"Finish",guideSkip:"Skip guide",guideClose:"Close guide",
+      guideSteps:[
+        {title:"Choose a game and board",text:"Use the selectors above the board to choose Play vs computer, Two players or Face-to-face. You can also choose a 9×9, 13×13 or 19×19 board. Smaller boards are often easier for beginners."},
+        {title:"Set the computer and your colour",text:"In Play vs computer mode, choose a computer level and whether you play Black or White. Lv 1–4 run in your browser. The first use of Lv 5 downloads the roughly 75 MB KataGo model. Lv 6 is a legacy Leela Zero port and supports 19×19 only."},
+        {title:"Play on an intersection",text:"Black moves first, then players take turns placing stones on the board intersections. Click or tap an intersection to play. Connected stones form a group; the empty neighbouring intersections are its liberties. An opposing group with no liberties is captured."},
+        {title:"Use the game controls",text:"Undo returns to the previous position, Pass skips a turn, and Resign ends the game. Two consecutive passes end the game. Mark dead groups, then select Count to score using Chinese area scoring."},
+        {title:"Play with someone beside you",text:"Two-player mode lets two people take turns on the same board. In Face-to-face mode, place a tablet or laptop between the players, with White at the top and Black at the bottom; each side's information and controls face that player. Change the language in the top bar, or reopen this guide at any time."}
+      ],
+      signIn:"Sign in with Google to save results",signOut:"Sign out",loginForResults:"Sign in to save game results and appear on the leaderboard.",
+      authNotReady:"Google sign-in and rankings are not configured yet. Set up Firebase and add this site's web-app configuration.",
+      rankTitle:"Leaderboard · Top 10",refresh:"Refresh",noRanks:"No ranked games yet.",
+      loadRanksFailed:"The leaderboard is temporarily unavailable. Please try again.",
+      black:"Black",white:"White",
+      home:"Home", gameLeaderboard:"Leaderboard", close:"Close", timerLabel:"Time",
+      timerStop:"Stop timer",timerResume:"Resume timer",timerAnalysis:"AI analysis (timer paused)",
+      levelRankTitle:"Fastest wins by level", rankLevel:"Computer level", noLevelRanks:"No winning records for this level yet.",
+      loadLevelRanksFailed:"This level's leaderboard is temporarily unavailable.", levelTimeSaved:"Your personal best for this level has been updated.",
+      rulesIntro:"Please read the rules below. After reading them, press the confirmation button to begin playing.",
+      rulesReadText:"I have read the rules", rulesStart:"Start playing",
+      rules:[
+        "Black plays first, then White; players alternate one move at a time. A point where a played stone immediately has no liberties is forbidden (suicide), unless the move captures opposing stones. Groups with no liberties are captured and removed.",
+        "Positional superko is enforced: a move may not recreate any earlier board position, including ko.",
+        "Two consecutive passes end the game. Mark dead groups by tapping them or using Auto-mark, then count using Chinese area scoring: living stones plus surrounded empty points.",
+        "Face-to-face mode: place the device between the two players, with White at the top and Black at the bottom. Each player's information and controls face them. Resignation requires two presses to prevent accidental resignations.",
+        "Lv 5 uses the KataGo model stored at models/katago.onnx. The page loads the model from this project only when Lv 5 is selected. Your browser may cache it for reuse. Inference runs entirely on your device and does not call a remote AI inference API. The first load transfers about 75 MB.",
+        "Lv 1 plays random moves. Lv 2 uses tactical rules (captures, atari, and avoiding self-atari). Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks the longest. The computer runs entirely in your browser and is strongest on a 9×9 board.",
+        "Lv 6 uses the legacy Leela Zero WebGL engine and neural network, running in your browser through WebAssembly and WebGL. On first use, the engine and model are loaded from a pinned third-party CDN. This is the 2017 browser port, not the latest Leela Zero engine."
+      ],
+      menu:"Settings",newGame:"New game",modeBot:"Play vs computer",modeTwo:"Two players",modeFace:"Face-to-face (same device)",
+      level1:"Lv 1 · Beginner",level2:"Lv 2 · Easy",level3:"Lv 3 · Intermediate",level4:"Lv 4 · Advanced",level5:"Lv 5 · AI model (KataGo; downloads on first use)",level6:"Lv 6 · Leela Zero (legacy WebGL; 19×19 only)",
+      youBlack:"You play Black",youWhite:"You play White",autoRestart:"Automatically start a new game after finishing",size9:"9×9",size13:"13×13",size19:"19×19",
+      undo:"Undo",pass:"Pass",resign:"Resign",autoMark:"Auto-mark dead stones",score:"Score",
+      blackTurn:"Black to play",whiteTurn:"White to play",botThinking:"Computer thinking…",markDead:"Mark dead stones",gameOver:"Game over",
+      waitPass:" (opponent passed)",turnSuffix:" to play",waitRestart:" · New game in {n}s",
+      roleYou:"You",roleAI:"KataGo AI",roleLeela:"Leela Zero AI",roleLv:"Computer Lv ",captures:"Captured: ",
+      yourTurn:"Your turn",waiting:"Waiting for opponent…",markHint:"Tap groups to mark dead stones, then select Score",
+      deadAnalysis:"Analyzing…",confirmResign:"Confirm resign?",suicide:"Illegal move: suicide",superko:"Illegal move: repeated position",
+      resultDraw:"Draw.",youWin:"You win!",compWin:"Computer wins",blackWin:"Black wins",whiteWin:"White wins",
+      resigned:"Opponent resigned",blackResigned:"Black wins (White resigned).",whiteResigned:"White wins (Black resigned).",
+      blackWins:"Black wins",whiteWins:"White wins",scoreHead:"Black {b} · White {w}. Handicap: {k} stones ({m} points).",
+      scoreWin:"{side} wins by {n} points.",
+      endDrawTitle:"Draw",endScoreSubtitle:"Final score analysis",
+      endResignSubtitle:"This game ended by resignation; no points were counted.",
+      endScoreDetails:"Black {black} pts · White {white} pts + komi {komi} pts = White total {whiteTotal} pts",
+      endMargin:"{side} wins by {n} points",endResignDetails:"{winner} wins because {loser} resigned. No final score was counted.",
+      endWhiteAdjusted:"White (including komi)",endPoints:"points",endChartLabel:"Final area-score comparison",
+      endChartNote:"White's total includes komi. The chart shows the final counted points.",
+      endChartUnavailable:"Chart.js could not be loaded, so the score chart is unavailable.",
+      endHome:"Back to home",endNewGame:"New game",endAutoRestart:"Starting a new game in {n}s",
+      rankPoints:"{p} pts · W {w} · L {l} · D {d}",
+      saved:"Game result saved.",needLogin:"This result is not saved yet. Sign in with Google to record it.",
+      saveFailed:"Could not save the result. Check Firebase configuration and Firestore rules.",
+      aiAnalysisTitle:"AI Analysis (Kaya-inspired)",
+      aiAnalysisHint:"Runs PUCT MCTS with the local KataGo ONNX model to estimate candidate moves, win rates and score leads.",
+      analyzePosition:"Analyze current position",analyzeFullGame:"Review every move",stopAnalysis:"Stop",clearAnalysis:"Clear analysis",
+      analysisLoading:"Loading model and searching…",analysisEmpty:"Not analyzed yet. Select “Analyze current position” to begin.",
+      analysisUnavailable:"This position cannot be analyzed.",analysisFailed:"Analysis failed: ",
+      analysisBlackWinRate:"Estimated Black win rate",analysisScoreLead:"Estimated Black score lead",
+      analysisVisitsLabel:"Visits",analysisBest:"Best move",
+      analysisPVLabel:"Principal variation",analysisTreeHint:"Each leading candidate shows the most-visited continuation found by MCTS.",
+      analysisProgress:"Search progress",analysisNoOwnership:"This model has no ownership output, so the territory heatmap is unavailable.",
+      analysisDisclaimer:"Runs local PUCT MCTS with the KataGo ONNX model. Win rates, score leads and move-loss figures are model estimates, not guarantees. The territory heatmap is enabled only when the model provides an ownership output.",
+      analysisVisitsSetting:"Visits per position",analysisOwnershipToggle:"Show territory heatmap",
+      analysisVisitFast:"12 (quick)",analysisVisitBalanced:"24 (balanced)",
+      analysisVisitDeep:"48 (deeper)",analysisVisitMax:"96 (deepest)",
+      analysisNoMoves:"There are no moves to analyze.",analysisFullStart:"Preparing full-game analysis…",
+      analysisFullProgress:"Position {current}/{total}, searching {visits}/{totalVisits} visits",
+      analysisFullDone:"Full-game analysis complete: {count} positions.",
+      analysisFullStopped:"Full-game analysis stopped: {count} positions completed.",
+      analysisGameTitle:"Estimated Black win rate throughout the game",analysisMove:"Move {n}",
+      analysisPass:"Pass",analysisGood:"Good",analysisInaccuracy:"Inaccuracy",analysisMistake:"Mistake",analysisBlunder:"Blunder",
+      analysisMoveReview:"Best {best} · Played {played} · Estimated loss {loss} percentage points",
+      analysisPolicyLabel:"Model prior policy",
+      detailTitle:"Rules and computer levels",
+      details:[
+        "Black plays first. Players alternate one move at a time. A group with no liberties is captured. Suicide is illegal unless the move captures opposing stones.",
+        "Positional superko is used: a move cannot recreate any earlier board position.",
+        "Two consecutive passes end the game. Mark dead groups, then count the living stones and surrounded empty points using Chinese area scoring.",
+        "Face-to-face mode: place the device between the players, with White at the top and Black at the bottom. Controls face each player. Resignation requires a second confirmation.",
+        "Lv 5 loads the KataGo model stored at models/katago.onnx. Inference runs locally in your browser; no remote AI inference API is used. The first load transfers about 75 MB.",
+        "Lv 1 plays randomly. Lv 2 uses basic tactical rules. Lv 3 and Lv 4 use Monte Carlo simulations; Lv 4 thinks longer. The computer runs in your browser. Lv 6 uses the 2017 legacy Leela Zero WebGL engine and model, running locally in your browser through WebAssembly and WebGL; the engine and model are loaded from a third-party source on first use."
+      ]
+    }
+  };
+  // Central translation lookup used by every screen, button, rules list and status message.
+  // Keep this helper directly after I18N so startup and Firebase callbacks can always use it.
+  function say(key) {
+    const dict = I18N[language] || I18N.zh;
+    const value = dict && dict[key];
+    return value == null ? String(key) : value;
+  }
+
+  function fmtText(key, values) {
+    return Object.entries(values || {}).reduce((out, [k,v]) => out.replaceAll('{' + k + '}', String(v)), say(key));
+  }
+
+  const GUIDE_STORAGE_KEY = 'weiqi-first-play-guide-v1';
+  let guideStep = 0;
+  let guideCloseTimer = 0;
+  function hasCompletedGuide() {
+    try { return localStorage.getItem(GUIDE_STORAGE_KEY) === 'done'; } catch (e) { return false; }
+  }
+  function renderGuide() {
+    const steps = (I18N[language] || I18N.zh).guideSteps || [];
+    if (!steps.length || !$('playGuide')) return;
+    guideStep = Math.max(0, Math.min(guideStep, steps.length - 1));
+    $('guideProgress').textContent = fmtText('guideProgress', {current:guideStep + 1,total:steps.length});
+    $('guideTitle').textContent = steps[guideStep].title;
+    $('guideText').textContent = steps[guideStep].text;
+    const guideDialog = $('playGuide').querySelector('.guide-dialog');
+    if (guideDialog) {
+      guideDialog.classList.remove('guide-step-change');
+      void guideDialog.offsetWidth;
+      guideDialog.classList.add('guide-step-change');
+    }
+    $('guidePrev').textContent = say('guidePrevious');
+    $('guidePrev').disabled = guideStep === 0;
+    $('guideNext').textContent = guideStep === steps.length - 1 ? say('guideFinish') : say('guideNext');
+    $('guideSkip').textContent = say('guideSkip');
+    $('guideClose').setAttribute('aria-label', say('guideClose'));
+  }
+  function openGuide() {
+    clearTimeout(guideCloseTimer);
+    const guide = $('playGuide');
+    guide.classList.remove('guide-closing');
+    guide.hidden = false;
+    guide.setAttribute('aria-hidden','false');
+    guideStep = 0;
+    renderGuide();
+    $('guideNext').focus();
+  }
+  function closeGuide() {
+    const guide = $('playGuide');
+    if (guide.hidden || guide.classList.contains('guide-closing')) return;
+    clearTimeout(guideCloseTimer);
+    guide.classList.add('guide-closing');
+    guide.setAttribute('aria-hidden','true');
+    try { localStorage.setItem(GUIDE_STORAGE_KEY, 'done'); } catch (e) {}
+    if ($('guideBtn')) $('guideBtn').focus();
+    guideCloseTimer = setTimeout(() => {
+      guide.hidden = true;
+      guide.classList.remove('guide-closing');
+      guideCloseTimer = 0;
+    }, reduceMotion() ? 0 : 230);
+  }
+  function applyLanguage(next, refresh = true) {
+    language = next === 'en' ? 'en' : 'zh';
+    try { localStorage.setItem('weiqi-language', language); } catch (e) {}
+    document.documentElement.lang = language === 'en' ? 'en' : 'zh-Hant';
+    ['langSelect','gameLang'].forEach(id => { if ($(id)) $(id).value = language; });
+    const labels = {
+      launchBtn:'launch',rulesStart:'play',rulesBack:'back',guideBtn:'guideButton',googleSignIn:'signIn',headerAuth:currentUser?'signOut':'signIn',
+      refreshRanks:'refresh',leaderboardTitle:'rankTitle',rulesTitle:'rulesTitle',rulesIntro:'rulesIntro',
+      homeBtn:'home',gameLeaderboardBtn:'gameLeaderboard',gameLeaderboardTitle:'rankTitle',refreshGameRanks:'refresh',closeGameLeaderboard:'close',
+      menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
+      endHomeBtn:'endHome',endNewGameBtn:'endNewGame',
+      autoRestartLabel:'autoRestart',analyzePositionBtn:'analyzePosition',analyzeFullGameBtn:'analyzeFullGame',
+      stopFullGameBtn:'stopAnalysis',clearAnalysisBtn:'clearAnalysis',
+      aiAnalysisTitle:'aiAnalysisTitle',aiAnalysisHint:'aiAnalysisHint',aiAnalysisDisclaimer:'analysisDisclaimer',
+      analysisChartLabel:'analysisGameTitle',analysisTreeHint:'analysisTreeHint'
+    };
+    for (const [id,key] of Object.entries(labels)) if ($(id)) $(id).textContent = say(key);
+    if ($('analysisVisitsLabel')) $('analysisVisitsLabel').textContent = say('analysisVisitsSetting');
+    if ($('showOwnershipLabel')) $('showOwnershipLabel').textContent = say('analysisOwnershipToggle');
+    if ($('analysisVisits')) {
+      const visitLabels = ['analysisVisitFast','analysisVisitBalanced','analysisVisitDeep','analysisVisitMax'];
+      visitLabels.forEach((key,i) => { if ($('analysisVisits').options[i]) $('analysisVisits').options[i].text = say(key); });
+    }
+    $('welcomeSubtitle').textContent = say('welcomeSubtitle');
+    if ($('gameTimerLabel')) $('gameTimerLabel').textContent = say('timerLabel');
+    const modeOpts = $('mode').options;
+    [say('modeBot'),say('modeTwo'),say('modeFace')].forEach((v,i)=>modeOpts[i].text=v);
+    const levelOpts = $('level').options;
+    ['level1','level2','level3','level4','level5','level6'].forEach((k,i)=>levelOpts[i].text=say(k));
+    $('color').options[0].text = say('youBlack');
+    $('color').options[1].text = say('youWhite');
+    ['size9','size13','size19'].forEach((k,i)=>$('size').options[i].text=say(k));
+    $('sB').querySelector('b').textContent = say('black');
+    $('sW').querySelector('b').textContent = say('white');
+    $('faceTop').querySelector('.fp-name').textContent = say('white');
+    $('faceBottom').querySelector('.fp-name').textContent = say('black');
+    const detailsEl = document.querySelector('details');
+    const detailsSummary = document.querySelector('details summary');
+    if (detailsSummary) detailsSummary.textContent = say('detailTitle');
+    if (detailsEl) detailsEl.querySelectorAll('p').forEach((p,i)=>p.textContent=I18N[language].details[i] || '');
+    const list = $('rulesList'); list.replaceChildren();
+    I18N[language].rules.forEach(item => { const li=document.createElement('li'); li.textContent=item; list.appendChild(li); });
+    if ($('rulesReadButton')) $('rulesReadButton').textContent = say('rulesReadText');
+    if ($('rulesStart')) $('rulesStart').textContent = say('rulesStart');
+    if ($('playGuide') && !$('playGuide').hidden) renderGuide();
+    $('authStatus').textContent = currentUser
+      ? (language==='en' ? 'Signed in as ' : '已登入：') + (currentUser.displayName || currentUser.email || currentUser.uid)
+      : (firebaseReady() ? say('loginForResults') : say('authNotReady'));
+    if (typeof renderAIAnalysis === 'function') renderAIAnalysis();
+    if (lastResultBuilder) {
+      resultHTML = lastResultBuilder();
+      const r = $('result');
+      const hadAuthNote = !!$('resultAuthNote');
+      r.innerHTML = resultHTML;
+      r.classList.toggle('show', !!resultHTML);
+      if (hadAuthNote) {
+        const note = document.createElement('p');
+        note.id = 'resultAuthNote';
+        note.textContent = say('needLogin');
+        r.appendChild(note);
+      }
+    }
+    if (refresh && board) update();
+    if (refresh) refreshLeaderboard();
+    // Re-render a visible end screen so its title, summary and chart follow the new language.
+    if (refresh && document.body.classList.contains('show-game-end') && lastEndData) showGameEnd(lastEndData);
+  }
+
+
+  let N, board, turn, caps, prevBoard, lastMove, passes, phase, dead = new Set(), history;
+  let seenList = [], seenSet = new Set(), moveLog = [];
+  let mode = 'bot', level = 3, human = B, busy = false, token = 0, resultHTML = '';
+  // Keep the finished-game data so a language switch can rebuild the end screen and result box.
+  let lastEndData = null, lastResultBuilder = null;
+  let endScoreChart = null;
+  let gameStartedAt = 0, gameEndedAt = null;
+  let gameElapsedBeforeTick = 0, gameTickStartedAt = null;
+  let manualTimerPaused = false, analysisTimerPaused = false;
+  let deferredBotMove = null;
+
+  function elapsedGameMs() {
+    if (!gameStartedAt) return 0;
+    return Math.max(0, gameElapsedBeforeTick +
+      (gameTickStartedAt == null ? 0 : performance.now() - gameTickStartedAt));
+  }
+  function pauseClockTick() {
+    if (gameTickStartedAt == null) return;
+    gameElapsedBeforeTick += Math.max(0, performance.now() - gameTickStartedAt);
+    gameTickStartedAt = null;
+  }
+  function resumeClockTick() {
+    if (!gameStartedAt || gameEndedAt != null || manualTimerPaused || analysisTimerPaused) return;
+    if (gameTickStartedAt == null) gameTickStartedAt = performance.now();
+  }
+  function pauseTimerForAnalysis() {
+    analysisTimerPaused = true;
+    pauseClockTick();
+    updateGameTimer();
+  }
+  function resumeTimerAfterAnalysis() {
+    analysisTimerPaused = false;
+    resumeClockTick();
+    updateGameTimer();
+  }
+  function stopGameTimer() {
+    if (gameEndedAt == null) {
+      pauseClockTick();
+      gameEndedAt = performance.now();
+    }
+    updateGameTimer();
+  }
+  function toggleGameTimer() {
+    if (gameEndedAt != null || analysisTimerPaused || (busy && phase === 'mark')) return;
+    manualTimerPaused = !manualTimerPaused;
+    if (manualTimerPaused) {
+      pauseClockTick();
+    } else {
+      resumeClockTick();
+    }
+    update();
+    if (!manualTimerPaused) {
+      if (deferredBotMove && deferredBotMove.tok === token) {
+        const pending = deferredBotMove;
+        deferredBotMove = null;
+        finishBot(pending.tok, pending.move);
+      } else if (mode === 'bot' && phase === 'play' && turn === botColor() && !busy) {
+        maybeBot();
+      }
+    }
+  }
+  function updateTimerButton() {
+    const button = $('timerToggle');
+    if (!button) return;
+    button.textContent = analysisTimerPaused ? say('timerAnalysis')
+      : manualTimerPaused ? say('timerResume') : say('timerStop');
+    button.disabled = gameEndedAt != null || analysisTimerPaused || (busy && phase === 'mark');
+    button.setAttribute('aria-pressed', String(manualTimerPaused || analysisTimerPaused));
+    button.title = button.textContent;
+  }
+  function formatDuration(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), sec = total % 60;
+    return h ? [h, String(m).padStart(2,'0'), String(sec).padStart(2,'0')].join(':')
+      : String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+  }
+  function updateGameTimer() {
+    const el = $('gameTimer');
+    if (el) el.textContent = formatDuration(elapsedGameMs());
+    updateTimerButton();
+  }
+  setInterval(updateGameTimer, 500);
+
+  const opp = c => (c === B ? W : B);
+  const idx = (x, y) => y * N + x;
+  const komi = () => (N === 9 ? 7 : 7.5);
+  const botColor = () => opp(human);
+  const nbrs = (x, y) => {
+    const r = [];
+    if (x > 0) r.push([x - 1, y]);
+    if (x < N - 1) r.push([x + 1, y]);
+    if (y > 0) r.push([x, y - 1]);
+    if (y < N - 1) r.push([x, y + 1]);
+    return r;
+  };
+
+  /* ================= core rules (UI side) ================= */
+  function group(b, x, y) {
+    const color = b[idx(x, y)];
+    const seen = new Set([idx(x, y)]);
+    const stack = [[x, y]];
+    const libs = new Set();
+    const stones = [];
+    while (stack.length) {
+      const [cx, cy] = stack.pop();
+      stones.push([cx, cy]);
+      for (const [nx, ny] of nbrs(cx, cy)) {
+        const v = b[idx(nx, ny)];
+        if (v === EMPTY) libs.add(idx(nx, ny));
+        else if (v === color && !seen.has(idx(nx, ny))) {
+          seen.add(idx(nx, ny));
+          stack.push([nx, ny]);
+        }
+      }
+    }
+    return { stones, libs: libs.size };
+  }
+
+  function tryMove(b, x, y, color) {
+    if (b[idx(x, y)] !== EMPTY) return null;
+    const nb = b.slice();
+    nb[idx(x, y)] = color;
+    let captured = 0;
+    for (const [nx, ny] of nbrs(x, y)) {
+      if (nb[idx(nx, ny)] === opp(color)) {
+        const g = group(nb, nx, ny);
+        if (g.libs === 0) {
+          for (const [sx, sy] of g.stones) nb[idx(sx, sy)] = EMPTY;
+          captured += g.stones.length;
+        }
+      }
+    }
+    if (group(nb, x, y).libs === 0) return null;
+    return { board: nb, captured };
+  }
+
+  const posKey = b => Array.prototype.join.call(b, '');
+  const addSeen = k => { seenList.push(k); seenSet.add(k); };
+
+  /* ================= fast engine (bot playouts) ================= */
+  let NB = [], DG = [], stamp, stampV = 0, stk, grp, grpLen = 0, koPt = -1;
+
+  function fastInit(n) {
+    NB = []; DG = [];
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const nb = [], dg = [];
+      if (x > 0) nb.push(y * n + x - 1);
+      if (x < n - 1) nb.push(y * n + x + 1);
+      if (y > 0) nb.push((y - 1) * n + x);
+      if (y < n - 1) nb.push((y + 1) * n + x);
+      for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        const ax = x + dx, ay = y + dy;
+        if (ax >= 0 && ay >= 0 && ax < n && ay < n) dg.push(ay * n + ax);
+      }
+      NB[y * n + x] = nb; DG[y * n + x] = dg;
+    }
+    stamp = new Int32Array(n * n); stampV = 0;
+    stk = new Int16Array(n * n + 4);
+    grp = new Int16Array(n * n + 4);
+  }
+
+  function floodGroup(b, p) {
+    const color = b[p];
+    stampV++;
+    let sp = 0, libs = 0;
+    grpLen = 0;
+    stk[sp++] = p; stamp[p] = stampV;
+    while (sp) {
+      const q = stk[--sp];
+      grp[grpLen++] = q;
+      const nb = NB[q];
+      for (let i = 0; i < nb.length; i++) {
+        const r = nb[i];
+        if (stamp[r] === stampV) continue;
+        const v = b[r];
+        if (v === 0) { stamp[r] = stampV; libs++; }
+        else if (v === color) { stamp[r] = stampV; stk[sp++] = r; }
+      }
+    }
+    return libs;
+  }
+
+  function fastMove(b, p, c) {
+    if (b[p] !== 0 || p === koPt) return -1;
+    const o = 3 - c;
+    b[p] = c;
+    let cap = 0, capPos = -1;
+    const nb = NB[p];
+    for (let i = 0; i < nb.length; i++) {
+      const r = nb[i];
+      if (b[r] === o && floodGroup(b, r) === 0) {
+        if (grpLen === 1) capPos = r;
+        cap += grpLen;
+        for (let k = 0; k < grpLen; k++) b[grp[k]] = 0;
+      }
+    }
+    const libs = floodGroup(b, p);
+    if (libs === 0) { b[p] = 0; return -1; }
+    koPt = (cap === 1 && grpLen === 1 && libs === 1) ? capPos : -1;
+    return cap;
+  }
+
+  function fastEye(b, p, c) {
+    const nb = NB[p];
+    for (let i = 0; i < nb.length; i++) if (b[nb[i]] !== c) return false;
+    const dg = DG[p];
+    let bad = 0;
+    for (let i = 0; i < dg.length; i++) if (b[dg[i]] === 3 - c) bad++;
+    return nb.length < 4 ? bad === 0 : bad <= 1;
+  }
+
+  function playout(b, toPlay, maxM) {
+    const M = b.length;
+    let passesIn = 0, c = toPlay;
+    koPt = -1;
+    for (let m = 0; m < maxM && passesIn < 2; m++) {
+      let moved = false;
+      for (let t = 0; t < 24 && !moved; t++) {
+        const p = (Math.random() * M) | 0;
+        if (b[p] === 0 && !fastEye(b, p, c) && fastMove(b, p, c) >= 0) moved = true;
+      }
+      if (!moved) {
+        const s = (Math.random() * M) | 0;
+        for (let k = 0; k < M; k++) {
+          const p = (s + k) % M;
+          if (b[p] === 0 && !fastEye(b, p, c) && fastMove(b, p, c) >= 0) { moved = true; break; }
+        }
+      }
+      if (moved) passesIn = 0; else { passesIn++; koPt = -1; }
+      c = 3 - c;
+    }
+  }
+
+  // Area score: black minus white (no komi). Optionally fills owner map.
+  function scoreFast(b, own) {
+    let s = 0;
+    const M = b.length;
+    stampV++;
+    for (let p = 0; p < M; p++) {
+      const v = b[p];
+      if (v === 1) { s++; if (own) own[p] = 1; }
+      else if (v === 2) { s--; if (own) own[p] = 2; }
+      else if (stamp[p] !== stampV) {
+        let sp = 0, size = 0, tB = false, tW = false;
+        stk[sp++] = p; stamp[p] = stampV;
+        const region = [];
+        while (sp) {
+          const q = stk[--sp];
+          size++; region.push(q);
+          const nb = NB[q];
+          for (let i = 0; i < nb.length; i++) {
+            const r = nb[i], nv = b[r];
+            if (nv === 0) { if (stamp[r] !== stampV) { stamp[r] = stampV; stk[sp++] = r; } }
+            else if (nv === 1) tB = true; else tW = true;
+          }
+        }
+        const o = tB && !tW ? 1 : tW && !tB ? 2 : 0;
+        if (o === 1) s += size; else if (o === 2) s -= size;
+        if (own) for (const q of region) own[q] = o;
+      }
+    }
+    return s;
+  }
+
+  /* ================= bot ================= */
+  function ownEye(x, y, c) {
+    const ns = nbrs(x, y);
+    for (const [nx, ny] of ns) if (board[idx(nx, ny)] !== c) return false;
+    let bad = 0;
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const ax = x + dx, ay = y + dy;
+      if (ax < 0 || ay < 0 || ax >= N || ay >= N) continue;
+      if (board[idx(ax, ay)] === opp(c)) bad++;
+    }
+    return ns.length < 4 ? bad === 0 : bad <= 1;
+  }
+
+  const gkey = g => Math.min(...g.stones.map(([sx, sy]) => idx(sx, sy)));
+
+  function genCands(color) {
+    const list = [];
+    const anyStones = board.some(v => v);
+    if (!anyStones) {
+      const m = N === 9 ? 2 : 3;
+      const pts = [[m, m], [N - 1 - m, m], [m, N - 1 - m], [N - 1 - m, N - 1 - m]];
+      const [x, y] = pts[(Math.random() * 4) | 0];
+      const r = tryMove(board, x, y, color);
+      return [{ x, y, s: 5, board: r.board }];
+    }
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      if (board[idx(x, y)] !== EMPTY) continue;
+      const r = tryMove(board, x, y, color);
+      if (!r) continue;
+      if (seenSet.has(posKey(r.board))) continue;
+      if (ownEye(x, y, color)) continue;
+      let s = r.captured * 10;
+      const seenG = new Set();
+      for (const [nx, ny] of nbrs(x, y)) {
+        const v = board[idx(nx, ny)];
+        if (v === EMPTY) continue;
+        const g = group(board, nx, ny);
+        const k = gkey(g);
+        if (seenG.has(k)) continue;
+        seenG.add(k);
+        if (v === opp(color)) {
+          if (g.libs === 2) s += 2 + Math.min(g.stones.length, 5) * 0.6;
+          else if (g.libs === 3) s += 0.3;
+        } else if (g.libs === 1) {
+          const after = group(r.board, x, y).libs;
+          if (after >= 2) s += 5 + g.stones.length; else s -= 2;
+        }
+      }
+      const ga = group(r.board, x, y);
+      if (ga.libs === 1 && r.captured === 0) s -= 6 + ga.stones.length;
+      const d = Math.min(x, y, N - 1 - x, N - 1 - y);
+      s += [-4, -1.2, 1.5, 1.5][Math.min(d, 3)] + (d >= 4 ? 0.3 : 0);
+      let near = false, near3 = false;
+      for (let yy = Math.max(0, y - 3); yy <= Math.min(N - 1, y + 3); yy++)
+        for (let xx = Math.max(0, x - 3); xx <= Math.min(N - 1, x + 3); xx++) {
+          if (board[idx(xx, yy)] === EMPTY) continue;
+          near3 = true;
+          if (Math.abs(xx - x) <= 2 && Math.abs(yy - y) <= 2) near = true;
+        }
+      if (near) s += 1.5; else if (!near3) s -= 1.5;
+      if (lastMove && Math.abs(lastMove[0] - x) + Math.abs(lastMove[1] - y) <= 3) s += 1;
+      list.push({ x, y, s, board: r.board });
+    }
+    return list;
+  }
+
+  function botAhead(color) {
+    const d = scoreFast(Uint8Array.from(board), null) - komi();
+    return color === B ? d > 0 : d < 0;
+  }
+
+  function runMC(color, cands, budget, tok, cb) {
+    const K = cands.length;
+    const n = new Float64Array(K), w = new Float64Array(K);
+    const base = cands.map(c => Uint8Array.from(c.board));
+    const work = new Uint8Array(N * N);
+    const maxM = N * N + 80, kom = komi();
+    let total = 0;
+    const deadline = performance.now() + budget;
+    (function step() {
+      if (tok !== token) return;
+      const t0 = performance.now();
+      while (performance.now() - t0 < 30) {
+        let bi = 0, bv = -1;
+        for (let i = 0; i < K; i++) {
+          const v = n[i] === 0 ? 1e9 : w[i] / n[i] + 0.45 * Math.sqrt(Math.log(total + 1) / n[i]);
+          if (v > bv) { bv = v; bi = i; }
+        }
+        work.set(base[bi]);
+        playout(work, 3 - color, maxM);
+        const d = scoreFast(work, null) - kom;
+        const win = color === B ? d > 0 : d < 0;
+        n[bi]++; if (win) w[bi]++; total++;
+      }
+      if (performance.now() < deadline) setTimeout(step, 0); else cb(n, w);
+    })();
+  }
+
+
+  /* ================= Leela Zero browser engine ================= */
+  let leelaFrame = null, leelaReadyPromise = null, leelaRequestId = 0;
+  const leelaPending = new Map();
+  let leelaReadyResolve = null, leelaReadyReject = null, leelaReadyTimer = null;
+
+  window.addEventListener('message', event => {
+    if (!leelaFrame || event.source !== leelaFrame.contentWindow || event.origin !== location.origin) return;
+    const data = event.data || {};
+    if (data.type === 'status') {
+      if (mode === 'bot' && level === 6 && phase === 'play') {
+        $('msg').textContent = data.message || (language === 'en' ? 'Loading Leela Zero…' : '正在載入 Leela Zero…');
+      }
+      return;
+    }
+    if (data.type === 'ready') {
+      clearTimeout(leelaReadyTimer);
+      if (leelaReadyResolve) leelaReadyResolve();
+      leelaReadyResolve = leelaReadyReject = null;
+      return;
+    }
+    if (data.type === 'error') {
+      clearTimeout(leelaReadyTimer);
+      if (leelaReadyReject) leelaReadyReject(new Error(data.message || 'Leela Zero failed to initialize.'));
+      leelaReadyResolve = leelaReadyReject = null;
+      return;
+    }
+    if (data.type === 'move' || data.type === 'moveError') {
+      const item = leelaPending.get(data.id);
+      if (!item) return;
+      clearTimeout(item.timer);
+      leelaPending.delete(data.id);
+      if (data.type === 'moveError') item.reject(new Error(data.message || 'Leela Zero move failed.'));
+      else item.resolve(data.move || null);
+    }
+  });
+
+  function ensureLeela() {
+    if (leelaReadyPromise) return leelaReadyPromise;
+    leelaReadyPromise = new Promise((resolve, reject) => {
+      leelaReadyResolve = resolve;
+      leelaReadyReject = reject;
+      leelaFrame = document.createElement('iframe');
+      leelaFrame.title = 'Leela Zero WebGL engine';
+      leelaFrame.setAttribute('aria-hidden', 'true');
+      leelaFrame.style.cssText = 'position:fixed;left:-12000px;top:0;width:320px;height:320px;border:0;opacity:0.01;pointer-events:none';
+      leelaFrame.src = new URL('leela-engine.html', document.baseURI).href;
+      leelaReadyTimer = setTimeout(() => {
+        if (leelaReadyReject) leelaReadyReject(new Error('Leela Zero took too long to initialize. Check WebGL support and your network connection.'));
+        leelaReadyResolve = leelaReadyReject = null;
+      }, 120000);
+      leelaFrame.onerror = () => {
+        if (leelaReadyReject) leelaReadyReject(new Error('Could not open leela-engine.html.'));
+        leelaReadyResolve = leelaReadyReject = null;
+      };
+      document.body.appendChild(leelaFrame);
+    }).catch(error => {
+      clearTimeout(leelaReadyTimer);
+      if (leelaFrame) leelaFrame.remove();
+      leelaFrame = null;
+      leelaReadyPromise = null;
+      throw error;
+    });
+    return leelaReadyPromise;
+  }
+
+  async function requestLeelaMove(color) {
+    await ensureLeela();
+    return new Promise((resolve, reject) => {
+      const id = ++leelaRequestId;
+      const timer = setTimeout(() => {
+        leelaPending.delete(id);
+        reject(new Error('Leela Zero did not return a move in time.'));
+      }, 150000);
+      leelaPending.set(id, { resolve, reject, timer });
+      leelaFrame.contentWindow.postMessage({
+        type: 'move',
+        id,
+        size: N,
+        color,
+        moves: moveLog.map(m => ({ c: m.c, p: m.p }))
+      }, location.origin);
+    });
+  }
+
+  async function leelaTurn(tok, color) {
+    busy = true;
+    update();
+    try {
+      const mv = await requestLeelaMove(color);
+      if (tok !== token) return;
+      if (!mv) return finishBot(tok, null);
+      const check = tryMove(board, mv.x, mv.y, color);
+      if (!check || seenSet.has(posKey(check.board))) {
+        throw new Error('Leela Zero returned a move that is illegal under this game’s rules.');
+      }
+      finishBot(tok, mv);
+    } catch (error) {
+      if (tok !== token) return;
+      console.error('Leela Zero error:', error);
+      busy = false;
+      update();
+      $('msg').textContent = (language === 'en' ? 'Leela Zero error: ' : 'Leela Zero 載入或運算失敗：') +
+        (error && error.message ? error.message : String(error));
+    }
+  }
+
+  function maybeBot() {
+    if (manualTimerPaused || mode !== 'bot' || phase !== 'play' || turn !== botColor() || busy) return;
+    busy = true;
+    update();
+    const tok = token;
+    setTimeout(() => {
+      if (tok !== token) return;
+      if (manualTimerPaused) { busy = false; update(); return; }
+      botTurn(tok);
+    }, 250);
+  }
+
+  function finishBot(tok, mv) {
+    if (tok !== token) return;
+    busy = false;
+    if (manualTimerPaused) {
+      deferredBotMove = { tok, move:mv };
+      update();
+      return;
+    }
+    if (mv) play(mv.x, mv.y); else pass();
+  }
+
+  function botTurn(tok) {
+    if (manualTimerPaused) { busy = false; update(); return; }
+    const color = botColor();
+    if (level === 6) { leelaTurn(tok, color); return; }
+    const cands = genCands(color);
+    if (!cands.length || (passes === 1 && botAhead(color))) return finishBot(tok, null);
+    cands.sort((a, b) => b.s - a.s);
+    if (level === 5) {
+      if (net) { nnTurn(tok, color, cands); return; }
+      // Wait for the first model download instead of silently playing with Lv 4.
+      busy = true;
+      update();
+      getNet().then(m => {
+        if (tok !== token) return;
+        net = m;
+        setNetOption(true, NET_LABEL);
+        nnTurn(tok, color, cands);
+      }).catch(e => {
+        console.warn('KataGo model failed; switching to Lv 4:', e);
+        if (tok !== token) return;
+        netPromise = null;
+        setNetOption(false, 'Lv 5 · 模型載入失敗，改用 Lv 4', true);
+        busy = false;
+        update();
+        botTurn(tok);
+      });
+      return;
+    }
+    const lv = level;
+    if (lv === 1) return finishBot(tok, cands[(Math.random() * cands.length) | 0]);
+    if (cands[0].s < -3 && board.filter(v => v).length > N * N * 0.25) return finishBot(tok, null);
+    if (lv === 2) {
+      let best = null, bs = -1e9;
+      for (const c of cands) {
+        const v = c.s + Math.random() * 5;
+        if (v > bs) { bs = v; best = c; }
+      }
+      return finishBot(tok, best);
+    }
+    const top = cands.slice(0, lv === 3 ? 10 : 22);
+    const budget = lv === 3 ? 700 : 2800;
+    runMC(color, top, budget, tok, (n, w) => {
+      let maxN = 0;
+      for (const v of n) maxN = Math.max(maxN, v);
+      let best = top[0], bs = -1e9;
+      top.forEach((c, i) => {
+        if (n[i] < maxN * 0.3) return;
+        const v = w[i] / Math.max(n[i], 1) + 0.008 * c.s;
+        if (v > bs) { bs = v; best = c; }
+      });
+      finishBot(tok, best);
+    });
+  }
+
+  function autoMark() {
+    if (manualTimerPaused || phase !== 'mark' || busy || aiAnalysisBusy) return;
+    busy = true;
+    $('msg').textContent = say('deadAnalysis');
+    const tok = token;
+    setTimeout(() => {
+      if (tok !== token) return;
+      const M = N * N;
+      const cnt = [new Float64Array(M), new Float64Array(M), new Float64Array(M)];
+      const own = new Uint8Array(M), work = new Uint8Array(M), base = Uint8Array.from(board);
+      const t0 = performance.now();
+      let K = 0;
+      while (K < 400 && performance.now() - t0 < 1400) {
+        work.set(base);
+        playout(work, B, M + 80);
+        scoreFast(work, own);
+        for (let p = 0; p < M; p++) cnt[own[p]][p]++;
+        K++;
+      }
+      dead = new Set();
+      const seen = new Set();
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const p = idx(x, y), c = board[p];
+        if (!c || seen.has(p)) continue;
+        const g = group(board, x, y);
+        let against = 0;
+        for (const [sx, sy] of g.stones) { seen.add(idx(sx, sy)); against += cnt[3 - c][idx(sx, sy)]; }
+        if (against / (K * g.stones.length) > 0.7)
+          for (const [sx, sy] of g.stones) dead.add(idx(sx, sy));
+      }
+      busy = false;
+      update();
+    }, 30);
+  }
+
+  /* ================= game flow ================= */
+  function readSettings() {
+    mode = $('mode').value;
+    level = +$('level').value;
+    human = +$('color').value;
+    $('level').style.display = $('color').style.display = mode === 'bot' ? '' : 'none';
+    document.body.classList.toggle('face-on', mode === 'face');
+    $('menu').style.display = mode === 'face' ? '' : 'none';
+  }
+
+  function init() {
+    if (manualTimerPaused && gameStartedAt && gameEndedAt == null) return;
+    document.body.classList.remove('show-game-end');
+    destroyEndChart();
+    $('endRestartNote').textContent = '';
+    clearRestart();
+    stopFx();
+    clearStoneAnimations();
+    clearAIAnalysis();
+    token++;
+    busy = false;
+    readSettings();
+    gameStartedAt = performance.now();
+    gameEndedAt = null;
+    gameElapsedBeforeTick = 0;
+    gameTickStartedAt = gameStartedAt;
+    manualTimerPaused = false;
+    analysisTimerPaused = false;
+    deferredBotMove = null;
+    updateGameTimer();
+    N = +$('size').value;
+    const leelaBoardUnsupported = N !== 19;
+    $('lvLeela').disabled = leelaBoardUnsupported;
+    const leelaFallback = mode === 'bot' && level === 6 && leelaBoardUnsupported;
+    if (leelaFallback) {
+      $('level').value = '4';
+      level = 4;
+    }
+    fastInit(N);
+    loadNet();
+    if (mode === 'face') document.body.classList.remove('show-opts');
+    board = new Array(N * N).fill(EMPTY);
+    prevBoard = null;
+    seenList = []; seenSet = new Set(); moveLog = []; addSeen(posKey(board));
+    turn = B;
+    caps = { [B]: 0, [W]: 0 };
+    lastMove = null;
+    passes = 0;
+    phase = 'play';
+    dead = new Set();
+    history = [];
+    $('result').classList.remove('show'); resultHTML = ''; lastResultBuilder = null; lastEndData = null;
+    $('score').style.display = 'none';
+    $('auto').style.display = 'none';
+    resize();
+    update();
+    if (leelaFallback) {
+      $('msg').textContent = language === 'en'
+        ? 'The legacy Leela Zero engine supports 19×19 only. Switched to Lv 4 for this board size.'
+        : '此舊版 Leela Zero 引擎只支援 19×19 棋盤；目前已自動改用 Lv 4。';
+    }
+    maybeBot();
+  }
+
+  function snapshot() {
+    history.push({
+      board: board.slice(), prevBoard: prevBoard && prevBoard.slice(), turn,
+      caps: { ...caps }, lastMove, passes, seenLen: seenList.length, movesLen: moveLog.length
+    });
+  }
+
+  function play(x, y) {
+    if (manualTimerPaused) return;
+    clearAIAnalysis();
+    const r = tryMove(board, x, y, turn);
+    if (!r) return flash('不可下:自殺手');
+    if (seenSet.has(posKey(r.board))) return flash('不可下:禁止全局同形');
+    snapshot();
+    prevBoard = board;
+    const previousBoard = board;
+    board = r.board;
+    animateBoardDiff(previousBoard, board);
+    addSeen(posKey(board));
+    caps[turn] += r.captured;
+    lastMove = [x, y];
+    passes = 0;
+    moveLog.push({ c: turn, p: y * N + x });
+    turn = opp(turn);
+    update();
+    maybeBot();
+  }
+
+  function pass() {
+    if (manualTimerPaused || phase !== 'play') return;
+    clearAIAnalysis();
+    snapshot();
+    prevBoard = board;
+    passes++;
+    lastMove = null;
+    moveLog.push({ c: turn, p: -1 });
+    if (passes >= 2) {
+      phase = 'mark';
+      dead = new Set();
+      $('score').style.display = '';
+      $('auto').style.display = '';
+    } else {
+      turn = opp(turn);
+    }
+    update();
+    maybeBot();
+  }
+
+  function undo() {
+    if (manualTimerPaused || busy || aiAnalysisBusy || !history.length) return;
+    clearAIAnalysis();
+    clearRestart();
+    stopFx();
+    const previousBoard = board.slice();
+    do {
+      const h = history.pop();
+      board = h.board; prevBoard = h.prevBoard; turn = h.turn;
+      caps = h.caps; lastMove = h.lastMove; passes = h.passes;
+      while (seenList.length > h.seenLen) seenSet.delete(seenList.pop());
+      moveLog.length = h.movesLen;
+    } while (mode === 'bot' && turn !== human && history.length);
+    phase = 'play';
+    dead = new Set();
+    $('score').style.display = 'none';
+    $('auto').style.display = 'none';
+    $('result').classList.remove('show'); resultHTML = ''; lastResultBuilder = null; lastEndData = null;
+    animateBoardDiff(previousBoard, board);
+    update();
+    maybeBot();
+  }
+
+  function resign(loser) {
+    if (manualTimerPaused || phase === 'done') return;
+    clearAIAnalysis();
+    token++; busy = false;
+    phase = 'done';
+    const w = opp(loser);
+    showResult(() => (w === B ? say('blackResigned') : say('whiteResigned')));
+    recordGame(w);
+    celebrate(w, say('resigned'));
+    showGameEnd({type:'resign',winner:w,loser});
+    scheduleRestart();
+    $('score').style.display = 'none';
+    $('auto').style.display = 'none';
+    update();
+  }
+
+  function toggleDead(x, y) {
+    if (manualTimerPaused || board[idx(x, y)] === EMPTY) return;
+    const g = group(board, x, y);
+    const isDead = dead.has(idx(x, y));
+    for (const [sx, sy] of g.stones) {
+      if (isDead) dead.delete(idx(sx, sy)); else dead.add(idx(sx, sy));
+    }
+    draw();
+  }
+
+  function countScore() {
+    if (manualTimerPaused || busy || aiAnalysisBusy) return;
+    const b = Uint8Array.from(board);
+    dead.forEach(i => (b[i] = EMPTY));
+    let sB = 0, sW = 0;
+    const own = new Uint8Array(N * N);
+    scoreFast(b, own);
+    for (let p = 0; p < N * N; p++) { if (own[p] === 1) sB++; else if (own[p] === 2) sW++; }
+    const komiPoints = komi();
+    const diff = sB - sW - komiPoints; // Area score: Black - White - komi.
+    phase = 'done';
+    const winner = diff > 0 ? B : diff < 0 ? W : 0;
+    const buildResult = () => fmtText('scoreHead',{b:sB,w:sW,k:fmtZi(komiPoints / 2),m:komiPoints})
+      + (diff === 0 ? '<b>' + say('resultDraw') + '</b>'
+        : '<b>' + fmtText('scoreWin',{side:winner===B?say('black'):say('white'),n:fmtZi(Math.abs(diff))}) + '</b>');
+    showResult(buildResult);
+    recordGame(winner);
+    celebrate(winner, diff === 0 ? '' : fmtText('scoreWin',{side:winner===B?say('black'):say('white'),n:fmtZi(Math.abs(diff))}));
+    showGameEnd({type:'score',black:sB,white:sW,komi:komiPoints,winner,margin:Math.abs(diff)});
+    scheduleRestart();
+    $('score').style.display = 'none';
+    $('auto').style.display = 'none';
+    update();
+  }
+
+  /* ================= KataGo ONNX model (runs in the browser) =================
+     Inputs (KataGo "version 7" format, same as the kaya-go/kaya ONNX files):
+       bin_input    [1, 22, H, W]   binary planes (see encodeKata)
+       global_input [1, 19]         global features
+     Outputs used: policy (logits, last index = pass) and value (win/loss/no-result logits). */
+  const ORT_VERSION = '1.19.2';
+  const ORT_BASE = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@' + ORT_VERSION + '/dist/';
+  const ORT_URL = ORT_BASE + 'ort.min.js';
+  // The model is stored in this repository. It is requested only when Lv 5 is used.
+  // Browser cache avoids fetching it again on later visits when storage is available.
+  const MODEL_URL = new URLSearchParams(location.search).get('model') ||
+    new URL('models/katago.onnx', document.baseURI).href;
+  // Global-feature slots that differ between KataGo input versions. Defaults follow the documented
+  // layout (KataGo g104 / V4). If your model needs different slots, change them here.
+  const KG = { komiScale: 20, passEnds: 12, wave: 13 };
+  let net = null, netPromise = null;
+  let aiAnalysisResult = null, aiAnalysisBusy = false, aiAnalysisSequence = 0;
+  let aiAnalysisMarks = [], aiAnalysisSelected = -1, showOwnership = false;
+  let fullGameBusy = false, fullGameSequence = 0, fullGameResults = [], selectedFullGameIndex = -1;
+
+  function ensureOrt() {
+    if (window.ort) return Promise.resolve();
+    return new Promise((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = ORT_URL; sc.onload = res; sc.onerror = () => rej(new Error('ort load failed'));
+      document.head.appendChild(sc);
+    });
+  }
+
+  function setNetOption(ok, text, failed) {
+    const o = $('lvNet');
+    const netText = language === 'en' ? text
+      .replace('Lv 5 · AI 模型(KataGo，首次使用時下載)','Lv 5 · AI model (KataGo; downloads on first use)')
+      .replace('Lv 5 · AI 模型(KataGo)','Lv 5 · AI model (KataGo)')
+      .replace('正在準備 KataGo 模型…','Preparing KataGo model…')
+      .replace('正在讀取已快取模型…','Loading cached model…')
+      .replace('正在從本專案載入 KataGo…','Loading KataGo from this project…')
+      .replace('模型載入失敗，改用 Lv 4','Model failed; using Lv 4')
+      .replace('模型預載失敗，AI 回合時會重試','Model preload failed; will retry on AI turn')
+      .replace('模型載入中','Loading model')
+      : text;
+    o.textContent = netText;
+    // Keep Lv 5 selectable before the model is downloaded.
+    o.disabled = false;
+    if (failed && $('level').value === '5') { $('level').value = '4'; level = 4; }
+  }
+
+  async function fetchModel(url) {
+    let cache = null;
+    try { cache = window.caches ? await caches.open('weiqi-katago-model') : null; }
+    catch (e) { cache = null; }
+
+    if (cache) {
+      try {
+        const hit = await cache.match(url);
+        if (hit) {
+          setNetOption(false, 'Lv 5 · 正在讀取已快取模型…');
+          return new Uint8Array(await hit.arrayBuffer());
+        }
+      } catch (e) { /* cache unavailable */ }
+    }
+
+    setNetOption(false, 'Lv 5 · 正在從本專案載入 KataGo…');
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('本專案找不到 models/katago.onnx (HTTP ' + r.status + ')。請確認 GitHub Actions 已完成模型安裝。');
+    const contentType = (r.headers.get('content-type') || '').toLowerCase();
+    if (contentType.includes('text/html')) {
+      throw new Error('models/katago.onnx 回傳了 HTML，而不是 ONNX 模型。');
+    }
+    if (cache) {
+      try { cache.put(url, r.clone()).catch(() => {}); }
+      catch (e) { /* cache quota or browser policy */ }
+    }
+
+    const total = Number(r.headers.get('content-length')) || 0;
+    let data;
+    if (r.body && r.body.getReader) {
+      const reader = r.body.getReader();
+      const chunks = [];
+      let received = 0;
+      while (true) {
+        const part = await reader.read();
+        if (part.done) break;
+        chunks.push(part.value);
+        received += part.value.length;
+        const progress = total
+          ? Math.min(100, Math.round(received / total * 100)) + '%'
+          : (received / 1048576).toFixed(0) + ' MB';
+        setNetOption(false, 'Lv 5 · 載入本專案 KataGo ' + progress);
+      }
+      data = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) { data.set(chunk, offset); offset += chunk.length; }
+    } else {
+      data = new Uint8Array(await r.arrayBuffer());
+    }
+
+    if (data.length < 50 * 1024 * 1024 || data.length >= 100 * 1024 * 1024) {
+      throw new Error('本專案的 KataGo 模型大小不正確，請重新部署模型檔案。');
+    }
+    const preview = String.fromCharCode(...data.slice(0, 16)).trim().toLowerCase();
+    if (preview.startsWith('<!doctype') || preview.startsWith('<html') ||
+        preview.startsWith('version https://git-lfs')) {
+      throw new Error('models/katago.onnx 不是有效的 ONNX 模型檔案。');
+    }
+    return data;
+  }
+
+  function getNet() {
+    if (!netPromise) netPromise = (async () => {
+      const buf = await fetchModel(MODEL_URL);
+      await ensureOrt();
+      if (window.ort.env && window.ort.env.wasm) {
+        window.ort.env.wasm.numThreads = 1;
+        window.ort.env.wasm.wasmPaths = ORT_BASE;
+      }
+      const session = await window.ort.InferenceSession.create(buf, { executionProviders: ['wasm'] });
+      return { session, ms: 0, pad: 0 };
+    })();
+    return netPromise;
+  }
+
+  const NET_LABEL = 'Lv 5 · AI 模型(KataGo)';
+  function loadNet() {
+    if (mode !== 'bot' || level !== 5) {
+      if (!net) setNetOption(false, 'Lv 5 · AI 模型(KataGo，首次使用時下載)');
+      return;
+    }
+    if (net) { setNetOption(true, NET_LABEL); return; }
+    setNetOption(false, 'Lv 5 · 正在準備 KataGo 模型…');
+    getNet().then(m => { net = m; setNetOption(true, NET_LABEL); })
+      .catch(e => {
+        // Do not switch levels here: botTurn handles a failed download during its own turn.
+        console.warn('KataGo model preload failed; it will retry on the next AI turn:', e);
+        netPromise = null;
+        net = null;
+        setNetOption(false, 'Lv 5 · 模型預載失敗，AI 回合時會重試');
+        update();
+      });
+  }
+
+  /* ---- feature helpers ---- */
+  function libsMap(b) {
+    const n = N * N, out = new Int16Array(n), seen = new Uint8Array(n);
+    for (let p = 0; p < n; p++) {
+      if (!b[p] || seen[p]) continue;
+      const g = group(b, p % N, (p / N) | 0);
+      for (const [sx, sy] of g.stones) { out[sy * N + sx] = g.libs; seen[sy * N + sx] = 1; }
+    }
+    return out;
+  }
+
+  // Benson's algorithm: stones that can never be captured, plus the eyes they enclose.
+  function passAlive(b, color) {
+    const n = N * N, mask = new Uint8Array(n);
+    const nb = p => nbrs(p % N, (p / N) | 0).map(([x, y]) => y * N + x);
+    const chainOf = new Int32Array(n).fill(-1), chains = [];
+    for (let p = 0; p < n; p++) {
+      if (b[p] !== color || chainOf[p] >= 0) continue;
+      const g = group(b, p % N, (p / N) | 0), id = chains.length;
+      const st = g.stones.map(([x, y]) => y * N + x);
+      st.forEach(q => (chainOf[q] = id));
+      chains.push({ stones: st, alive: true });
+    }
+    if (!chains.length) return mask;
+    const regOf = new Int32Array(n).fill(-1), regions = [];
+    for (let p = 0; p < n; p++) {
+      if (b[p] === color || regOf[p] >= 0) continue;
+      const pts = [], stack = [p], adj = new Set();
+      regOf[p] = regions.length;
+      while (stack.length) {
+        const q = stack.pop();
+        pts.push(q);
+        for (const r of nb(q)) {
+          if (b[r] === color) adj.add(chainOf[r]);
+          else if (regOf[r] < 0) { regOf[r] = regions.length; stack.push(r); }
+        }
+      }
+      const empties = pts.filter(q => b[q] === EMPTY);
+      const vital = new Set();
+      if (empties.length) {
+        adj.forEach(c => { if (empties.every(e => nb(e).some(r => chainOf[r] === c))) vital.add(c); });
+      }
+      regions.push({ pts, adj, vital, alive: true });
+    }
+    let changed = true;
+    while (changed) {
+      changed = false;
+      chains.forEach((ch, c) => {
+        if (!ch.alive) return;
+        let cnt = 0;
+        for (const r of regions) if (r.alive && r.vital.has(c)) cnt++;
+        if (cnt < 2) { ch.alive = false; changed = true; }
+      });
+      for (const r of regions) {
+        if (!r.alive) continue;
+        for (const c of r.adj) if (!chains[c].alive) { r.alive = false; changed = true; break; }
+      }
+    }
+    chains.forEach(ch => { if (ch.alive) ch.stones.forEach(q => (mask[q] = 1)); });
+    for (const r of regions) {
+      if (!r.alive) continue;
+      let v = false;
+      r.vital.forEach(c => { if (chains[c].alive) v = true; });
+      if (v) r.pts.forEach(q => (mask[q] = 1));
+    }
+    return mask;
+  }
+
+  function parityWave(selfKomi, area) {
+    let d = selfKomi + (area % 2 === 0 ? 0 : 1);
+    d -= 2 * Math.floor(d / 2);                      // [0, 2)
+    return d < 0.5 ? d : d < 1.5 ? 1 - d : d - 2;
+  }
+
+  /* KataGo spatial planes (22), from the point of view of `pla` (player to move):
+       0 on board | 1 own stones | 2 opponent stones | 3,4,5 stones with 1,2,3 liberties
+       6 ko / superko banned | 7,8 unused (Japanese rules) | 9..13 moves 1..5 turns ago
+       14,15,16 ladder-captured stones (not computed, left 0) | 17 ladder-working moves (left 0)
+       18,19 pass-alive area own / opponent | 20,21 unused
+     Global features (19): 0..4 which of the last 5 moves were passes | 5 komi/scale (own view)
+       6,7 ko rule (positional superko = 1, 0.5) | 8 suicide legal | 9 territory scoring
+       12 pass would end game | 13 komi+board-size parity wave | rest 0 */
+  function encodeKata(b, pla, moves, passFlag, forbiddenPositions = seenSet) {
+    const n = N * N, bin = new Float32Array(22 * n), glob = new Float32Array(19);
+    const o = opp(pla), legal = [];
+    bin.fill(1, 0, n);
+    const libs = libsMap(b);
+    for (let p = 0; p < n; p++) {
+      const v = b[p];
+      if (v === pla) bin[n + p] = 1;
+      else if (v === o) bin[2 * n + p] = 1;
+      if (v && libs[p] >= 1 && libs[p] <= 3) bin[(2 + libs[p]) * n + p] = 1;
+    }
+    for (let p = 0; p < n; p++) {
+      if (b[p] !== EMPTY) continue;
+      const r = tryMove(b, p % N, (p / N) | 0, pla);
+      if (!r) continue;
+      if (forbiddenPositions.has(posKey(r.board))) { bin[6 * n + p] = 1; continue; }
+      legal.push(p);
+    }
+    for (let k = 1; k <= 5; k++) {
+      const m = moves[moves.length - k];
+      if (!m || m.c !== (k % 2 === 1 ? o : pla)) break;
+      if (m.p < 0) glob[k - 1] = 1; else bin[(8 + k) * n + m.p] = 1;
+    }
+    const pa = passAlive(b, pla), po = passAlive(b, o);
+    for (let p = 0; p < n; p++) { if (pa[p]) bin[18 * n + p] = 1; if (po[p]) bin[19 * n + p] = 1; }
+    const selfKomi = pla === W ? komi() : -komi();
+    glob[5] = selfKomi / KG.komiScale;
+    glob[6] = 1; glob[7] = 0.5;
+    if (passFlag) glob[KG.passEnds] = 1;
+    glob[KG.wave] = parityWave(selfKomi, n);
+    return { bin, glob, legal };
+  }
+
+  function padTo(bin, S) {
+    if (S === N) return bin;
+    const out = new Float32Array(22 * S * S);
+    for (let c = 0; c < 22; c++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
+      out[c * S * S + y * S + x] = bin[c * N * N + y * N + x];
+    return out;
+  }
+
+  async function nnRun(m, enc, pla = turn) {
+    const S = m.pad || N, ort = window.ort, names = m.session.inputNames;
+    const feeds = {};
+    feeds[names.indexOf('bin_input') >= 0 ? 'bin_input' : names[0]] = new ort.Tensor('float32', padTo(enc.bin, S), [1, 22, S, S]);
+    feeds[names.indexOf('global_input') >= 0 ? 'global_input' : names[1]] = new ort.Tensor('float32', enc.glob, [1, 19]);
+    let out;
+    const t0 = performance.now();
+    try { out = await m.session.run(feeds); }
+    catch (e) {
+      if (m.pad || N === 19) throw e;
+      m.pad = 19;                                   // fixed-size 19×19 model: pad the board
+      return nnRun(m, enc, pla);
+    }
+    m.ms = m.ms ? m.ms * 0.5 + (performance.now() - t0) * 0.5 : performance.now() - t0;
+    const pd = (out.policy || out[m.session.outputNames[0]]).data, L = S * S + 1;
+    const pol = p => (p < 0 ? pd[S * S] : pd[((p / N) | 0) * S + (p % N)]);
+    let value = 0, blackWinRate = 0.5, scoreLeadBlack = null;
+    const vd = out.value && out.value.data;
+    if (vd && vd.length >= 3) {
+      const mx = Math.max(vd[0], vd[1], vd[2]);
+      const ew = Math.exp(vd[0] - mx), el = Math.exp(vd[1] - mx), en = Math.exp(vd[2] - mx);
+      const sum = ew + el + en || 1;
+      const winCurrent = ew / sum, lossCurrent = el / sum;
+      value = winCurrent - lossCurrent;
+      blackWinRate = pla === B ? winCurrent : 1 - winCurrent;
+    }
+    const md = out.miscvalue && out.miscvalue.data;
+    if (md && md.length >= 3) scoreLeadBlack = md[2] * 20 * (pla === B ? 1 : -1);
+    let ownershipBlack = null;
+    const od = out.ownership && out.ownership.data;
+    if (od && od.length >= S * S) {
+      ownershipBlack = new Float32Array(N * N);
+      const sign = pla === B ? 1 : -1;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        ownershipBlack[y * N + x] = Math.tanh(od[y * S + x]) * sign;
+      }
+    }
+    return {
+      pol, value, blackWinRate, scoreLeadBlack, ownershipBlack,
+      hasValue: !!(vd && vd.length >= 3), L
+    };
+  }
+
+
+  /* ================= PUCT Monte Carlo Tree Search =================
+     Runs locally with this project's KataGo policy, value, score and optional ownership heads. */
+  function makeSearchNode(state, prior = 1, move = null) {
+    return {
+      board:state.board, toPlay:state.toPlay, moves:state.moves.slice(-5),
+      seen:state.seen, passes:state.passes, prior, move,
+      visits:0, blackWinSum:0, scoreSum:0,
+      children:null, expanded:false, evaluation:null
+    };
+  }
+
+  function makeSearchChild(parent, move, prior) {
+    let nextBoard, nextSeen = parent.seen, nextPasses;
+    if (move < 0) {
+      nextBoard = parent.board.slice();
+      nextPasses = parent.passes + 1;
+    } else {
+      const placed = tryMove(parent.board, move % N, (move / N) | 0, parent.toPlay);
+      if (!placed) return null;
+      nextBoard = placed.board;
+      const key = posKey(nextBoard);
+      if (parent.seen.has(key)) return null;
+      nextSeen = new Set(parent.seen);
+      nextSeen.add(key);
+      nextPasses = 0;
+    }
+    const history = parent.moves.concat([{ c:parent.toPlay, p:move }]).slice(-5);
+    return makeSearchNode({
+      board:nextBoard, toPlay:opp(parent.toPlay), moves:history,
+      seen:nextSeen, passes:nextPasses
+    }, prior, move);
+  }
+
+  function expandSearchNode(node, encoded, output) {
+    const candidates = encoded.legal.concat([-1]);
+    let maxLogit = -Infinity;
+    for (const p of candidates) maxLogit = Math.max(maxLogit, output.pol(p));
+    const weights = candidates.map(p => Math.exp(Math.max(-60, output.pol(p) - maxLogit)));
+    const total = weights.reduce((a,b) => a + b, 0) || 1;
+    node.children = new Map();
+    candidates.forEach((p, i) => {
+      node.children.set(p, {
+        move:p, prior:weights[i] / total, stateReady:false,
+        visits:0, blackWinSum:0, scoreSum:0, children:null,
+        expanded:false, evaluation:null
+      });
+    });
+    node.expanded = true;
+  }
+
+  function materializeSearchChild(parent, edge) {
+    if (!edge || edge.stateReady) return edge;
+    const child = makeSearchChild(parent, edge.move, edge.prior);
+    if (!child) {
+      parent.children.delete(edge.move);
+      return null;
+    }
+    Object.assign(edge, child);
+    edge.stateReady = true;
+    return edge;
+  }
+
+  function chooseSearchChild(node) {
+    let best = null, bestScore = -Infinity;
+    const rootVisits = Math.sqrt(Math.max(1, node.visits));
+    for (const child of node.children.values()) {
+      const q = child.visits
+        ? (node.toPlay === B
+          ? child.blackWinSum / child.visits
+          : 1 - child.blackWinSum / child.visits)
+        : 0;
+      const u = 1.55 * child.prior * rootVisits / (1 + child.visits);
+      if (q + u > bestScore) { bestScore = q + u; best = child; }
+    }
+    return best;
+  }
+
+  async function runKataMcts(model, start, visitCount, forcedMove = null, onProgress = null, cancelled = () => false) {
+    const root = makeSearchNode({
+      board:start.board.slice(), toPlay:start.toPlay,
+      moves:(start.moves || []).slice(-5),
+      seen:new Set(start.seen || seenSet), passes:start.passes || 0
+    });
+    const ownerSum = new Float64Array(N * N);
+    let ownerCount = 0;
+    const addOwnership = own => {
+      if (!own || own.length !== N * N) return;
+      for (let i = 0; i < own.length; i++) ownerSum[i] += own[i];
+      ownerCount++;
+    };
+    const evaluate = async node => {
+      const encoded = encodeKata(node.board, node.toPlay, node.moves, node.passes === 1, node.seen);
+      const output = await nnRun(model, encoded, node.toPlay);
+      node.evaluation = output;
+      addOwnership(output.ownershipBlack);
+      if (!node.expanded) expandSearchNode(node, encoded, output);
+      return output;
+    };
+
+    const rootOutput = await evaluate(root);
+    if (!rootOutput.hasValue) {
+      throw new Error('此 ONNX 模型沒有可用的 value 輸出，無法計算 MCTS 勝率。');
+    }
+    let hasScoreLead = rootOutput.scoreLeadBlack != null;
+    const canForce = forcedMove !== null && root.children.has(forcedMove);
+    const forcedCount = canForce
+      ? Math.max(1, Math.min(Math.floor(visitCount / 2), Math.floor(visitCount * 0.1)))
+      : 0;
+    let completed = 0;
+    const progressEvery = Math.max(1, Math.floor(visitCount / 8));
+
+    for (let visit = 0; visit < visitCount; visit++) {
+      if (cancelled()) break;
+      let node = root;
+      const path = [root];
+      if (visit < forcedCount) {
+        node = materializeSearchChild(root, root.children.get(forcedMove));
+      } else {
+        node = materializeSearchChild(root, chooseSearchChild(root));
+      }
+      if (!node) continue;
+      path.push(node);
+
+      while (node.expanded && node.children && node.children.size && node.passes < 2) {
+        const child = materializeSearchChild(node, chooseSearchChild(node));
+        if (!child) break;
+        node = child;
+        path.push(node);
+      }
+
+      let blackWinRate, scoreLeadBlack;
+      if (node.passes >= 2) {
+        const margin = scoreFast(node.board) - komi();
+        blackWinRate = margin > 0 ? 1 : margin < 0 ? 0 : 0.5;
+        scoreLeadBlack = margin;
+        hasScoreLead = true;
+      } else {
+        const output = node.evaluation || await evaluate(node);
+        if (cancelled()) break;
+        blackWinRate = output.blackWinRate;
+        if (output.scoreLeadBlack != null) hasScoreLead = true;
+        scoreLeadBlack = output.scoreLeadBlack == null ? 0 : output.scoreLeadBlack;
+      }
+
+      for (const item of path) {
+        item.visits++;
+        item.blackWinSum += blackWinRate;
+        item.scoreSum += scoreLeadBlack;
+      }
+      completed++;
+
+      if (onProgress && (completed % progressEvery === 0 || completed === visitCount)) {
+        onProgress({
+          completed, total:visitCount,
+          blackWinRate:root.visits ? root.blackWinSum / root.visits : rootOutput.blackWinRate,
+          scoreLeadBlack:root.visits ? root.scoreSum / root.visits : rootOutput.scoreLeadBlack
+        });
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
+
+    const moves = root.children
+      ? [...root.children.entries()].map(([move, child]) => {
+          const pv = [move];
+          let current = child;
+          while (pv.length < 10 && current.visits > 0 && current.expanded && current.children) {
+            const next = [...current.children.values()]
+              .filter(candidate => candidate.visits > 0)
+              .sort((a,b) => b.visits - a.visits)[0];
+            if (!next) break;
+            current = materializeSearchChild(current, next);
+            if (!current) break;
+            pv.push(current.move);
+          }
+          return {
+            move, visits:child.visits, prior:child.prior, pv,
+            blackWinRate:child.visits ? child.blackWinSum / child.visits : rootOutput.blackWinRate,
+            scoreLeadBlack:child.visits ? child.scoreSum / child.visits : rootOutput.scoreLeadBlack
+          };
+        }).sort((a,b) => b.visits - a.visits || b.prior - a.prior)
+      : [];
+    const ownership = ownerCount
+      ? Float32Array.from(ownerSum, value => value / ownerCount)
+      : null;
+    return {
+      visits:completed,
+      blackWinRate:root.visits ? root.blackWinSum / root.visits : rootOutput.blackWinRate,
+      scoreLeadBlack:hasScoreLead ? (root.visits ? root.scoreSum / root.visits : rootOutput.scoreLeadBlack) : null,
+      moves, ownership, hasValue:rootOutput.hasValue, hasOwnership:!!ownership
+    };
+  }
+
+  function analysisPositionKey() {
+    return N + ':' + turn + ':' + passes + ':' + posKey(board) + ':' + moveLog.length;
+  }
+
+  function gtpMoveLabel(move) {
+    if (move == null || move < 0) return say('analysisPass');
+    return 'ABCDEFGHJKLMNOPQRST'[move % N] + String(N - ((move / N) | 0));
+  }
+
+  function currentAnalysisState() {
+    return {
+      board:board.slice(), toPlay:turn, moves:moveLog.slice(-5),
+      seen:new Set(seenSet), passes
+    };
+  }
+
+  function renderAIAnalysis() {
+    const liveButton = $('analyzePositionBtn');
+    const fullButton = $('analyzeFullGameBtn');
+    const stopButton = $('stopFullGameBtn');
+    const clearButton = $('clearAnalysisBtn');
+    if (!liveButton || !fullButton || !stopButton || !clearButton) return;
+    liveButton.disabled = aiAnalysisBusy || fullGameBusy || busy || phase !== 'play';
+    fullButton.disabled = aiAnalysisBusy || fullGameBusy || busy || !moveLog.length;
+    stopButton.hidden = !fullGameBusy;
+    clearButton.disabled = fullGameBusy || (!aiAnalysisBusy && !aiAnalysisResult && !aiAnalysisMarks.length && !fullGameResults.length);
+    clearButton.textContent = aiAnalysisBusy ? say('stopAnalysis') : say('clearAnalysis');
+    $('analysisVisits').disabled = aiAnalysisBusy || fullGameBusy;
+    $('showOwnershipToggle').disabled = !aiAnalysisResult || !aiAnalysisResult.ownership || aiAnalysisBusy || fullGameBusy;
+    $('showOwnershipToggle').checked = showOwnership && !!(aiAnalysisResult && aiAnalysisResult.ownership);
+    ['mode','level','color','size','new'].forEach(id => { if ($(id)) $(id).disabled = aiAnalysisBusy || fullGameBusy; });
+    liveButton.textContent = aiAnalysisBusy ? say('analysisLoading') : say('analyzePosition');
+    const summary = $('aiAnalysisSummary');
+    const list = $('aiAnalysisMoves');
+    list.replaceChildren();
+
+    if (aiAnalysisBusy) {
+      summary.textContent = say('analysisLoading');
+    } else if (!aiAnalysisResult) {
+      summary.textContent = say('analysisEmpty');
+    } else if (aiAnalysisResult.error) {
+      summary.textContent = say('analysisFailed') + aiAnalysisResult.error;
+    } else {
+      const result = aiAnalysisResult;
+      summary.textContent = result.hasValue
+        ? say('analysisBlackWinRate') + '：' + (result.blackWinRate * 100).toFixed(1) + '%' +
+          (result.scoreLeadBlack == null ? '' : '　·　' + say('analysisScoreLead') + '：' + result.scoreLeadBlack.toFixed(1))
+        : say('analysisUnavailable');
+      result.moves.slice(0,8).forEach((move, index) => {
+        const li = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.analysisIndex = String(index);
+        button.setAttribute('aria-pressed', String(aiAnalysisSelected === index));
+        const head = document.createElement('span');
+        head.className = 'analysis-move-head';
+        const label = document.createElement('strong');
+        label.textContent = gtpMoveLabel(move.move);
+        const detail = document.createElement('span');
+        detail.textContent = move.visits + ' ' + say('analysisVisitsLabel') +
+          (result.hasValue ? ' · ' + say('analysisBlackWinRate') + ' ' + (move.blackWinRate * 100).toFixed(1) + '%' : '');
+        head.append(label, detail);
+        const pv = document.createElement('span');
+        pv.className = 'analysis-pv';
+        pv.textContent = say('analysisPVLabel') + '：' + (move.pv || [move.move]).map(gtpMoveLabel).join('  ');
+        button.append(head, pv);
+        li.appendChild(button);
+        list.appendChild(li);
+      });
+      $('aiAnalysisProgress').textContent = result.visits + ' ' + say('analysisVisitsLabel') + ' · ' +
+        (result.hasOwnership ? '' : say('analysisNoOwnership'));
+    }
+
+    $('analysisChartWrap').hidden = !fullGameResults.length;
+    renderGameAnalysisList();
+    drawAnalysisChart();
+  }
+
+  function clearAIAnalysis() {
+    if (analysisTimerPaused) resumeTimerAfterAnalysis();
+    aiAnalysisSequence++;
+    fullGameSequence++;
+    aiAnalysisResult = null;
+    aiAnalysisBusy = false;
+    fullGameBusy = false;
+    fullGameResults = [];
+    selectedFullGameIndex = -1;
+    aiAnalysisMarks = [];
+    aiAnalysisSelected = -1;
+    showOwnership = false;
+    $('aiAnalysisProgress').textContent = '';
+    renderAIAnalysis();
+    draw();
+  }
+
+  async function analyzeCurrentPosition() {
+    if (aiAnalysisBusy || fullGameBusy || busy || phase !== 'play') return;
+    const seq = ++aiAnalysisSequence;
+    const key = analysisPositionKey();
+    aiAnalysisBusy = true;
+    pauseTimerForAnalysis();
+    aiAnalysisResult = null;
+    aiAnalysisMarks = [];
+    aiAnalysisSelected = -1;
+    showOwnership = false;
+    renderAIAnalysis();
+    update();
+    try {
+      const model = net || await getNet();
+      if (seq !== aiAnalysisSequence) return;
+      net = model;
+      const visits = Number($('analysisVisits').value) || 24;
+      const result = await runKataMcts(model, currentAnalysisState(), visits, null, p => {
+        if (seq !== aiAnalysisSequence) return;
+        $('aiAnalysisProgress').textContent = say('analysisProgress') + '：' + p.completed + '/' + p.total +
+          ' · ' + (p.blackWinRate * 100).toFixed(1) + '%';
+      }, () => seq !== aiAnalysisSequence || key !== analysisPositionKey());
+      if (seq !== aiAnalysisSequence || key !== analysisPositionKey()) return;
+      aiAnalysisResult = { ...result, key };
+      aiAnalysisMarks = result.moves.slice(0,5).map(m => m.move).filter(p => p >= 0);
+      aiAnalysisSelected = 0;
+    } catch (error) {
+      if (seq === aiAnalysisSequence) aiAnalysisResult = {
+        key, error:error && error.message ? error.message : String(error), moves:[], hasValue:false
+      };
+    } finally {
+      if (seq === aiAnalysisSequence) {
+        aiAnalysisBusy = false;
+        resumeTimerAfterAnalysis();
+        renderAIAnalysis();
+        update();
+        draw();
+      }
+    }
+  }
+
+  function buildFullGamePositions() {
+    const positions = [];
+    let stateBoard = new Array(N * N).fill(EMPTY);
+    let toPlay = B, passesSeen = 0;
+    let historyMoves = [];
+    let positionsSeen = new Set([posKey(stateBoard)]);
+    for (let i = 0; i < moveLog.length; i++) {
+      const move = moveLog[i];
+      positions.push({
+        board:stateBoard.slice(), toPlay, passes:passesSeen,
+        moves:historyMoves.slice(-5), seen:new Set(positionsSeen),
+        playedMove:move.p, playedColor:move.c, moveIndex:i
+      });
+      if (move.c !== toPlay) throw new Error('棋譜中的棋色順序不一致。');
+      if (move.p < 0) {
+        passesSeen++;
+      } else {
+        const played = tryMove(stateBoard, move.p % N, (move.p / N) | 0, toPlay);
+        if (!played) throw new Error('棋譜包含不合法的著手，無法進行整盤分析。');
+        const key = posKey(played.board);
+        if (positionsSeen.has(key)) throw new Error('棋譜違反全局同形規則，無法進行整盤分析。');
+        stateBoard = played.board;
+        positionsSeen.add(key);
+        passesSeen = 0;
+      }
+      historyMoves.push({ c:move.c, p:move.p });
+      toPlay = opp(toPlay);
+      if (passesSeen >= 2) break;
+    }
+    if (posKey(stateBoard) !== posKey(board)) {
+      throw new Error('棋譜重播後與目前棋盤不一致，請重新開始對局後再試。');
+    }
+    return positions;
+  }
+
+  function classifyMoveLoss(loss) {
+    if (loss < 2) return 'analysisGood';
+    if (loss < 5) return 'analysisInaccuracy';
+    if (loss < 10) return 'analysisMistake';
+    return 'analysisBlunder';
+  }
+
+  async function analyzeFullGame() {
+    if (aiAnalysisBusy || fullGameBusy || busy || !moveLog.length) return;
+    let positions;
+    try { positions = buildFullGamePositions(); }
+    catch (error) {
+      $('aiAnalysisProgress').textContent = error.message || String(error);
+      return;
+    }
+    if (!positions.length) {
+      $('aiAnalysisProgress').textContent = say('analysisNoMoves');
+      return;
+    }
+    const seq = ++fullGameSequence;
+    fullGameBusy = true;
+    fullGameResults = [];
+    selectedFullGameIndex = -1;
+    aiAnalysisResult = null;
+    aiAnalysisMarks = [];
+    showOwnership = false;
+    renderAIAnalysis();
+    update();
+    const visits = Number($('analysisVisits').value) || 24;
+    let completed = 0;
+    try {
+      const model = net || await getNet();
+      if (seq !== fullGameSequence) return;
+      net = model;
+      for (let i = 0; i < positions.length; i++) {
+        if (seq !== fullGameSequence) break;
+        const position = positions[i];
+        const result = await runKataMcts(model, position, visits, position.playedMove, p => {
+          if (seq !== fullGameSequence) return;
+          $('aiAnalysisProgress').textContent = fmtText('analysisFullProgress', {
+            current:i+1,total:positions.length,visits:p.completed,totalVisits:p.total
+          });
+        }, () => seq !== fullGameSequence);
+        if (seq !== fullGameSequence) break;
+        const best = result.moves[0] || null;
+        const played = result.moves.find(m => m.move === position.playedMove) || null;
+        let loss = 0;
+        if (best && played) {
+          const bestForMover = position.playedColor === B ? best.blackWinRate : 1 - best.blackWinRate;
+          const playedForMover = position.playedColor === B ? played.blackWinRate : 1 - played.blackWinRate;
+          loss = Math.max(0, (bestForMover - playedForMover) * 100);
+        }
+        fullGameResults.push({
+          moveNumber:i+1, color:position.playedColor, playedMove:position.playedMove,
+          bestMove:best ? best.move : null, best, played, loss,
+          categoryKey:classifyMoveLoss(loss), blackWinRate:result.blackWinRate,
+          scoreLeadBlack:result.scoreLeadBlack
+        });
+        completed++;
+        selectedFullGameIndex = i;
+        renderAIAnalysis();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      if (seq === fullGameSequence) {
+        $('aiAnalysisProgress').textContent = completed === positions.length
+          ? fmtText('analysisFullDone',{count:completed})
+          : fmtText('analysisFullStopped',{count:completed});
+      }
+    } catch (error) {
+      if (seq === fullGameSequence) {
+        netPromise = null;
+        $('aiAnalysisProgress').textContent = say('analysisFailed') + (error && error.message ? error.message : String(error));
+      }
+    } finally {
+      if (seq === fullGameSequence) {
+        fullGameBusy = false;
+        renderAIAnalysis();
+        update();
+      }
+    }
+  }
+
+  function stopFullGameAnalysis() {
+    if (!fullGameBusy) return;
+    const completed = fullGameResults.length;
+    fullGameSequence++;
+    fullGameBusy = false;
+    $('aiAnalysisProgress').textContent = fmtText('analysisFullStopped',{count:completed});
+    renderAIAnalysis();
+    update();
+  }
+
+  function renderGameAnalysisList() {
+    const list = $('gameAnalysisMoves');
+    list.replaceChildren();
+    fullGameResults.forEach((item, index) => {
+      const li = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.gameAnalysisIndex = String(index);
+      button.setAttribute('aria-pressed', String(selectedFullGameIndex === index));
+      const player = item.color === B ? say('black') : say('white');
+      const played = gtpMoveLabel(item.playedMove);
+      const best = item.bestMove == null ? '—' : gtpMoveLabel(item.bestMove);
+      button.textContent = fmtText('analysisMove',{n:item.moveNumber}) + ' · ' + player + ' ' + played +
+        ' → ' + best + ' · ' + item.loss.toFixed(1) + 'pp · ' + say(item.categoryKey);
+      li.appendChild(button);
+      list.appendChild(li);
+    });
+  }
+
+  function drawAnalysisChart() {
+    const canvas = $('analysisChart');
+    if (!canvas || !fullGameResults.length) return;
+    const cssWidth = canvas.clientWidth || 600;
+    const ratio = window.devicePixelRatio || 1;
+    const height = 150;
+    canvas.width = Math.round(cssWidth * ratio);
+    canvas.height = Math.round(height * ratio);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(ratio,0,0,ratio,0,0);
+    ctx.clearRect(0,0,cssWidth,height);
+    const left=34, right=12, top=10, bottom=22;
+    const plotW=cssWidth-left-right, plotH=height-top-bottom;
+    ctx.font='11px sans-serif';
+    ctx.textAlign='right';
+    ctx.textBaseline='middle';
+    [0,25,50,75,100].forEach(v=>{
+      const y=top+(100-v)/100*plotH;
+      ctx.strokeStyle='rgba(120,120,120,.22)';
+      ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(cssWidth-right,y);ctx.stroke();
+      ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#777';
+      ctx.fillText(v+'%',left-6,y);
+    });
+    const xAt=i=>left+(fullGameResults.length<=1?plotW/2:i/(fullGameResults.length-1)*plotW);
+    const yAt=v=>top+(100-v)/100*plotH;
+    ctx.strokeStyle='#2f5d50';ctx.lineWidth=2;ctx.beginPath();
+    fullGameResults.forEach((item,i)=>{
+      const x=xAt(i),y=yAt(item.blackWinRate*100);
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    fullGameResults.forEach((item,i)=>{
+      const x=xAt(i),y=yAt(item.blackWinRate*100);
+      ctx.beginPath();ctx.arc(x,y,selectedFullGameIndex===i?4:2.5,0,Math.PI*2);
+      ctx.fillStyle=selectedFullGameIndex===i?'#b3261e':'#2f5d50';ctx.fill();
+    });
+    ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#777';
+    ctx.fillText('1',left,height-4);
+    ctx.fillText(String(fullGameResults.length),cssWidth-right,height-4);
+  }
+
+  async function nnTurn(tok, color, cands) {
+    try {
+      const root = encodeKata(board, color, moveLog, passes === 1);
+      const out = await nnRun(net, root);
+      if (tok !== token) return;
+      const list = root.legal
+        .filter(p => !ownEye(p % N, (p / N) | 0, color))
+        .map(p => ({ p, l: out.pol(p) }))
+        .sort((a, b) => b.l - a.l);
+      if (!list.length) return finishBot(tok, null);
+      const mx = list[0].l;
+      if (out.pol(-1) > mx) return finishBot(tok, null);               // model prefers to pass
+      let pick = list[0];
+      const moveNo = board.filter(v => v).length;
+      if (moveNo < 6) {                                                // a little variety in the opening
+        const top = list.slice(0, 5), ws = top.map(c => Math.exp((c.l - mx) / 0.7));
+        let r = Math.random() * ws.reduce((a, b) => a + b, 0);
+        for (let i = 0; i < top.length; i++) { r -= ws[i]; if (r <= 0) { pick = top[i]; break; } }
+      } else if (net.ms < 700) {                                       // fast model: re-rank top 4 with the value head
+        let bs = -1e9;
+        for (const c of list.slice(0, 4)) {
+          const r = tryMove(board, c.p % N, (c.p / N) | 0, color);
+          const enc = encodeKata(r.board, opp(color), moveLog.concat([{ c: color, p: c.p }]), false);
+          const o2 = await nnRun(net, enc);
+          if (tok !== token) return;
+          const sc = (c.l - mx) + 3 * (-o2.value);
+          if (sc > bs) { bs = sc; pick = c; }
+        }
+      }
+      finishBot(tok, { x: pick.p % N, y: (pick.p / N) | 0 });
+    } catch (e) {
+      console.warn('KataGo model failed, using heuristic move', e);
+      if (tok === token) finishBot(tok, cands.length ? cands[0] : null);
+    }
+  }
+
+  /* ================= auto restart ================= */
+  let restartTimer = 0, restartLeft = null;
+  function clearRestart() {
+    clearInterval(restartTimer);
+    restartTimer = 0; restartLeft = null;
+  }
+  function scheduleRestart() {
+    clearRestart();
+    if (!$('autoRestart').checked) {
+      $('endRestartNote').textContent = '';
+      return;
+    }
+    const end = performance.now() + 9000;
+    if (document.body.classList.contains('show-game-end'))
+      $('endRestartNote').textContent = fmtText('endAutoRestart',{n:9});
+    restartTimer = setInterval(() => {
+      const left = Math.ceil((end - performance.now()) / 1000);
+      if (left <= 0) { clearRestart(); init(); return; }
+      if (document.body.classList.contains('show-game-end'))
+        $('endRestartNote').textContent = fmtText('endAutoRestart',{n:left});
+      const v = left <= 5 ? left : null;
+      if (v !== restartLeft) { restartLeft = v; update(); }
+    }, 250);
+  }
+  const restartNote = () => (restartLeft != null ? fmtText('waitRestart',{n:restartLeft}) : '');
+
+  /* ================= win animation ================= */
+  let fxTimer = 0, fxRaf = 0, fxId = 0;
+  const reduceMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  function stopFx() {
+    fxId++;
+    clearTimeout(fxTimer);
+    if (window.cancelAnimationFrame) window.cancelAnimationFrame(fxRaf);
+    $('fx').classList.remove('show');
+    const c = $('fxc');
+    if (c.width) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  }
+
+  function celebrate(winner, sub) {
+    stopFx();
+    const botWin = mode === 'bot' && winner === botColor();
+    const title = winner === 0 ? say('resultDraw')
+      : mode === 'bot' ? (winner === human ? say('youWin') : say('compWin'))
+      : (winner === B ? say('blackWin') : say('whiteWin'));
+    $('bT1').textContent = $('bT2').textContent = title;
+    $('bS1').textContent = $('bS2').textContent = sub || '';
+    $('fx').classList.add('show');
+    const myId = fxId;
+    const click = () => stopFx();
+    document.querySelectorAll && document.querySelectorAll('#fx .banner').forEach(b => (b.onclick = click));
+    if (winner === 0 || reduceMotion()) { fxTimer = setTimeout(stopFx, 4500); return; }
+
+    const w = window.innerWidth || 800, h = window.innerHeight || 600;
+    const dpr = window.devicePixelRatio || 1;
+    const c = $('fxc');
+    c.width = w * dpr; c.height = h * dpr;
+    const g = c.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const pal = ['#e6b84a', '#d94f4f', '#4fa38a', '#4a78c9', '#f2efe6', '#b06ad8'];
+    const parts = [];
+    const t0 = performance.now();
+    const DUR = 6800;
+    let launches = 0, nextLaunch = 250, finale = false;
+    const raf = window.requestAnimationFrame || (f => setTimeout(() => f(performance.now()), 16));
+
+    function addConfetti(n) {
+      for (let i = 0; i < n; i++) parts.push({
+        k: 'c', x: Math.random() * w, y: -20 - Math.random() * 60,
+        vx: (Math.random() - .5) * 1.6, vy: 2 + Math.random() * 3,
+        r: Math.random() * 6.28, vr: (Math.random() - .5) * .3,
+        s: 6 + Math.random() * 7, col: pal[(Math.random() * pal.length) | 0]
+      });
+    }
+    function addStone() {
+      const r = 10 + Math.random() * 10;
+      parts.push({ k: 's', x: r + Math.random() * (w - 2 * r), y: -r, vx: (Math.random() - .5) * 1.2, vy: 1 + Math.random() * 2, r, col: winner === B ? 'b' : 'w' });
+    }
+    function launch(col, sx) {
+      const x = sx !== undefined ? sx : w * (0.12 + 0.76 * Math.random());
+      const ty = h * (0.12 + 0.3 * Math.random());
+      parts.push({ k: 'r', x, y: h + 6, vx: (Math.random() - .5) * .8, vy: -Math.sqrt(2 * .12 * (h - ty)), col: col || pal[(Math.random() * pal.length) | 0], tr: [] });
+    }
+    function spark(x, y, a, sp, col, decay, grav) {
+      parts.push({ k: 'f', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, decay: decay || .014, grav: grav === undefined ? .05 : grav, col, tr: [] });
+    }
+    function explode(x, y, col) {
+      const type = (Math.random() * 4) | 0;
+      const col2 = pal[(Math.random() * pal.length) | 0];
+      if (type === 0) {                       // peony
+        for (let i = 0; i < 70; i++) spark(x, y, Math.random() * 6.283, 1.2 + Math.random() * 3.6, col);
+      } else if (type === 1) {                // ring
+        const n = 44, r0 = Math.random() * 6.283;
+        for (let i = 0; i < n; i++) spark(x, y, r0 + i / n * 6.283, 3.4, col, .016);
+      } else if (type === 2) {                // double ring
+        for (let i = 0; i < 36; i++) spark(x, y, i / 36 * 6.283, 2.2, col, .016);
+        for (let i = 0; i < 36; i++) spark(x, y, i / 36 * 6.283 + .09, 4.2, col2, .016);
+      } else {                                // golden willow
+        for (let i = 0; i < 60; i++) spark(x, y, Math.random() * 6.283, 1 + Math.random() * 3.2, '#f0c24a', .0075, .075);
+      }
+    }
+
+    function frame(now) {
+      if (myId !== fxId) return;
+      const el = now - t0;
+      g.clearRect(0, 0, w, h);
+      if (botWin) {
+        if (el < 2800 && Math.random() < .55) addStone();
+        if (launches < 3 && el > nextLaunch) { launch(pal[(Math.random() * 2) | 0 ? 0 : 4]); launches++; nextLaunch = el + 800; }
+      } else {
+        if (el < 2800) addConfetti(2);
+        if (launches < 9 && el > nextLaunch) { launch(); launches++; nextLaunch = el + 380 + Math.random() * 160; }
+        if (!finale && el > 3900) { finale = true; [.2, .5, .8].forEach((f, i) => launch(pal[i * 2], w * f)); }
+      }
+      const fade = Math.min(1, (DUR - el) / 800);
+      g.globalAlpha = Math.max(0, fade);
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const p = parts[i];
+        if (p.k === 'c') {
+          p.x += p.vx + Math.sin(p.y / 28) * .8; p.y += p.vy; p.r += p.vr;
+          if (p.y > h + 30) { parts.splice(i, 1); continue; }
+          g.save(); g.translate(p.x, p.y); g.rotate(p.r);
+          g.fillStyle = p.col; g.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); g.restore();
+        } else if (p.k === 's') {
+          p.vy += .09; p.x += p.vx; p.y += p.vy;
+          if (p.y > h - p.r) { p.y = h - p.r; p.vy *= -.45; if (Math.abs(p.vy) < 1) p.vy = 0; p.vx *= .8; }
+          const gr = g.createRadialGradient(p.x - p.r * .3, p.y - p.r * .35, p.r * .1, p.x, p.y, p.r);
+          if (p.col === 'b') { gr.addColorStop(0, '#5b5b58'); gr.addColorStop(1, '#0d0d0c'); }
+          else { gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#cbc8bd'); }
+          g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fillStyle = gr; g.fill();
+          g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1; g.stroke();
+        } else if (p.k === 'r') {
+          p.tr.push(p.x, p.y); if (p.tr.length > 14) p.tr.splice(0, 2);
+          p.x += p.vx; p.y += p.vy; p.vy += .12;
+          g.save(); g.globalCompositeOperation = 'lighter'; g.lineWidth = 2; g.lineCap = 'round';
+          for (let t = 2; t < p.tr.length; t += 2) {
+            g.globalAlpha = Math.max(0, fade) * (t / p.tr.length) * .8;
+            g.strokeStyle = p.col; g.beginPath(); g.moveTo(p.tr[t - 2], p.tr[t - 1]); g.lineTo(p.tr[t], p.tr[t + 1]); g.stroke();
+          }
+          g.restore();
+          g.globalAlpha = Math.max(0, fade);
+          if (p.vy >= -.6) { explode(p.x, p.y, p.col); parts.splice(i, 1); continue; }
+        } else {
+          p.tr.push(p.x, p.y); if (p.tr.length > 8) p.tr.splice(0, 2);
+          p.x += p.vx; p.y += p.vy; p.vy += p.grav; p.vx *= .985; p.vy *= .995; p.life -= p.decay;
+          if (p.life <= 0) { parts.splice(i, 1); continue; }
+          const tw = .65 + .35 * Math.random();
+          g.save(); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+          g.strokeStyle = p.col; g.lineWidth = 1.6;
+          for (let t = 2; t < p.tr.length; t += 2) {
+            g.globalAlpha = Math.max(0, fade) * p.life * (t / p.tr.length) * .5;
+            g.beginPath(); g.moveTo(p.tr[t - 2], p.tr[t - 1]); g.lineTo(p.tr[t], p.tr[t + 1]); g.stroke();
+          }
+          g.globalAlpha = Math.max(0, fade) * p.life * .22 * tw;
+          g.fillStyle = p.col; g.beginPath(); g.arc(p.x, p.y, 5, 0, 7); g.fill();
+          g.globalAlpha = Math.max(0, fade) * p.life * tw;
+          g.beginPath(); g.arc(p.x, p.y, 2, 0, 7); g.fill();
+          g.restore();
+          g.globalAlpha = Math.max(0, fade);
+        }
+      }
+      g.globalAlpha = 1;
+      if (el < DUR) fxRaf = raf(frame); else stopFx();
+    }
+    fxRaf = raf(frame);
+  }
+
+
+  // Firebase web configuration is public client configuration, not a private credential.
+  // Fill these values from Firebase Console > Project settings > Your apps.
+// Firebase web configuration is public client configuration, not a private credential.
+  // Keep this name in sync with the Firebase initialization code below.
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBOcBPN-D8S-4lJ6LwzGcBV-N4CI60bdzI",
+    authDomain: "weiqi-online.firebaseapp.com",
+    projectId: "weiqi-online",
+    storageBucket: "weiqi-online.firebasestorage.app",
+    messagingSenderId: "950011884276",
+    appId: "1:950011884276:web:2241c6311e1ee79b1424a1",
+    measurementId: "G-J5J6K8H61M"
+  };
+  let firebaseAuth = null, firestore = null, currentUser = null, firebaseInitError = null;
+  let pendingResults = [], savingResults = false;
+
+  function firebaseReady() {
+    return !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.authDomain && FIREBASE_CONFIG.projectId && FIREBASE_CONFIG.appId)
+      && !Object.values(FIREBASE_CONFIG).some(v => String(v).startsWith('YOUR_'));
+  }
+  function setAuthMessage(message) {
+    $('authStatus').textContent = message;
+  }
+  function updateAuthButtons() {
+    const label = currentUser ? say('signOut') : say('signIn');
+    $('googleSignIn').textContent = label;
+    $('headerAuth').textContent = currentUser ? (language==='en'?'Sign out':'登出') : (language==='en'?'Google sign-in':'Google 登入');
+    if (currentUser) {
+      const name = currentUser.displayName || currentUser.email || currentUser.uid;
+      setAuthMessage((language==='en'?'Signed in as ':'已登入：') + name);
+    } else if (!firebaseReady()) setAuthMessage(say('authNotReady'));
+    else setAuthMessage(say('loginForResults'));
+  }
+  let firebaseInitPromise = null;
+  const firebaseSdkLoads = new Map();
+
+  function loadFirebaseScript(fileName) {
+    if (firebaseSdkLoads.has(fileName)) return firebaseSdkLoads.get(fileName);
+    const urls = [
+      'https://www.gstatic.com/firebasejs/10.14.1/' + fileName + '.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/firebase/10.14.1/' + fileName + '.min.js'
+    ];
+    const task = (async () => {
+      let lastError = null;
+      for (const url of urls) {
+        try {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            const timer = setTimeout(() => {
+              script.remove();
+              reject(new Error('Timed out loading ' + url));
+            }, 15000);
+            script.src = url;
+            script.async = true;
+            script.onload = () => { clearTimeout(timer); resolve(); };
+            script.onerror = () => {
+              clearTimeout(timer);
+              script.remove();
+              reject(new Error('Could not load ' + url));
+            };
+            document.head.appendChild(script);
+          });
+          return;
+        } catch (error) { lastError = error; }
+      }
+      throw lastError || new Error('No Firebase SDK source was available.');
+    })();
+    firebaseSdkLoads.set(fileName, task);
+    task.catch(() => firebaseSdkLoads.delete(fileName));
+    return task;
+  }
+
+  async function ensureFirebaseSdk() {
+    if (!window.firebase || !Array.isArray(window.firebase.apps)) {
+      await loadFirebaseScript('firebase-app-compat');
+    }
+    if (!window.firebase || !Array.isArray(window.firebase.apps)) {
+      throw new Error('Firebase App SDK did not create window.firebase. Check whether the browser blocks gstatic.com and cdnjs.cloudflare.com.');
+    }
+    if (typeof window.firebase.auth !== 'function') {
+      await loadFirebaseScript('firebase-auth-compat');
+    }
+    if (typeof window.firebase.firestore !== 'function') {
+      await loadFirebaseScript('firebase-firestore-compat');
+    }
+    if (typeof window.firebase.auth !== 'function' || typeof window.firebase.firestore !== 'function') {
+      throw new Error('Firebase Authentication or Firestore SDK is still unavailable after trying both CDNs.');
+    }
+  }
+
+  function initFirebase() {
+    if (!firebaseReady()) {
+      updateAuthButtons();
+      refreshLeaderboard();
+      return Promise.resolve(false);
+    }
+    if (firebaseAuth && firestore) return Promise.resolve(true);
+    if (firebaseInitPromise) return firebaseInitPromise;
+
+    setAuthMessage(language === 'en' ? 'Connecting to Firebase…' : '正在連接 Firebase…');
+    firebaseInitPromise = (async () => {
+      try {
+        await ensureFirebaseSdk();
+        const fb = window.firebase;
+        if (!fb.apps.length) fb.initializeApp(FIREBASE_CONFIG);
+        const activeApp = fb.app();
+        if (activeApp.options.projectId !== FIREBASE_CONFIG.projectId) {
+          throw new Error('The loaded Firebase app belongs to a different project.');
+        }
+        firebaseAuth = fb.auth();
+        firestore = fb.firestore();
+        if (!firebaseAuth || !firestore) throw new Error('Firebase Auth or Firestore could not be created.');
+        firebaseAuth.onAuthStateChanged(async user => {
+          currentUser = user || null;
+          updateAuthButtons();
+          refreshLeaderboard();
+          if (currentUser && pendingResults.length) savePendingResults();
+        });
+        firebaseInitError = null;
+        updateAuthButtons();
+        refreshLeaderboard();
+        return true;
+      } catch (error) {
+        firebaseAuth = null;
+        firestore = null;
+        firebaseInitError = error && error.message ? error.message : String(error);
+        console.error('Firebase initialization failed:', error);
+        setAuthMessage((language === 'en' ? 'Firebase setup failed: ' : 'Firebase 初始化失敗：') + firebaseInitError);
+        refreshLeaderboard();
+        return false;
+      }
+    })();
+    return firebaseInitPromise.finally(() => { firebaseInitPromise = null; });
+  }
+
+  async function handleGoogleAuth() {
+    if (!firebaseReady()) {
+      setAuthMessage(say('authNotReady'));
+      return;
+    }
+    if (!firebaseAuth || !firestore) {
+      const ready = await initFirebase();
+      if (!ready || !firebaseAuth) return;
+    }
+    try {
+      if (currentUser) {
+        await firebaseAuth.signOut();
+        currentUser = null;
+        updateAuthButtons();
+      } else {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        await firebaseAuth.signInWithPopup(provider);
+      }
+    } catch (error) {
+      console.warn('Google sign-in failed:', error);
+      const code = error && error.code ? error.code : 'unknown';
+      const detail = error && error.message ? error.message : String(error);
+      let hint = '';
+      if (code === 'auth/popup-blocked') {
+        hint = language==='en' ? 'The browser blocked the sign-in window. Allow pop-ups for this site and try again.' : '瀏覽器封鎖了登入視窗。請允許此網站開啟彈出式視窗後再試。';
+      } else if (code === 'auth/unauthorized-domain') {
+        hint = language==='en' ? 'This website domain is not authorized in Firebase Authentication.' : '這個網站網域尚未加入 Firebase Authentication 的授權網域。';
+      } else if (code === 'auth/popup-closed-by-user') {
+        hint = language==='en' ? 'The sign-in window was closed before sign-in finished.' : '登入視窗在登入完成前被關閉。';
+      } else {
+        hint = language==='en' ? 'Google sign-in failed.' : 'Google 登入失敗。';
+      }
+      setAuthMessage(hint + ' (' + code + ') ' + detail);
+    }
+  }
+  function recordGame(winner) {
+    stopGameTimer();
+    const durationMs = Math.round(elapsedGameMs());
+    updateGameTimer();
+    const myColor = mode === 'bot' ? human : B;
+    const outcome = winner === 0 ? 'draw' : winner === myColor ? 'win' : 'loss';
+    pendingResults.push({
+      outcome, boardSize:N, mode, color:myColor, level:mode === 'bot' ? level : null, durationMs,
+      playedAt:Date.now(),
+      displayMode: mode === 'bot' ? ('bot-lv-' + level) : mode
+    });
+    if (currentUser) savePendingResults();
+    else {
+      setAuthMessage(say('needLogin'));
+      const result = $('result');
+      if (!$('resultAuthNote')) {
+        const note = document.createElement('p');
+        note.id = 'resultAuthNote';
+        note.textContent = say('needLogin');
+        result.appendChild(note);
+      }
+    }
+  }
+  async function saveLevelBest(item) {
+    const user = currentUser;
+    if (!user || !firestore || item.mode !== 'bot' || item.outcome !== 'win' || !item.level || !item.durationMs) return;
+    const ref = firestore.collection('levelLeaderboard').doc('lv' + item.level).collection('players').doc(user.uid);
+    const bestTimeMs = Math.max(1, Math.round(item.durationMs));
+    await firestore.runTransaction(async tx => {
+      const snap = await tx.get(ref);
+      const old = snap.exists ? snap.data() : null;
+      if (!old || bestTimeMs < Number(old.bestTimeMs || Infinity)) {
+        tx.set(ref, {
+          uid:user.uid,
+          level:item.level,
+          displayName:(user.displayName || 'Go player').slice(0,80),
+          bestTimeMs,
+          boardSize:item.boardSize,
+          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    });
+  }
+  async function savePendingResults() {
+    if (!currentUser || !firestore || savingResults) return;
+    savingResults = true;
+    try {
+      while (currentUser && pendingResults.length) {
+        const item = pendingResults[0];
+        const ref = firestore.collection('leaderboard').doc(currentUser.uid);
+        await firestore.runTransaction(async tx => {
+          const snap = await tx.get(ref);
+          const old = snap.exists ? snap.data() : {
+            wins:0, losses:0, draws:0, games:0, points:0
+          };
+          const addWin = item.outcome === 'win' ? 1 : 0;
+          const addLoss = item.outcome === 'loss' ? 1 : 0;
+          const addDraw = item.outcome === 'draw' ? 1 : 0;
+          const data = {
+            uid:currentUser.uid,
+            displayName:(currentUser.displayName || 'Go player').slice(0,80),
+            photoURL:'',
+            wins:(old.wins || 0)+addWin,
+            losses:(old.losses || 0)+addLoss,
+            draws:(old.draws || 0)+addDraw,
+            games:(old.games || 0)+1,
+            points:(old.points || 0)+(addWin*3)+addDraw,
+            lastPlayed:firebase.firestore.FieldValue.serverTimestamp()
+          };
+          tx.set(ref,data);
+        });
+        try { await saveLevelBest(item); }
+        catch (rankError) { console.warn('Saving level leaderboard time failed:', rankError); }
+        pendingResults.shift();
+      }
+      setAuthMessage(say('saved'));
+      const note = $('resultAuthNote');
+      if (note) note.remove();
+      refreshLeaderboard();
+    } catch (error) {
+      console.error('Saving game result failed:', error);
+      setAuthMessage(say('saveFailed'));
+    } finally {
+      savingResults = false;
+    }
+  }
+  async function refreshLeaderboard() {
+    const lists = [$('leaderboardList'), $('gameLeaderboardList')].filter(Boolean);
+    if (!lists.length) return;
+    const showMessage = message => lists.forEach(list => {
+      list.replaceChildren();
+      const li = document.createElement('li');
+      li.className = 'leaderboard-empty';
+      li.textContent = message;
+      list.appendChild(li);
+    });
+    if (!firebaseReady() || !firestore) {
+      showMessage(!firebaseReady() ? say('authNotReady') :
+        (firebaseInitError
+          ? (language === 'en' ? 'Firebase initialization error: ' : 'Firebase 初始化錯誤：') + firebaseInitError
+          : (language === 'en' ? 'Firebase is still loading. Refresh in a moment.' : 'Firebase 正在載入，請稍後重新整理。')));
+      return;
+    }
+    try {
+      const snapshot = await firestore.collection('leaderboard').orderBy('points','desc').limit(100).get();
+      const entries = snapshot.docs.map(doc => doc.data());
+      entries.sort((a,b) => (b.points||0)-(a.points||0) || (b.wins||0)-(a.wins||0) ||
+        ((b.wins||0)/Math.max(1,b.games||0))-((a.wins||0)/Math.max(1,a.games||0)) ||
+        String(a.displayName||'').localeCompare(String(b.displayName||'')));
+      lists.forEach(list => {
+        list.replaceChildren();
+        entries.slice(0,10).forEach((entry,index) => {
+          const li = document.createElement('li');
+          const name = document.createElement('span'); name.className = 'rank-name';
+          name.textContent = (index+1)+'. '+(entry.displayName || 'Go player');
+          const score = document.createElement('span'); score.className = 'rank-score';
+          score.textContent = fmtText('rankPoints',{p:entry.points||0,w:entry.wins||0,l:entry.losses||0,d:entry.draws||0});
+          li.append(name,score);
+          list.appendChild(li);
+        });
+        if (!entries.length) {
+          const li = document.createElement('li'); li.className = 'leaderboard-empty';
+          li.textContent = say('noRanks'); list.appendChild(li);
+        }
+      });
+    } catch (error) {
+      console.warn('Leaderboard fetch failed:',error);
+      showMessage(say('loadRanksFailed'));
+    }
+  }
+
+  let leaderboardCloseTimer = 0;
+  function openGameLeaderboard() {
+    clearTimeout(leaderboardCloseTimer);
+    $('gameLeaderboardPanel').classList.remove('closing');
+    $('gameLeaderboardPanel').classList.add('show');
+    $('gameLeaderboardPanel').setAttribute('aria-hidden','false');
+    refreshLeaderboard();
+  }
+  function closeGameLeaderboard() {
+    const panel = $('gameLeaderboardPanel');
+    if (!panel.classList.contains('show') || panel.classList.contains('closing')) return;
+    panel.setAttribute('aria-hidden','true');
+    panel.classList.add('closing');
+    leaderboardCloseTimer = setTimeout(() => {
+      panel.classList.remove('show','closing');
+    }, reduceMotion() ? 0 : 190);
+  }
+  function returnHome() {
+    clearRestart();
+    stopFx();
+    clearStoneAnimations();
+    clearAIAnalysis();
+    lastResultBuilder = null; lastEndData = null;
+    token++;
+    busy = false;
+    stopGameTimer();
+    closeGameLeaderboard();
+    destroyEndChart();
+    $('endRestartNote').textContent = '';
+    document.body.classList.remove('show-game-end','show-rules','face-on','show-opts');
+    document.body.classList.add('pre-game');
+  }
+
+  function fmtZi(x) {
+    const w = Math.floor(x + 1e-9), f = Math.round((x - w) * 4);
+    const t = ['', '1/4', '1/2', '3/4', ''][f];
+    if (!t) return String(w + (f === 4 ? 1 : 0));
+    return language === 'en' ? (w ? w + ' ' : '') + t : (w ? w + '又' : '') + t;
+  }
+
+  function destroyEndChart() {
+    if (endScoreChart) {
+      endScoreChart.destroy();
+      endScoreChart = null;
+    }
+  }
+
+  function showGameEnd(data) {
+    lastEndData = data;
+    destroyEndChart();
+    document.body.classList.add('show-game-end');
+    $('gameEndSummary').replaceChildren();
+    $('endChartUnavailable').hidden = true;
+    $('endChartNote').textContent = '';
+    $('endScoreChartWrap').hidden = data.type !== 'score';
+
+    $('gameEndTitle').textContent = data.type === 'score' && data.winner === 0
+      ? say('endDrawTitle')
+      : (data.winner === B ? say('blackWin') : say('whiteWin'));
+    $('gameEndSubtitle').textContent = data.type === 'score'
+      ? say('endScoreSubtitle') : say('endResignSubtitle');
+
+    const line = document.createElement('p');
+    if (data.type === 'score') {
+      line.textContent = fmtText('endScoreDetails',{
+        black:data.black,white:data.white,komi:fmtZi(data.komi),
+        whiteTotal:fmtZi(data.white + data.komi)
+      });
+      $('gameEndSummary').appendChild(line);
+      const margin = document.createElement('p');
+      margin.className = 'end-margin';
+      margin.textContent = data.winner === 0 ? say('resultDraw')
+        : fmtText('endMargin',{side:data.winner === B ? say('black') : say('white'),n:fmtZi(data.margin)});
+      $('gameEndSummary').appendChild(margin);
+      $('endChartNote').textContent = say('endChartNote');
+
+      if (typeof window.Chart === 'function') {
+        endScoreChart = new window.Chart($('endScoreChart').getContext('2d'),{
+          type:'bar',
+          data:{
+            labels:[say('black'),say('endWhiteAdjusted')],
+            datasets:[{
+              label:say('endPoints'),
+              data:[data.black,data.white + data.komi],
+              backgroundColor:['#333333','#e4e0d5'],
+              borderColor:['#171717','#a7a397'],
+              borderWidth:1,
+              borderRadius:7
+            }]
+          },
+          options:{
+            responsive:true,maintainAspectRatio:false,
+            plugins:{
+              legend:{display:false},
+              title:{display:true,text:say('endChartLabel')},
+              tooltip:{callbacks:{label:context=>context.parsed.y+' '+say('endPoints')}}
+            },
+            scales:{
+              x:{grid:{display:false}},
+              y:{beginAtZero:true,ticks:{precision:0},title:{display:true,text:say('endPoints')}}
+            }
+          }
+        });
+      } else {
+        $('endChartUnavailable').hidden = false;
+        $('endChartUnavailable').textContent = say('endChartUnavailable');
+      }
+    } else {
+      line.textContent = fmtText('endResignDetails',{
+        winner:data.winner === B ? say('black') : say('white'),
+        loser:data.loser === B ? say('black') : say('white')
+      });
+      $('gameEndSummary').appendChild(line);
+    }
+    $('endHomeBtn').textContent = say('endHome');
+    $('endNewGameBtn').textContent = say('endNewGame');
+    $('endRestartNote').textContent = '';
+  }
+
+  function showResult(html) {
+    if (typeof html === 'function') { lastResultBuilder = html; html = html(); }
+    const r = $('result');
+    r.innerHTML = html;
+    r.classList.add('show');
+    resultHTML = html;
+  }
+
+  let flashTimer;
+  function flash(t) {
+    const translations = {'不可下:自殺手':say('suicide'),'不可下:禁止全局同形':say('superko')};
+    $('msg').textContent = translations[t] || t;
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(update, 1400);
+  }
+
+  function role(c) {
+    if (mode !== 'bot') return '';
+    return (c === human ? say('roleYou') : level === 6 ? say('roleLeela') : level === 5 ? say('roleAI') : say('roleLv') + level) + ' · ';
+  }
+
+  function update() {
+    updateGameTimer();
+    $('capB').textContent = role(B) + say('captures') + caps[B];
+    $('capW').textContent = role(W) + say('captures') + caps[W];
+    $('sB').classList.toggle('active', phase === 'play' && turn === B);
+    $('sW').classList.toggle('active', phase === 'play' && turn === W);
+    const battleLocked = manualTimerPaused || aiAnalysisBusy;
+    $('pass').disabled = battleLocked || phase !== 'play';
+    $('undo').disabled = battleLocked || busy;
+    $('resign').disabled = battleLocked || phase !== 'play';
+    $('auto').disabled = battleLocked || busy;
+    $('score').disabled = battleLocked || busy;
+    ['mode','level','color','size','autoRestart','new'].forEach(id => {
+      if ($(id)) $(id).disabled = manualTimerPaused;
+    });
+    updateTimerButton();
+    if (phase === 'play') {
+      $('msg').textContent = busy ? say('botThinking')
+        : (turn === B ? say('black') : say('white')) + say('turnSuffix') + (passes === 1 ? say('waitPass') : '');
+    } else if (phase === 'mark') {
+      $('msg').textContent = say('markDead');
+    } else {
+      $('msg').textContent = say('gameOver') + restartNote();
+    }
+    updateFace();
+    draw();
+    renderAIAnalysis();
+  }
+
+  /* ================= face-to-face panels */
+  const faceTpl = '<div class="fp-info"><i class="dot"></i><div><b class="fp-name"></b><span class="fp-cap"></span></div></div>' +
+    '<div class="fp-msg"></div><div class="fp-btns"><button data-act="undo">悔棋</button><button data-act="pass">虛手</button>' +
+    '<button data-act="resign">認輸</button><button data-act="auto">自動標記</button><button data-act="score" class="primary">數子</button></div>' +
+    '<div class="fp-result"></div>';
+  ['faceTop', 'faceBottom'].forEach(id => {
+    const el = $(id);
+    el.innerHTML = faceTpl;
+    el.addEventListener('click', e => {
+      const btn = e.target.closest ? e.target.closest('button') : null;
+      if (!btn || btn.disabled) return;
+      const c = +el.dataset.c, act = btn.dataset.act;
+      if (act === 'undo') undo();
+      else if (act === 'pass') { if (phase === 'play' && turn === c) pass(); }
+      else if (act === 'auto') autoMark();
+      else if (act === 'score') countScore();
+      else if (act === 'resign') {
+        if (btn.dataset.arm) { delete btn.dataset.arm; btn.textContent = say('resign'); resign(c); }
+        else {
+          btn.dataset.arm = '1'; btn.textContent = say('confirmResign');
+          setTimeout(() => { if (btn.dataset.arm) { delete btn.dataset.arm; btn.textContent = say('resign'); } }, 3000);
+        }
+      }
+    });
+  });
+
+  function updateFace() {
+    if (mode !== 'face') return;
+    [['faceTop', W], ['faceBottom', B]].forEach(([id, c]) => {
+      const el = $(id);
+      el.classList.toggle('active', phase === 'play' && turn === c);
+      el.querySelector('.dot').className = 'dot ' + (c === B ? 'b' : 'w');
+      el.querySelector('.fp-name').textContent = c === B ? say('black') : say('white');
+      el.querySelector('.fp-cap').textContent = say('captures') + caps[c];
+      let m;
+      if (phase === 'play') m = turn === c ? say('yourTurn') + (passes === 1 ? say('waitPass') : '') : say('waiting');
+      else if (phase === 'mark') m = say('markHint');
+      else m = say('gameOver') + restartNote();
+      el.querySelector('.fp-msg').textContent = m;
+      const q = a => el.querySelector('[data-act="' + a + '"]');
+      q('undo').textContent = say('undo'); q('pass').textContent = say('pass');
+      q('resign').textContent = say('resign'); q('auto').textContent = say('autoMark'); q('score').textContent = say('score');
+      const paused = manualTimerPaused || aiAnalysisBusy;
+      q('undo').disabled = paused || busy || !history.length;
+      q('pass').disabled = paused || !(phase === 'play' && turn === c);
+      q('pass').style.display = phase === 'play' ? '' : 'none';
+      q('resign').disabled = paused || phase === 'done';
+      q('auto').disabled = paused || busy;
+      q('auto').style.display = q('score').style.display = phase === 'mark' ? '' : 'none';
+      q('score').disabled = paused || busy;
+      const r = el.querySelector('.fp-result');
+      r.classList.toggle('show', !!resultHTML);
+      r.innerHTML = resultHTML;
+    });
+  }
+
+  /* ================= drawing ================= */
+  let S, pad, cell;
+  let stoneAnimations = [];
+  let stoneAnimationFrame = 0;
+
+  function clearStoneAnimations() {
+    if (stoneAnimationFrame) cancelAnimationFrame(stoneAnimationFrame);
+    stoneAnimationFrame = 0;
+    stoneAnimations = [];
+  }
+
+  function animateBoardDiff(before, after, duration = 280) {
+    if (!before || !after) return;
+    if (reduceMotion()) {
+      clearStoneAnimations();
+      return;
+    }
+    const now = performance.now();
+    const changes = [];
+    const changedPositions = new Set();
+    for (let p = 0; p < N * N; p++) {
+      const oldColor = before[p] || EMPTY;
+      const newColor = after[p] || EMPTY;
+      if (oldColor === newColor) continue;
+      changedPositions.add(p);
+      if (oldColor !== EMPTY) changes.push({p, color:oldColor, kind:'remove', started:now, duration});
+      if (newColor !== EMPTY) changes.push({p, color:newColor, kind:'place', started:now, duration});
+    }
+    if (!changes.length) return;
+    stoneAnimations = stoneAnimations.filter(a => !changedPositions.has(a.p));
+    stoneAnimations.push(...changes);
+    if (stoneAnimationFrame) cancelAnimationFrame(stoneAnimationFrame);
+    draw();
+    stoneAnimationFrame = requestAnimationFrame(renderStoneAnimations);
+  }
+
+  function renderStoneAnimations() {
+    const now = performance.now();
+    stoneAnimations = stoneAnimations.filter(a => now - a.started < a.duration);
+    draw();
+    if (stoneAnimations.length) {
+      stoneAnimationFrame = requestAnimationFrame(renderStoneAnimations);
+    } else {
+      stoneAnimationFrame = 0;
+    }
+  }
+
+  function resize() {
+    const w = $('wrap').clientWidth || 360;
+    const dpr = window.devicePixelRatio || 1;
+    S = w;
+    cv.width = w * dpr;
+    cv.height = w * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    pad = w / (N + 1) * 0.95;
+    cell = (w - pad * 2) / (N - 1);
+    draw();
+  }
+
+  function stars() {
+    if (N === 19) return [3, 9, 15].flatMap(a => [3, 9, 15].map(b => [a, b]));
+    if (N === 13) return [[3, 3], [3, 9], [9, 3], [9, 9], [6, 6]];
+    return [[2, 2], [2, 6], [6, 2], [6, 6], [4, 4]];
+  }
+
+  function stone(px, py, color, alpha = 1, scale = 1) {
+    const r = cell * 0.47 * scale;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(px + r * 0.08, py + r * 0.12, r, 0, 7);
+    ctx.fillStyle = 'rgba(0,0,0,.28)';
+    ctx.fill();
+    const g = ctx.createRadialGradient(px - r * 0.35, py - r * 0.4, r * 0.1, px, py, r);
+    if (color === B) { g.addColorStop(0, '#5b5b58'); g.addColorStop(1, '#0d0d0c'); }
+    else { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#cbc8bd'); }
+    ctx.beginPath();
+    ctx.arc(px, py, r, 0, 7);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function draw() {
+    if (!S) return;
+    ctx.clearRect(0, 0, S, S);
+    const wood = ctx.createLinearGradient(0, 0, S, S);
+    wood.addColorStop(0, '#dcae62');
+    wood.addColorStop(1, '#c99a50');
+    ctx.fillStyle = wood;
+    ctx.fillRect(0, 0, S, S);
+    ctx.strokeStyle = 'rgba(120,80,20,.12)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 28; i++) {
+      const y = (i + 0.5) * S / 28;
+      ctx.beginPath();
+      ctx.moveTo(0, y + Math.sin(i) * 3);
+      ctx.bezierCurveTo(S * .3, y + 4, S * .6, y - 4, S, y + Math.cos(i) * 3);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#3a2a10';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const p = pad + i * cell;
+      ctx.moveTo(pad, p + .5); ctx.lineTo(S - pad, p + .5);
+      ctx.moveTo(p + .5, pad); ctx.lineTo(p + .5, S - pad);
+    }
+    ctx.stroke();
+    ctx.strokeRect(pad + .5, pad + .5, S - pad * 2, S - pad * 2);
+    ctx.fillStyle = '#3a2a10';
+    for (const [sx, sy] of stars()) {
+      ctx.beginPath();
+      ctx.arc(pad + sx * cell, pad + sy * cell, Math.max(2.5, cell * 0.09), 0, 7);
+      ctx.fill();
+    }
+    const now = performance.now();
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const p = idx(x, y), v = board[p];
+      if (!v) continue;
+      const isAnimatingIn = stoneAnimations.some(a => a.p === p && a.kind === 'place');
+      if (!isAnimatingIn) stone(pad + x * cell, pad + y * cell, v, dead.has(p) ? 0.35 : 1);
+    }
+    for (const animation of stoneAnimations) {
+      const progress = Math.max(0, Math.min(1, (now - animation.started) / animation.duration));
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const x = animation.p % N, y = (animation.p / N) | 0;
+      if (animation.kind === 'place') {
+        stone(pad + x * cell, pad + y * cell, animation.color, 0.35 + 0.65 * eased, 0.18 + 0.82 * eased);
+      } else {
+        stone(pad + x * cell, pad + y * cell, animation.color, 1 - eased, 1 - 0.78 * eased);
+      }
+    }
+    if (showOwnership && aiAnalysisResult && aiAnalysisResult.ownership &&
+        aiAnalysisResult.key === analysisPositionKey()) {
+      for (let p = 0; p < aiAnalysisResult.ownership.length; p++) {
+        if (board[p] !== EMPTY) continue;
+        const value = aiAnalysisResult.ownership[p];
+        const alpha = 0.08 + Math.min(0.42, Math.abs(value) * 0.42);
+        const x = p % N, y = (p / N) | 0;
+        ctx.fillStyle = value >= 0
+          ? 'rgba(43,77,151,' + alpha.toFixed(3) + ')'
+          : 'rgba(177,65,54,' + alpha.toFixed(3) + ')';
+        ctx.fillRect(pad + x * cell - cell * 0.42, pad + y * cell - cell * 0.42, cell * 0.84, cell * 0.84);
+      }
+    }
+    if (aiAnalysisMarks.length) {
+      aiAnalysisMarks.forEach((p, rank) => {
+        const x = p % N, y = (p / N) | 0;
+        if (board[idx(x,y)] !== EMPTY) return;
+        const px = pad + x * cell, py = pad + y * cell;
+        ctx.beginPath();
+        ctx.arc(px, py, cell * 0.31, 0, Math.PI * 2);
+        ctx.fillStyle = rank === aiAnalysisSelected ? 'rgba(179,38,30,.92)' : 'rgba(47,93,80,.82)';
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold ' + Math.max(9, cell * 0.28) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(rank + 1), px, py);
+      });
+    }
+    if (lastMove && phase === 'play') {
+      const [lx, ly] = lastMove;
+      ctx.beginPath();
+      ctx.arc(pad + lx * cell, pad + ly * cell, cell * 0.17, 0, 7);
+      ctx.strokeStyle = board[idx(lx, ly)] === B ? '#fff' : '#111';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#b3261e';
+    ctx.lineWidth = 2;
+    dead.forEach(i => {
+      const x = i % N, y = (i / N) | 0, px = pad + x * cell, py = pad + y * cell, d = cell * 0.17;
+      ctx.beginPath();
+      ctx.moveTo(px - d, py - d); ctx.lineTo(px + d, py + d);
+      ctx.moveTo(px + d, py - d); ctx.lineTo(px - d, py + d);
+      ctx.stroke();
+    });
+    if (hover && canHuman() && phase === 'play' && board[idx(hover[0], hover[1])] === EMPTY) {
+      stone(pad + hover[0] * cell, pad + hover[1] * cell, turn, 0.45);
+    }
+  }
+
+  function canHuman() {
+    if (manualTimerPaused || busy || aiAnalysisBusy) return false;
+    if (phase === 'mark') return true;
+    if (phase !== 'play') return false;
+    return mode !== 'bot' || turn === human;
+  }
+
+  let hover = null;
+  function pointFromEvent(e) {
+    const rect = cv.getBoundingClientRect();
+    const sx = S / rect.width;
+    const px = (e.clientX - rect.left) * sx;
+    const py = (e.clientY - rect.top) * sx;
+    const x = Math.round((px - pad) / cell);
+    const y = Math.round((py - pad) / cell);
+    if (x < 0 || y < 0 || x >= N || y >= N) return null;
+    return [x, y];
+  }
+  cv.addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch') return;
+    const p = pointFromEvent(e);
+    if (!hover || !p || hover[0] !== p[0] || hover[1] !== p[1]) { hover = p; draw(); }
+  });
+  cv.addEventListener('pointerleave', () => { hover = null; draw(); });
+  cv.addEventListener('click', e => {
+    if (!canHuman()) return;
+    const p = pointFromEvent(e);
+    if (!p) return;
+    if (phase === 'mark') toggleDead(p[0], p[1]); else play(p[0], p[1]);
+  });
+
+  $('launchBtn').onclick = () => {
+    $('rulesReadButton').setAttribute('aria-pressed','false');
+    $('rulesReadButton').classList.remove('primary');
+    $('rulesStart').disabled = true;
+    document.body.classList.add('show-rules');
+  };
+  $('rulesBack').onclick = () => { document.body.classList.remove('show-rules'); };
+  $('rulesReadButton').onclick = () => {
+    const accepted = $('rulesReadButton').getAttribute('aria-pressed') !== 'true';
+    $('rulesReadButton').setAttribute('aria-pressed',String(accepted));
+    $('rulesReadButton').classList.toggle('primary',accepted);
+    $('rulesStart').disabled = !accepted;
+  };
+  $('rulesStart').onclick = () => {
+    if ($('rulesReadButton').getAttribute('aria-pressed') !== 'true') return;
+    const firstPlay = !hasCompletedGuide();
+    document.body.classList.remove('pre-game','show-rules');
+    init();
+    if (firstPlay) openGuide();
+  };
+  $('langSelect').onchange = e => applyLanguage(e.target.value);
+  $('gameLang').onchange = e => applyLanguage(e.target.value);
+  $('googleSignIn').onclick = handleGoogleAuth;
+  $('headerAuth').onclick = handleGoogleAuth;
+  $('homeBtn').onclick = returnHome;
+  $('endHomeBtn').onclick = returnHome;
+  $('endNewGameBtn').onclick = init;
+  $('gameLeaderboardBtn').onclick = openGameLeaderboard;
+  $('closeGameLeaderboard').onclick = closeGameLeaderboard;
+  $('gameLeaderboardPanel').addEventListener('click', e => { if (e.target === $('gameLeaderboardPanel')) closeGameLeaderboard(); });
+  $('refreshGameRanks').onclick = refreshLeaderboard;
+  $('timerToggle').onclick = toggleGameTimer;
+  $('guideBtn').onclick = openGuide;
+  $('guideClose').onclick = closeGuide;
+  $('guideSkip').onclick = closeGuide;
+  $('guidePrev').onclick = () => { guideStep = Math.max(0, guideStep - 1); renderGuide(); };
+  $('guideNext').onclick = () => {
+    const steps = (I18N[language] || I18N.zh).guideSteps || [];
+    if (guideStep >= steps.length - 1) closeGuide();
+    else { guideStep++; renderGuide(); }
+  };
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (!$('playGuide').hidden) closeGuide();
+      else closeGameLeaderboard();
+      return;
+    }
+    if (e.key === 'Tab' && !$('playGuide').hidden) {
+      const focusable = Array.from($('playGuide').querySelectorAll('button:not(:disabled)'));
+      if (!focusable.length) return;
+      if (e.shiftKey && document.activeElement === focusable[0]) {
+        e.preventDefault(); focusable[focusable.length - 1].focus();
+      } else if (!e.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+        e.preventDefault(); focusable[0].focus();
+      }
+    }
+  });
+  $('refreshRanks').onclick = refreshLeaderboard;
+  $('new').onclick = init;
+  $('analyzePositionBtn').onclick = analyzeCurrentPosition;
+  $('analyzeFullGameBtn').onclick = analyzeFullGame;
+  $('stopFullGameBtn').onclick = stopFullGameAnalysis;
+  $('clearAnalysisBtn').onclick = clearAIAnalysis;
+  $('showOwnershipToggle').onchange = e => { showOwnership = !!e.target.checked; draw(); };
+  $('analysisVisits').onchange = () => { clearAIAnalysis(); };
+  $('aiAnalysisMoves').addEventListener('click', e => {
+    const button = e.target.closest ? e.target.closest('button[data-analysis-index]') : null;
+    if (!button || !aiAnalysisResult || aiAnalysisResult.error) return;
+    const index = Number(button.dataset.analysisIndex);
+    if (!Number.isInteger(index) || !aiAnalysisResult.moves[index]) return;
+    aiAnalysisSelected = index;
+    draw();
+    renderAIAnalysis();
+  });
+  $('gameAnalysisMoves').addEventListener('click', e => {
+    const button = e.target.closest ? e.target.closest('button[data-game-analysis-index]') : null;
+    if (!button) return;
+    const index = Number(button.dataset.gameAnalysisIndex);
+    if (!Number.isInteger(index) || !fullGameResults[index]) return;
+    selectedFullGameIndex = index;
+    renderAIAnalysis();
+  });
+  $('analysisChart').addEventListener('click', e => {
+    if (!fullGameResults.length) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / Math.max(1,rect.width);
+    selectedFullGameIndex = Math.max(0,Math.min(fullGameResults.length-1,
+      Math.round(x*(fullGameResults.length-1))));
+    renderAIAnalysis();
+  });
+  $('autoRestart').onchange = () => {
+    if (!$('autoRestart').checked) { clearRestart(); update(); }
+    else if (phase === 'done') scheduleRestart();
+  };
+  $('menu').onclick = () => document.body.classList.toggle('show-opts');
+  ['mode', 'level', 'color', 'size'].forEach(id => ($(id).onchange = init));
+  $('pass').onclick = () => { if (canHuman() && phase === 'play') pass(); };
+  $('undo').onclick = undo;
+  $('resign').onclick = () => resign(mode === 'bot' ? human : turn);
+  $('score').onclick = countScore;
+  $('auto').onclick = autoMark;
+  if (window.__WEIQI_TEST) window.__WEIQI_TEST.api = { encodeKata, passAlive, parityWave, setBoard: (n, b) => { N = n; board = b; fastInit(n); }, get N() { return N; } };
+  window.addEventListener('resize', resize);
+  if (window.ResizeObserver) {
+    let lastW = 0;
+    new ResizeObserver(() => {
+      const w = $('wrap').clientWidth;
+      if (w && w !== lastW) { lastW = w; resize(); }
+    }).observe($('wrap'));
+  }
+  try { language = localStorage.getItem('weiqi-language') === 'en' ? 'en' : 'zh'; } catch (e) { language = 'zh'; }
+  applyLanguage(language, false);
+  initFirebase();
+  init();
+})();
+</script>
+</body>
+</html>
