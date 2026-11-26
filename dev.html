@@ -114,6 +114,7 @@
   .h-dot.b{background:radial-gradient(circle at 35% 30%,#5a5a5a,#0c0c0c 70%)}
   .h-dot.w{background:radial-gradient(circle at 35% 30%,#fff,#cfcdc4 80%);border:1px solid #aaa79b}
   .hist-empty{color:var(--muted);font-size:.85rem;padding:10px 4px}
+  .side-actions{display:flex;justify-content:flex-end;margin-top:12px}
   /* ---- end ---- */
   #endView{max-width:620px;width:100%;margin:4vh auto 0}
   #endView h2{font-size:1.6rem;letter-spacing:.06em}
@@ -216,6 +217,7 @@
         <div class="meta-row"><span id="timerLabel"></span><strong id="timer">00:00</strong></div>
         <h3 id="historyTitle"></h3>
         <ol id="history"></ol>
+        <div class="side-actions"><button class="btn small" id="sgfBtn"></button></div>
       </div>
     </div>
   </section>
@@ -230,6 +232,7 @@
     </div>
     <div class="end-actions">
       <button class="btn" id="viewBoardBtn"></button>
+      <button class="btn" id="sgfBtn2"></button>
       <button class="btn" id="homeBtn2"></button>
       <button class="btn primary" id="againBtn"></button>
     </div>
@@ -279,9 +282,10 @@
       ],
       endTitle:'對局結果', endDraw:'和棋',
       winBy:'{side}勝 {n} 目', resignWin:'{winner}獲勝（{loser}認輸）',
-      areaLine:'黑方 {b} 目 · 白方 {w} 目（含貼目 {k} 目）',
+      areaLine:'黑方 {b} 目 · 白方 {w} 目 · 另貼 {k} 目',
       areaBlack:'黑方實地', areaWhite:'白方實地＋貼目',
       viewBoard:'查看棋盤', playAgain:'再來一局', backHome:'返回設定',
+      sgfExport:'匯出 SGF', sgfExported:'已匯出 SGF 檔案', sgfExportFail:'匯出失敗，請再試一次',
       komiNote:'中國規則 · 9 路貼 7 目，13 / 19 路貼 7.5 目',
       devNote:'dev.html 為新版介面開發原型；正式版 index.html 保持不變。回報意見後可於每週更新時併入正式版。',
       theme:'切換深淺色'
@@ -311,9 +315,10 @@
       ],
       endTitle:'Game result', endDraw:'Draw',
       winBy:'{side} wins by {n} points', resignWin:'{winner} wins ({loser} resigned)',
-      areaLine:'Black {b} · White {w} (incl. komi {k})',
+      areaLine:'Black {b} · White {w} · plus komi {k}',
       areaBlack:'Black area', areaWhite:'White area + komi',
       viewBoard:'View board', playAgain:'Play again', backHome:'Back to settings',
+      sgfExport:'Export SGF', sgfExported:'SGF file exported', sgfExportFail:'Export failed, please try again',
       komiNote:'Chinese rules · komi 7 on 9×9, 7.5 on 13×13 / 19×19',
       devNote:'dev.html is the renewed-UI prototype; production index.html is unchanged. Feedback will be folded into the weekly update.',
       theme:'Toggle theme'
@@ -904,160 +909,37 @@
     list.scrollTop = list.scrollHeight;
   }
 
-  /* ============ drawing ============ */
-  let S = 0, pad = 0, cell = 0;
-  let placeAnims = [], removeAnims = [], animRaf = 0;
-  let hover = null;
-  function stars(){
-    if (N === 19) return [3, 9, 15].flatMap(a => [3, 9, 15].map(b => [a, b]));
-    if (N === 13) return [[3, 3], [3, 9], [9, 3], [9, 9], [6, 6]];
-    return [[2, 2], [2, 6], [6, 2], [6, 6], [4, 4]];
+  /* ============ SGF export ============ */
+  function sgfEscape(s){
+    return String(s).replace(/\\/g, '\\\\').replace(/\[/g, '\\[').replace(/\]/g, '\\]');
   }
-  function resizeBoard(){
-    const w = el('boardWrap').clientWidth || 360;
-    const dpr = window.devicePixelRatio || 1;
-    cv.width = Math.round(w * dpr);
-    cv.height = Math.round(w * dpr);
-    cv.style.height = w + 'px';
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    S = w;
-    pad = w / (N + 1) * 0.94;
-    cell = (w - pad * 2) / (N - 1);
-    draw();
-  }
-  function stone(px, py, color, alpha, scale){
-    const r = cell * 0.47 * (scale || 1);
-    g.save();
-    g.globalAlpha = alpha == null ? 1 : alpha;
-    g.beginPath();
-    g.arc(px + r * 0.08, py + r * 0.12, r, 0, 7);
-    g.fillStyle = 'rgba(0,0,0,.25)';
-    g.fill();
-    const grad = g.createRadialGradient(px - r * 0.35, py - r * 0.4, r * 0.1, px, py, r);
-    if (color === B){ grad.addColorStop(0, '#5b5b58'); grad.addColorStop(1, '#0d0d0c'); }
-    else { grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, '#cbc8bd'); }
-    g.beginPath();
-    g.arc(px, py, r, 0, 7);
-    g.fillStyle = grad;
-    g.fill();
-    g.restore();
-  }
-  function coordColor(){
-    const v = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
-    return v || '#888';
-  }
-  function draw(){
-    if (!S) return;
-    g.clearRect(0, 0, S, S);
-    const wood = g.createLinearGradient(0, 0, S, S);
-    wood.addColorStop(0, '#ecd9b4');
-    wood.addColorStop(1, '#dcc491');
-    g.fillStyle = wood;
-    g.fillRect(0, 0, S, S);
-    g.strokeStyle = 'rgba(70,52,26,.85)';
-    g.lineWidth = 1;
-    g.beginPath();
-    for (let i = 0; i < N; i++){
-      const p = pad + i * cell;
-      g.moveTo(pad, p + .5); g.lineTo(S - pad, p + .5);
-      g.moveTo(p + .5, pad); g.lineTo(p + .5, S - pad);
+  function buildSGF(){
+    const coord = p => p < 0 ? '' : String.fromCharCode(97 + (p % N)) + String.fromCharCode(97 + ((p / N) | 0));
+    const name = c => (mode === 'bot' && c === human) ? say('you') : (mode === 'bot' ? say('ai') + ' Lv' + level : say(c === B ? 'black' : 'white'));
+    let root = '(;GM[1]FF[4]CA[UTF-8]SZ[' + N + ']KM[' + komi() + ']DT[' + new Date().toISOString().slice(0, 10) + ']PB[' + sgfEscape(name(B)) + ']PW[' + sgfEscape(name(W)) + ']';
+    if (phase === 'done' && endData){
+      if (endData.type === 'resign') root += 'RE[' + (endData.winner === B ? 'B+R' : 'W+R') + ']';
+      else root += 'RE[' + (endData.winner === 0 ? '0' : (endData.winner === B ? 'B+' : 'W+') + endData.margin) + ']';
     }
-    g.stroke();
-    g.strokeRect(pad + .5, pad + .5, S - pad * 2, S - pad * 2);
-    g.fillStyle = '#463418';
-    for (const [sx, sy] of stars()){
-      g.beginPath();
-      g.arc(pad + sx * cell, pad + sy * cell, Math.max(2.4, cell * 0.09), 0, 7);
-      g.fill();
-    }
-    g.fillStyle = coordColor();
-    g.font = Math.max(9, Math.min(12, cell * 0.32)) + 'px system-ui,sans-serif';
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    for (let i = 0; i < N; i++){
-      g.fillText('ABCDEFGHJKLMNOPQRST'[i], pad + i * cell, S - pad * 0.34);
-      g.fillText(String(N - i), pad * 0.36, pad + i * cell);
-    }
-    const now = performance.now();
-    const placing = new Map(placeAnims.map(a => [a.p, a]));
-    const removing = removeAnims;
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
-      const p = idx(x, y), v = board[p];
-      if (!v) continue;
-      const a = placing.get(p);
-      const deadF = dead.has(p) ? 0.3 : 1;
-      if (a){
-        const t = Math.min(1, (now - a.t0) / 240);
-        const e = 1 - Math.pow(1 - t, 3);
-        stone(pad + x * cell, pad + y * cell, v, (0.35 + 0.65 * e) * deadF, 0.25 + 0.75 * e);
-      } else {
-        stone(pad + x * cell, pad + y * cell, v, deadF, 1);
-      }
-    }
-    for (const a of removing){
-      const t = Math.min(1, (now - a.t0) / 200);
-      stone(pad + (a.p % N) * cell, pad + ((a.p / N) | 0) * cell, a.color, 0.9 * (1 - t), 1 - 0.5 * t);
-    }
-    if (lastMove && phase === 'play'){
-      const [lx, ly] = lastMove;
-      g.beginPath();
-      g.arc(pad + lx * cell, pad + ly * cell, cell * 0.17, 0, 7);
-      g.strokeStyle = board[idx(lx, ly)] === B ? '#fff' : '#111';
-      g.lineWidth = 2;
-      g.stroke();
-    }
-    if (hover && canPlay() && board[idx(hover[0], hover[1])] === EMPTY)
-      stone(pad + hover[0] * cell, pad + hover[1] * cell, turn, 0.4, 1);
+    let sgf = root;
+    for (const m of moveLog) sgf += ';' + (m.c === B ? 'B' : 'W') + '[' + coord(m.p) + ']';
+    return sgf + ')';
   }
-  function startAnim(before, after){
-    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce){ draw(); return; }
-    const now = performance.now();
-    placeAnims = placeAnims.filter(a => now - a.t0 < 240);
-    removeAnims = removeAnims.filter(a => now - a.t0 < 200);
-    for (let p = 0; p < N * N; p++){
-      if (before[p] !== after[p]){
-        if (after[p]) placeAnims.push({ p: p, color: after[p], t0: now });
-        else removeAnims.push({ p: p, color: before[p], t0: now });
-      }
+  function exportSGF(){
+    try {
+      const blob = new Blob([buildSGF()], { type: 'application/x-go-sgf' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'weiqi-' + N + 'x' + N + '-' + new Date().toISOString().slice(0, 10) + '.sgf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      flash(say('sgfExported'));
+    } catch (e) {
+      flash(say('sgfExportFail'));
     }
-    if (!animRaf && (placeAnims.length || removeAnims.length))
-      animRaf = requestAnimationFrame(tickAnim);
-    else draw();
   }
-  function tickAnim(){
-    const now = performance.now();
-    placeAnims = placeAnims.filter(a => now - a.t0 < 240);
-    removeAnims = removeAnims.filter(a => now - a.t0 < 200);
-    draw();
-    if (placeAnims.length || removeAnims.length)
-      animRaf = requestAnimationFrame(tickAnim);
-    else { animRaf = 0; draw(); }
-  }
-
-  /* ============ input ============ */
-  function pointFromEvent(e){
-    const rect = cv.getBoundingClientRect();
-    const sx = S / rect.width;
-    const px = (e.clientX - rect.left) * sx;
-    const py = (e.clientY - rect.top) * sx;
-    const x = Math.round((px - pad) / cell);
-    const y = Math.round((py - pad) / cell);
-    if (x < 0 || y < 0 || x >= N || y >= N) return null;
-    return [x, y];
-  }
-  cv.addEventListener('pointermove', e => {
-    if (e.pointerType === 'touch') return;
-    const p = pointFromEvent(e);
-    if (!hover || !p || hover[0] !== p[0] || hover[1] !== p[1]){ hover = p; draw(); }
-  });
-  cv.addEventListener('pointerleave', () => { hover = null; draw(); });
-  cv.addEventListener('click', e => {
-    if (phase === 'done') return;
-    const p = pointFromEvent(e);
-    if (!p) return;
-    if (phase === 'mark'){ toggleDead(p[0], p[1]); return; }
-    if (canPlay()) play(p[0], p[1]);
-  });
 
   /* ============ language / theme ============ */
   function setOpts(sel, keys, vals){
@@ -1114,6 +996,8 @@
     el('blackName').textContent = say('black');
     el('whiteName').textContent = say('white');
     el('viewBoardBtn').textContent = say('viewBoard');
+    el('sgfBtn').textContent = say('sgfExport');
+    el('sgfBtn2').textContent = say('sgfExport');
     el('homeBtn2').textContent = say('backHome');
     el('againBtn').textContent = say('playAgain');
     el('devNote').textContent = say('devNote');
@@ -1146,6 +1030,8 @@
   el('homeBtn2').onclick = showSetup;
   el('againBtn').onclick = init;
   el('viewBoardBtn').onclick = () => { el('endView').hidden = true; el('gameView').hidden = false; render(); };
+  el('sgfBtn').onclick = exportSGF;
+  el('sgfBtn2').onclick = exportSGF;
   el('undo').onclick = undo;
   el('pass').onclick = () => { if (canPlay()) pass(); };
   el('count').onclick = countScore;
