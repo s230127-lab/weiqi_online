@@ -1,0 +1,94 @@
+diff --git a/beta.html b/beta.html
+index 5f288d7..84ed560 100644
+--- a/beta.html
++++ b/beta.html
+@@ -712,6 +712,7 @@
+     <span class="game-clock"><span id="gameTimerLabel">用時</span><strong id="gameTimer">00:00</strong></span>
+     <button id="timerToggle" type="button">停止計時</button>
+     <button id="gameLeaderboardBtn">等級排行榜</button>
++    <button id="stableSwitchBtn">返回正式版</button>
+     <select id="gameLang" aria-label="Language"><option value="zh">繁中</option><option value="en">EN</option></select>
+     <button id="headerAuth">Google 登入</button>
+     <button id="menu" style="display:none">設定</button>
+@@ -881,7 +882,7 @@
+       rankTitle:"排行榜 · 前 10 名", refresh:"重新整理", noRanks:"目前還沒有排名紀錄。",
+       loadRanksFailed:"暫時無法載入排行榜。請稍後再試。",
+       black:"黑方", white:"白方",
+-      home:"首頁", gameLeaderboard:"排行榜", close:"關閉", timerLabel:"用時",
++      home:"首頁", gameLeaderboard:"排行榜", close:"關閉", timerLabel:"用時", switchStable:"返回正式版",
+       timerStop:"停止計時",timerResume:"繼續計時",timerAnalysis:"AI 分析中（計時暫停）",
+       levelRankTitle:"各等級最快勝局", rankLevel:"電腦等級", noLevelRanks:"這個等級尚無勝局紀錄。",
+       loadLevelRanksFailed:"暫時無法載入此等級排行榜。", levelTimeSaved:"已更新此等級的個人最佳時間。",
+@@ -968,7 +969,7 @@
+       rankTitle:"Leaderboard · Top 10",refresh:"Refresh",noRanks:"No ranked games yet.",
+       loadRanksFailed:"The leaderboard is temporarily unavailable. Please try again.",
+       black:"Black",white:"White",
+-      home:"Home", gameLeaderboard:"Leaderboard", close:"Close", timerLabel:"Time",
++      home:"Home", gameLeaderboard:"Leaderboard", close:"Close", timerLabel:"Time", switchStable:"Use stable",
+       timerStop:"Stop timer",timerResume:"Resume timer",timerAnalysis:"AI analysis (timer paused)",
+       levelRankTitle:"Fastest wins by level", rankLevel:"Computer level", noLevelRanks:"No winning records for this level yet.",
+       loadLevelRanksFailed:"This level's leaderboard is temporarily unavailable.", levelTimeSaved:"Your personal best for this level has been updated.",
+@@ -1108,7 +1109,7 @@
+     const labels = {
+       launchBtn:'launch',rulesStart:'play',rulesBack:'back',guideBtn:'guideButton',googleSignIn:'signIn',headerAuth:currentUser?'signOut':'signIn',
+       refreshRanks:'refresh',leaderboardTitle:'rankTitle',rulesTitle:'rulesTitle',rulesIntro:'rulesIntro',
+-      homeBtn:'home',gameLeaderboardBtn:'gameLeaderboard',gameLeaderboardTitle:'rankTitle',refreshGameRanks:'refresh',closeGameLeaderboard:'close',
++      homeBtn:'home',stableSwitchBtn:'switchStable',gameLeaderboardBtn:'gameLeaderboard',gameLeaderboardTitle:'rankTitle',refreshGameRanks:'refresh',closeGameLeaderboard:'close',
+       menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
+       endHomeBtn:'endHome',endNewGameBtn:'endNewGame',
+       autoRestartLabel:'autoRestart',analyzePositionBtn:'analyzePosition',analyzeFullGameBtn:'analyzeFullGame',
+@@ -3732,6 +3733,7 @@
+   $('googleSignIn').onclick = handleGoogleAuth;
+   $('headerAuth').onclick = handleGoogleAuth;
+   $('homeBtn').onclick = returnHome;
++  $('stableSwitchBtn').onclick = function () { location.href = 'index.html'; };
+   $('endHomeBtn').onclick = returnHome;
+   $('endNewGameBtn').onclick = init;
+   $('gameLeaderboardBtn').onclick = openGameLeaderboard;
+diff --git a/index.html b/index.html
+index d570e44..b5018ea 100644
+--- a/index.html
++++ b/index.html
+@@ -521,6 +521,7 @@
+     <span class="game-clock"><span id="gameTimerLabel">用時</span><strong id="gameTimer">00:00</strong></span>
+     <button id="timerToggle" type="button">停止計時</button>
+     <button id="gameLeaderboardBtn">等級排行榜</button>
++    <button id="betaSwitchBtn">試用測試版</button>
+     <select id="gameLang" aria-label="Language"><option value="zh">繁中</option><option value="en">EN</option></select>
+     <button id="headerAuth">Google 登入</button>
+     <button id="menu" style="display:none">設定</button>
+@@ -690,7 +691,7 @@
+       rankTitle:"排行榜 · 前 10 名", refresh:"重新整理", noRanks:"目前還沒有排名紀錄。",
+       loadRanksFailed:"暫時無法載入排行榜。請稍後再試。",
+       black:"黑方", white:"白方",
+-      home:"首頁", gameLeaderboard:"排行榜", close:"關閉", timerLabel:"用時",
++      home:"首頁", gameLeaderboard:"排行榜", close:"關閉", timerLabel:"用時", tryBeta:"試用測試版",
+       timerStop:"停止計時",timerResume:"繼續計時",timerAnalysis:"AI 分析中（計時暫停）",
+       levelRankTitle:"各等級最快勝局", rankLevel:"電腦等級", noLevelRanks:"這個等級尚無勝局紀錄。",
+       loadLevelRanksFailed:"暫時無法載入此等級排行榜。", levelTimeSaved:"已更新此等級的個人最佳時間。",
+@@ -777,7 +778,7 @@
+       rankTitle:"Leaderboard · Top 10",refresh:"Refresh",noRanks:"No ranked games yet.",
+       loadRanksFailed:"The leaderboard is temporarily unavailable. Please try again.",
+       black:"Black",white:"White",
+-      home:"Home", gameLeaderboard:"Leaderboard", close:"Close", timerLabel:"Time",
++      home:"Home", gameLeaderboard:"Leaderboard", close:"Close", timerLabel:"Time", tryBeta:"Try beta",
+       timerStop:"Stop timer",timerResume:"Resume timer",timerAnalysis:"AI analysis (timer paused)",
+       levelRankTitle:"Fastest wins by level", rankLevel:"Computer level", noLevelRanks:"No winning records for this level yet.",
+       loadLevelRanksFailed:"This level's leaderboard is temporarily unavailable.", levelTimeSaved:"Your personal best for this level has been updated.",
+@@ -917,7 +918,7 @@
+     const labels = {
+       launchBtn:'launch',rulesStart:'play',rulesBack:'back',guideBtn:'guideButton',googleSignIn:'signIn',headerAuth:currentUser?'signOut':'signIn',
+       refreshRanks:'refresh',leaderboardTitle:'rankTitle',rulesTitle:'rulesTitle',rulesIntro:'rulesIntro',
+-      homeBtn:'home',gameLeaderboardBtn:'gameLeaderboard',gameLeaderboardTitle:'rankTitle',refreshGameRanks:'refresh',closeGameLeaderboard:'close',
++      homeBtn:'home',betaSwitchBtn:'tryBeta',gameLeaderboardBtn:'gameLeaderboard',gameLeaderboardTitle:'rankTitle',refreshGameRanks:'refresh',closeGameLeaderboard:'close',
+       menu:'menu',new:'newGame',undo:'undo',pass:'pass',resign:'resign',auto:'autoMark',score:'score',
+       endHomeBtn:'endHome',endNewGameBtn:'endNewGame',
+       autoRestartLabel:'autoRestart',analyzePositionBtn:'analyzePosition',analyzeFullGameBtn:'analyzeFullGame',
+@@ -3541,6 +3542,7 @@
+   $('googleSignIn').onclick = handleGoogleAuth;
+   $('headerAuth').onclick = handleGoogleAuth;
+   $('homeBtn').onclick = returnHome;
++  $('betaSwitchBtn').onclick = function () { location.href = 'beta.html'; };
+   $('endHomeBtn').onclick = returnHome;
+   $('endNewGameBtn').onclick = init;
+   $('gameLeaderboardBtn').onclick = openGameLeaderboard;
