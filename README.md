@@ -172,7 +172,7 @@ python -m http.server 8000
 ```text
 .
 ├── index.html
-├── dev.html
+├── beta.html
 ├── leela-engine.html
 ├── firestore.rules
 ├── LEELA_ZERO_LICENSE.txt
@@ -184,9 +184,9 @@ python -m http.server 8000
         └── weekly-apply.yml
 ```
 
-## 開發版介面（dev.html）
+## Beta 介面（beta.html）
 
-[dev.html](./dev.html) 是新版介面的開發原型，用於在不影響正式版 [index.html](./index.html) 的情況下開發及試用介面改版。原型目前提供人機對弈（三種棋力）、雙人對弈、9／13／19 路棋盤、終局死子標記與數子、棋譜列表、用時顯示，並可匯出 SGF 棋譜；深淺色主題及繁中／英文介面選擇會保存在瀏覽器中。原型仍在開發中，尚未包含 KataGo／Leela Zero 分析、Firebase 排行榜及新手導覽；介面與功能可能隨每週更新調整，歡迎透過 Issues 回報意見。
+[beta.html](./beta.html) 是新版介面的 Beta 預覽，引擎與功能與正式版 [index.html](./index.html) 相同（人機對弈六種棋力、雙人及面對面對弈、9／13／19 路棋盤、KataGo／Kaya 風格 AI 分析、Google 登入與 Firebase 排行榜、新手導覽），差別在於 Beta 版採用重新設計的介面樣式；歡迎頁及遊戲畫面會顯示 BETA 標記以資識別。介面樣式可能隨每週更新調整，正式版不受影響，歡迎透過 Issues 回報意見。
 
 ## 自動檢查
 

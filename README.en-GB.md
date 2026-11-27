@@ -172,7 +172,7 @@ Website: https://s230127-lab.github.io/weiqi_online/
 ```text
 .
 ├── index.html
-├── dev.html
+├── beta.html
 ├── leela-engine.html
 ├── firestore.rules
 ├── LEELA_ZERO_LICENSE.txt
@@ -184,9 +184,9 @@ Website: https://s230127-lab.github.io/weiqi_online/
         └── weekly-apply.yml
 ```
 
-## Dev interface (dev.html)
+## Beta interface (beta.html)
 
-[dev.html](./dev.html) is a prototype of the renewed interface, used to develop and try out UI changes without affecting the production [index.html](./index.html). It currently offers play against the computer (three levels), two-player mode, 9×9/13×13/19×19 boards, end-game dead-stone marking and counting, a move list, an elapsed-time display, and SGF export of the game record. The dark/light theme and the Traditional Chinese/English interface choice are saved in the browser. The prototype is still in development: KataGo/Leela Zero analysis, the Firebase leaderboard and the first-time guide are not included yet, and the interface may change with weekly updates. Feedback is welcome through Issues.
+[beta.html](./beta.html) is a beta preview of the renewed interface. The engine and features match the production [index.html](./index.html): six computer levels, two-player and face-to-face play, 9×9/13×13/19×19 boards, KataGo/Kaya-style AI analysis, Google sign-in with the Firebase leaderboard, and the first-time guide. The difference is the redesigned interface styling; a BETA badge on the welcome screen and in the game header marks the preview. The styling may change with weekly updates while the production page is unaffected, and feedback is welcome through Issues.
 
 ## Automated checks
 

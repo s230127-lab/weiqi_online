@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>圍棋 · Dev UI</title>
+<title>圍棋 · Beta UI</title>
 <style>
   :root {
     --bg: #eceae4;
@@ -446,7 +446,7 @@
 </style>
 <style id="devRenewUI">
   /* ==================================================================
-     dev.html renewed UI layer  —  same engine & features as index.html.
+     beta.html renewed UI layer  —  same engine & features as index.html.
      "liquid glass" buttons, techniques per freefrontend.com/css-liquid-glass/:
        - frosted volume: backdrop-filter blur + saturate
        - dual opposing specular highlights via inset box-shadows
@@ -605,9 +605,9 @@
     box-shadow: 0 18px 50px -24px rgba(30,40,30,.5);
   }
   #c { border-radius: 12px; box-shadow: 0 14px 34px -20px rgba(30,40,30,.45); }
-  /* DEV badge — welcome screen, next to the language select (not glass) */
+  /* BETA badge — welcome screen, next to the language select (not glass) */
   #welcome .entry-tools::before {
-    content: "DEV UI";
+    content: "BETA UI";
     flex: none;
     font: 700 11px/1 system-ui, sans-serif;
     letter-spacing: .14em;
@@ -619,9 +619,9 @@
     align-self: center;
     pointer-events: none;
   }
-  /* DEV badge — in-game header title (not glass) */
+  /* BETA badge — in-game header title (not glass) */
   header h1::after {
-    content: "DEV";
+    content: "BETA";
     font: 700 10px/1 system-ui, sans-serif;
     letter-spacing: .14em;
     color: #b8912f;
@@ -865,7 +865,7 @@
 
   const I18N = {
     zh: {
-      launch:"開始遊戲", play:"開始對弈", back:"返回", rulesTitle:"圍棋規則",
+      homeTitle:"圍棋", launch:"開始遊戲", play:"開始對弈", back:"返回", rulesTitle:"圍棋規則",
       welcomeSubtitle:"與電腦對弈，或與朋友在同一部裝置上對弈。支援手機、平板與電腦。",
       guideButton:"新手導覽",guideTitle:"圍棋新手導覽",guideProgress:"第 {current} 步，共 {total} 步",
       guidePrevious:"上一步",guideNext:"下一步",guideFinish:"完成",guideSkip:"略過導覽",guideClose:"關閉導覽",
@@ -952,7 +952,7 @@
       ]
     },
     en: {
-      launch:"Start game",play:"Play",back:"Back",rulesTitle:"Rules of Go",
+      homeTitle:"Go",launch:"Start game",play:"Play",back:"Back",rulesTitle:"Rules of Go",
       welcomeSubtitle:"Play against the computer or a friend on the same device. Works on phones, tablets and computers.",
       guideButton:"How to play",guideTitle:"A quick guide to Go",guideProgress:"Step {current} of {total}",
       guidePrevious:"Previous",guideNext:"Next",guideFinish:"Finish",guideSkip:"Skip guide",guideClose:"Close guide",
@@ -1123,6 +1123,7 @@
       const visitLabels = ['analysisVisitFast','analysisVisitBalanced','analysisVisitDeep','analysisVisitMax'];
       visitLabels.forEach((key,i) => { if ($('analysisVisits').options[i]) $('analysisVisits').options[i].text = say(key); });
     }
+    $('welcomeTitle').textContent = say('homeTitle');
     $('welcomeSubtitle').textContent = say('welcomeSubtitle');
     if ($('gameTimerLabel')) $('gameTimerLabel').textContent = say('timerLabel');
     const modeOpts = $('mode').options;
