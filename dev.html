@@ -447,15 +447,18 @@
 <style id="devRenewUI">
   /* ==================================================================
      dev.html renewed UI layer  —  same engine & features as index.html.
-     v2 "liquid glass" buttons, techniques per freefrontend.com/css-liquid-glass/:
+     "liquid glass" buttons, techniques per freefrontend.com/css-liquid-glass/:
        - frosted volume: backdrop-filter blur + saturate
        - dual opposing specular highlights via inset box-shadows
        - ambient light refraction sheen via ::before radial gradients
        - readable labels: isolation:isolate + z-index:-1 sheen layer
        - graceful degradation (@supports) + prefers-reduced-motion guards
+     v4: pill-shaped "egg bubble" glass restored for all buttons and
+     selects (user preference). Sole exception: the Kaya AI-analysis
+     candidate tiles (.analysis-moves button) keep their glass in
+     rounded rectangles (12px), per user request.
      This block is appended last and only overrides visuals: no game
-     logic, i18n or analysis behaviour is changed. Metrics (radius,
-     padding, min-height) intentionally stay identical to v1.
+     logic, i18n or analysis behaviour is changed.
      ================================================================== */
   :root {
     --bg: #f4f1ea;
@@ -490,6 +493,8 @@
     backdrop-filter: blur(12px) saturate(160%);
     box-shadow: var(--glass-shadow), var(--glass-spec);
   }
+  /* glass bubbles: pill-shaped "egg" glass for buttons; selects stay
+     rounded rectangles for legible option text */
   select, button {
     border-radius: 999px;
     padding: 9px 16px;
@@ -497,8 +502,14 @@
     transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
   }
   select { border-radius: 12px; color: var(--ink); }
+  /* Kaya AI-analysis candidate tiles: same liquid glass, but the shape
+     is a rounded rectangle (user request). Higher specificity than the
+     pill rule above, and the ::before sheen follows via inherit. */
+  .analysis-moves button { border-radius: 12px; }
   /* ambient-light sheen: above the fill, below the label (z-index:-1
-     inside the isolated button stacking context) — curved-crystal feel */
+     inside the isolated button stacking context) — curved-crystal feel;
+     border-radius:inherit keeps the sheen inside pill AND rounded-rect
+     glass alike */
   button::before {
     content: "";
     position: absolute;
@@ -552,7 +563,8 @@
   button.primary:active:not(:disabled) {
     box-shadow: 0 6px 16px -10px rgba(47,109,90,.6), inset 0 2px 8px rgba(12,30,24,.3), inset 0 1px 0 rgba(255,255,255,.4);
   }
-  /* pressed AI-analysis toggles keep an accent glass so state stays obvious */
+  /* pressed AI-analysis toggles keep an accent glass so state stays obvious
+     (candidate tiles stay rounded-rect: radius comes from the element) */
   .analysis-moves button[aria-pressed="true"],
   .game-analysis-list button[aria-pressed="true"] {
     border-color: rgba(255,255,255,.55);
@@ -570,7 +582,7 @@
     button:hover:not(:disabled) { transform: none; }
     button:active:not(:disabled) { transform: none; }
   }
-  /* ---- surfaces (unchanged from v1) ---- */
+  /* ---- surfaces (unchanged since v1) ---- */
   .entry-card {
     background: var(--panel);
     border-radius: 18px;
@@ -593,7 +605,7 @@
     box-shadow: 0 18px 50px -24px rgba(30,40,30,.5);
   }
   #c { border-radius: 12px; box-shadow: 0 14px 34px -20px rgba(30,40,30,.45); }
-  /* DEV badge — welcome screen, next to the language select */
+  /* DEV badge — welcome screen, next to the language select (not glass) */
   #welcome .entry-tools::before {
     content: "DEV UI";
     flex: none;
@@ -607,7 +619,7 @@
     align-self: center;
     pointer-events: none;
   }
-  /* DEV badge — in-game header title */
+  /* DEV badge — in-game header title (not glass) */
   header h1::after {
     content: "DEV";
     font: 700 10px/1 system-ui, sans-serif;
